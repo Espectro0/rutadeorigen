@@ -22,32 +22,35 @@ components:
 
 deps:
 
-  domain: {}
-
-  dto: {}
-
-  outputPorts:
+  domain:
     mayDependOn: [domain]
 
-  usecases:
-    mayDependOn: [domain, outputPorts]
-
-  inputPorts:
+  dto:
     mayDependOn: [dto]
 
+  outputPorts:
+    mayDependOn: [outputPorts, domain]
+
+  usecases:
+    mayDependOn: [usecases, domain, outputPorts]
+
+  inputPorts:
+    mayDependOn: [inputPorts, dto]
+
   inputAdapters:
-    mayDependOn: [inputPorts, dto, usecases, domain]
+    mayDependOn: [inputAdapters, inputPorts, dto, usecases, domain]
 
   infraInput:
     anyVendorDeps: true
-    mayDependOn: [inputPorts, dto, platform]
+    mayDependOn: [infraInput, inputPorts, dto, platform]
 
   infraOutput:
     anyVendorDeps: true
-    mayDependOn: [outputPorts, domain, platform]
+    mayDependOn: [infraOutput, outputPorts, domain, platform]
 
   platform:
     anyVendorDeps: true
+    mayDependOn: [platform]
 
   main:
     anyVendorDeps: true
