@@ -1,0 +1,54 @@
+version: 3
+workdir: .
+
+allow:
+  depOnAnyVendor: false
+  ignoreNotFoundComponents: true
+
+excludeFiles:
+  - "^.*_test\\.go$"
+
+components:
+  main:           { in: [cmd/**] }
+  domain:         { in: [internal/domain, internal/domain/**] }
+  dto:            { in: [internal/application/input/dto/**] }
+  inputPorts:     { in: [internal/application/input/ports, internal/application/input/ports/**] }
+  inputAdapters:  { in: [internal/application/input/adapters, internal/application/input/adapters/**] }
+  usecases:       { in: [internal/application/usecases, internal/application/usecases/**] }
+  outputPorts:    { in: [internal/application/output/ports, internal/application/output/ports/**] }
+  infraInput:     { in: [internal/infrastructure/input/**] }
+  infraOutput:    { in: [internal/infrastructure/output/**] }
+  platform:       { in: [internal/platform, internal/platform/**] }
+
+deps:
+
+  domain: {}
+
+  dto: {}
+
+  outputPorts:
+    mayDependOn: [domain]
+
+  usecases:
+    mayDependOn: [domain, outputPorts]
+
+  inputPorts:
+    mayDependOn: [dto]
+
+  inputAdapters:
+    mayDependOn: [inputPorts, dto, usecases, domain]
+
+  infraInput:
+    anyVendorDeps: true
+    mayDependOn: [inputPorts, dto, platform]
+
+  infraOutput:
+    anyVendorDeps: true
+    mayDependOn: [outputPorts, domain, platform]
+
+  platform:
+    anyVendorDeps: true
+
+  main:
+    anyVendorDeps: true
+    anyProjectDeps: true

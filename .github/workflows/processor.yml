@@ -1,0 +1,22 @@
+name: processor
+
+on:
+  pull_request:
+    paths:
+      - "services/processor/**"
+      - ".github/workflows/_go-service.yml"
+      - ".golangci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "services/processor/**"
+      - ".github/workflows/_go-service.yml"
+      - ".golangci.yml"
+
+jobs:
+  ci:
+    uses: ./.github/workflows/_go-service.yml
+    with:
+      service: processor
+      build-image: false
+    secrets: inherit

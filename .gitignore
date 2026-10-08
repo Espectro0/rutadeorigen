@@ -1,0 +1,22 @@
+# Bins
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Tests
+*.test
+*.out
+coverage.*
+
+# Secret Keys
+.env
+.env.*
+
+# IDE
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,8 @@
+go 1.27
+
+use (
+	./services/notifications
+	./services/processor
+	./services/qr
+	./services/traceability
+)

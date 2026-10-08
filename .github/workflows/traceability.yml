@@ -1,0 +1,22 @@
+name: traceability
+
+on:
+  pull_request:
+    paths:
+      - "services/traceability/**"
+      - ".github/workflows/_go-service.yml"
+      - ".golangci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "services/traceability/**"
+      - ".github/workflows/_go-service.yml"
+      - ".golangci.yml"
+
+jobs:
+  ci:
+    uses: ./.github/workflows/_go-service.yml
+    with:
+      service: traceability
+      build-image: false
+    secrets: inherit

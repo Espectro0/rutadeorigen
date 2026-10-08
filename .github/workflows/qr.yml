@@ -1,0 +1,22 @@
+name: qr
+
+on:
+  pull_request:
+    paths:
+      - "services/qr/**"
+      - ".github/workflows/_go-service.yml"
+      - ".golangci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "services/qr/**"
+      - ".github/workflows/_go-service.yml"
+      - ".golangci.yml"
+
+jobs:
+  ci:
+    uses: ./.github/workflows/_go-service.yml
+    with:
+      service: qr
+      build-image: false
+    secrets: inherit
