@@ -76,7 +76,7 @@ jobs:
         run: docker build -f services/${{ inputs.service }}/Dockerfile -t ${{ inputs.service }}:${{ github.sha }} .
 
       - name: Escanear imagen
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ inputs.service }}:${{ github.sha }}
           severity: CRITICAL,HIGH
