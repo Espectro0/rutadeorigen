@@ -1,0 +1,4 @@
+services:
+  qr:
+    tag: "86e3b6eebb7371f72b03e4c74de55b0b44e62ca6"
+    replicas: 1

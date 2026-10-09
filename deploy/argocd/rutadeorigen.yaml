@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rutadeorigen
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Espectro0/rutadeorigen.git
+    targetRevision: main
+    path: deploy/chart
+    helm:
+      valueFiles:
+        - values/qr.yaml
+        - values/traceability.yaml
+        - values/processor.yaml
+        - values/notifications.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: rutadeorigen
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
