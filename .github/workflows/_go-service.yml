@@ -70,17 +70,26 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    outputs:
+      image: ${{ steps.nombre.outputs.image }}
     steps:
       - name: Descargar código
         uses: actions/checkout@v7.0.1
 
+      - name: Definir nombre de la imagen
+        id: nombre
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/rutadeorigen/${{ inputs.service }}"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
       - name: Construir imagen
-        run: docker build -f services/${{ inputs.service }}/Dockerfile -t ${{ inputs.service }}:${{ github.sha }} .
+        run: docker build -f services/${{ inputs.service }}/Dockerfile -t "$IMAGE:${{ github.sha }}" .
 
       - name: Escanear imagen
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ${{ inputs.service }}:${{ github.sha }}
+          image-ref: ${{ env.IMAGE }}:${{ github.sha }}
           severity: CRITICAL,HIGH
           ignore-unfixed: true
           exit-code: "1"
