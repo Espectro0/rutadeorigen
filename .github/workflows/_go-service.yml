@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   quality:
-    name: Calidad (${{ inputs.service }})
+    name: CI · Calidad (${{ inputs.service }})
     runs-on: ubuntu-latest
     env:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -64,10 +64,12 @@ jobs:
           projectBaseDir: services/${{ inputs.service }}
 
   image:
-    name: Imagen (${{ inputs.service }})
+    name: CI · Imagen (${{ inputs.service }})
     needs: quality
     if: inputs.build-image
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Descargar código
         uses: actions/checkout@v7.0.1
@@ -82,3 +84,45 @@ jobs:
           severity: CRITICAL,HIGH
           ignore-unfixed: true
           exit-code: "1"
+
+      - name: Guardar imagen
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: docker save -o /tmp/imagen.tar "$IMAGE:${{ github.sha }}"
+
+      - name: Subir imagen como artifact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v7
+        with:
+          name: imagen-${{ inputs.service }}
+          path: /tmp/imagen.tar
+          retention-days: 1
+
+  publish:
+    name: CD · Publicar (${{ inputs.service }})
+    needs: image
+    if: inputs.build-image && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ${{ needs.image.outputs.image }}
+    steps:
+      - name: Descargar imagen
+        uses: actions/download-artifact@v8
+        with:
+          name: imagen-${{ inputs.service }}
+          path: /tmp
+
+      - name: Cargar imagen
+        run: docker load -i /tmp/imagen.tar
+
+      - name: Login en GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publicar imagen
+        run: docker push "$IMAGE:${{ github.sha }}"
