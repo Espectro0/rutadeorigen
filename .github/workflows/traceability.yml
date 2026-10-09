@@ -21,6 +21,10 @@ on:
 
 jobs:
   ci:
+    name: traceability
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/_go-service.yml
     with:
       service: traceability
