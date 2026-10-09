@@ -6,17 +6,23 @@ on:
       - "services/notifications/**"
       - ".github/workflows/_go-service.yml"
       - ".golangci.yml"
+      - "go.work"
+      - "lib/**"
+      - ".dockerignore"
   push:
     branches: [main]
     paths:
       - "services/notifications/**"
       - ".github/workflows/_go-service.yml"
       - ".golangci.yml"
+      - "go.work"
+      - "lib/**"
+      - ".dockerignore"
 
 jobs:
   ci:
     uses: ./.github/workflows/_go-service.yml
     with:
       service: notifications
-      build-image: false
+      build-image: true
     secrets: inherit

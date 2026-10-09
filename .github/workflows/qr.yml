@@ -6,17 +6,23 @@ on:
       - "services/qr/**"
       - ".github/workflows/_go-service.yml"
       - ".golangci.yml"
+      - "go.work"
+      - "lib/**"
+      - ".dockerignore"
   push:
     branches: [main]
     paths:
       - "services/qr/**"
       - ".github/workflows/_go-service.yml"
       - ".golangci.yml"
+      - "go.work"
+      - "lib/**"
+      - ".dockerignore"
 
 jobs:
   ci:
     uses: ./.github/workflows/_go-service.yml
     with:
       service: qr
-      build-image: false
+      build-image: true
     secrets: inherit

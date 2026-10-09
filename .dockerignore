@@ -1,0 +1,21 @@
+# Ignore
+.git
+.github
+.idea
+.vscode
+deploy
+docs
+
+# Bins
+**/bin
+**/*.exe
+**/*.test
+**/*.out
+**/coverage.*
+**/.env
+**/.env.*
+
+# Config Files
+**/.go-arch-lint.yml
+**/sonar-project.properties
+**/.gitkeep
