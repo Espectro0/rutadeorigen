@@ -146,7 +146,7 @@ jobs:
     permissions:
       contents: read
     concurrency:
-      group: deploy-main
+      group: deploy-main-${{ inputs.service }}
       cancel-in-progress: false
     steps:
       - name: Descargar código
@@ -168,8 +168,8 @@ jobs:
             exit 0
           fi
           git commit -m "chore(deploy): deploy ${{ inputs.service }} ${GITHUB_SHA::7}"
-          for intento in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             git pull --rebase origin main && git push origin HEAD:main && exit 0
-            sleep 5
+            sleep $((RANDOM % 10 + 3))
           done
           exit 1
