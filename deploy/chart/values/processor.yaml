@@ -1,4 +1,4 @@
 services:
   processor:
-    tag: "20afe05f8ac261d6efbcf6ef688a4e44db5fe4f0"
+    tag: "a3f79250e1693893b832de3c996937eb161a779f"
     replicas: 1
