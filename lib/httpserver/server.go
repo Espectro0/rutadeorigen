@@ -56,7 +56,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	if err == nil || errors.Is(err, http.ErrServerClosed) {
 		return nil
 	}
-	return fmt.Errorf("shutdown: %v", err)
+	return fmt.Errorf("shutdown: %w", err)
 }
 
 func (s *Server) Addr() string {

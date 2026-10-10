@@ -9,11 +9,15 @@ linters:
     - gosec      # seguridad del código (SAST)
     - revive     # buenas prácticas y estilo de Go
     - errorlint  # manejo correcto de errores envueltos
+    - wrapcheck  # errores de librerías externas sin envolver
     - bodyclose  # respuestas HTTP sin cerrar
     - gocyclo    # funciones demasiado complejas
   settings:
     gocyclo:
       min-complexity: 15
+    wrapcheck:
+      ignore-package-globs:
+        - rutadeorigen/*
   exclusions:
     generated: lax
     presets:
@@ -22,7 +26,7 @@ linters:
       - std-error-handling
     rules:
       - path: _test\.go
-        linters: [gosec, errcheck]
+        linters: [gosec, errcheck, wrapcheck]
 
 formatters:
   enable:

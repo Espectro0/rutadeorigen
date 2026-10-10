@@ -1,0 +1,48 @@
+name: lib
+
+on:
+  pull_request:
+    paths:
+      - "lib/**"
+      - ".github/workflows/lib.yml"
+      - ".golangci.yml"
+      - "go.work"
+  push:
+    branches: [main]
+    paths:
+      - "lib/**"
+      - ".github/workflows/lib.yml"
+      - ".golangci.yml"
+      - "go.work"
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: CI · Calidad (lib)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lib
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v7.0.1
+
+      - name: Instalar Go
+        uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: lib/go.mod
+          cache: false
+
+      - name: Formato, análisis estático y seguridad
+        uses: golangci/golangci-lint-action@v9.3.0
+        with:
+          version: latest
+          working-directory: lib
+
+      - name: Tests y cobertura
+        run: go test -race -covermode=atomic -coverprofile=coverage.out ./...
+
+      - name: Vulnerabilidades de dependencias
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
