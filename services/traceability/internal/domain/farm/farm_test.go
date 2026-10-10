@@ -105,8 +105,8 @@ func TestDefault(t *testing.T) {
 		t.Error("expected each call to return a new copy")
 	}
 
-	real, _ := farm.New(uuid.New(), "La Esperanza", 1650)
-	if real.IsDefault() {
+	created, _ := farm.New(uuid.New(), "La Esperanza", 1650)
+	if created.IsDefault() {
 		t.Error("a new farm must not be the default farm")
 	}
 

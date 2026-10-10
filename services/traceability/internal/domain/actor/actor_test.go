@@ -91,8 +91,8 @@ func TestDefault(t *testing.T) {
 		t.Error("expected each call to return a new copy")
 	}
 
-	real, _ := actor.New("user_01", actor.TypeProducer, "Tostadora Andina")
-	if real.IsDefault() {
+	created, _ := actor.New("user_01", actor.TypeProducer, "Tostadora Andina")
+	if created.IsDefault() {
 		t.Error("a new actor must not be the default actor")
 	}
 
