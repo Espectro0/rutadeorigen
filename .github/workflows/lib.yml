@@ -33,7 +33,7 @@ jobs:
         uses: actions/setup-go@v7.0.0
         with:
           go-version-file: lib/go.mod
-          cache: false
+          cache-dependency-path: lib/go.sum
 
       - name: Formato, análisis estático y seguridad
         uses: golangci/golangci-lint-action@v9.3.0
