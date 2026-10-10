@@ -5,6 +5,12 @@ allow:
   depOnAnyVendor: false
   ignoreNotFoundComponents: true
 
+vendors:
+  uuid: { in: github.com/google/uuid }
+
+commonVendors:
+  - uuid
+
 excludeFiles:
   - "^.*_test\\.go$"
 
@@ -19,6 +25,9 @@ components:
   infraInput:     { in: [internal/infrastructure/input/**] }
   infraOutput:    { in: [internal/infrastructure/output/**] }
   platform:       { in: [internal/platform, internal/platform/**] }
+
+commonComponents:
+  - platform
 
 deps:
 
@@ -42,14 +51,13 @@ deps:
 
   infraInput:
     anyVendorDeps: true
-    mayDependOn: [infraInput, inputPorts, dto, platform]
+    mayDependOn: [infraInput, inputPorts, dto]
 
   infraOutput:
     anyVendorDeps: true
-    mayDependOn: [infraOutput, outputPorts, domain, platform]
+    mayDependOn: [infraOutput, outputPorts, domain]
 
   platform:
-    anyVendorDeps: true
     mayDependOn: [platform]
 
   main:
