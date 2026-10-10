@@ -15,4 +15,5 @@ const (
 	KindNotFound   Kind = "not_found"
 	KindConflict   Kind = "conflict"
 	KindInternal   Kind = "internal"
+	KindForbidden  Kind = "forbidden"
 )

@@ -57,6 +57,7 @@ func TestConstructorsSetKind(t *testing.T) {
 		{"NewValidation", exception.NewValidation(exception.LayerDomain, "msg", ""), exception.KindValidation},
 		{"NewNotFound", exception.NewNotFound(exception.LayerDomain, "msg", ""), exception.KindNotFound},
 		{"NewConflict", exception.NewConflict(exception.LayerDomain, "msg", ""), exception.KindConflict},
+		{"NewForbidden", exception.NewForbidden(exception.LayerDomain, "msg", ""), exception.KindForbidden},
 		{"NewInternal", exception.NewInternal(exception.LayerDomain, "msg", "", cause), exception.KindInternal},
 	}
 
@@ -78,5 +79,38 @@ func TestNewInternalKeepsCause(t *testing.T) {
 
 	if !errors.Is(err, cause) {
 		t.Error("expected the cause to be kept")
+	}
+}
+
+func TestNewForbidden(t *testing.T) {
+	err := exception.NewForbidden(
+		exception.LayerApplication,
+		"You are not allowed to register this stage",
+		"actor is not the current custodian of the lot",
+	)
+
+	if err.Kind() != exception.KindForbidden {
+		t.Errorf("Kind: got %v, want %v", err.Kind(), exception.KindForbidden)
+	}
+	if err.Layer() != exception.LayerApplication {
+		t.Errorf("Layer: got %v, want %v", err.Layer(), exception.LayerApplication)
+	}
+	if err.UserMessage() != "You are not allowed to register this stage" {
+		t.Errorf("UserMessage: got %q", err.UserMessage())
+	}
+	if err.TechnicalMessage() != "actor is not the current custodian of the lot" {
+		t.Errorf("TechnicalMessage: got %q", err.TechnicalMessage())
+	}
+	if err.Unwrap() != nil {
+		t.Error("expected no cause for a forbidden error")
+	}
+}
+
+func TestWrapKeepsForbidden(t *testing.T) {
+	forbidden := exception.NewForbidden(exception.LayerApplication, "Not allowed", "")
+
+	got, ok := exception.From(exception.Wrap(forbidden, exception.LayerInfrastructure, "create lot"))
+	if !ok || got.Kind() != exception.KindForbidden {
+		t.Error("expected Wrap to keep the forbidden error unchanged")
 	}
 }

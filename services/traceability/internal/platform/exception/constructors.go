@@ -31,3 +31,7 @@ func NewConflict(layer Layer, userMessage, technicalMessage string) *Exception {
 func NewInternal(layer Layer, userMessage, technicalMessage string, cause error) *Exception {
 	return New(KindInternal, layer, userMessage, technicalMessage, cause)
 }
+
+func NewForbidden(layer Layer, userMessage, technicalMessage string) *Exception {
+	return New(KindForbidden, layer, userMessage, technicalMessage, nil)
+}
