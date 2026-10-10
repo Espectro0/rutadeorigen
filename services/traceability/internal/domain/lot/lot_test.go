@@ -196,3 +196,43 @@ func TestDefault(t *testing.T) {
 		t.Error("a nil lot must be treated as default")
 	}
 }
+
+func TestDraft(t *testing.T) {
+	farmID := uuid.New()
+	harvestDate := validHarvestDate()
+
+	d := lot.Draft(farmID, "  LT-001  ", "  Castillo  ", lot.ProcessHoney, harvestDate)
+
+	if d.FarmID() != farmID || !d.HarvestDate().Equal(harvestDate) || d.Process() != lot.ProcessHoney {
+		t.Error("expected the sent farm, harvest date and process to be kept")
+	}
+	if d.Code() != "  LT-001  " || d.Variety() != "  Castillo  " {
+		t.Error("expected code and variety to be kept as sent; New is the one that trims them")
+	}
+	if d.ID() != uuid.Nil || d.CustodianID() != uuid.Nil || !d.CreatedAt().IsZero() {
+		t.Error("expected ID, custodian and creation date to stay in their default values")
+	}
+	if d.Status() != lot.StatusUnknown || d.CurrentStage() != lot.StageNone || d.Version() != 0 {
+		t.Error("expected unknown status, no stage and version 0")
+	}
+	if d.VoidReason() != "" {
+		t.Errorf("expected empty void reason, got %q", d.VoidReason())
+	}
+	if !d.IsDefault() {
+		t.Error("a draft is not a real lot yet, so it must count as default")
+	}
+	if d == lot.Draft(farmID, "LT-001", "Castillo", lot.ProcessHoney, harvestDate) {
+		t.Error("expected each call to return a new lot")
+	}
+}
+
+func TestDraftIsNotValidated(t *testing.T) {
+	d := lot.Draft(uuid.Nil, "", "", lot.ProcessUnknown, time.Time{})
+
+	if d == nil || !d.IsDefault() {
+		t.Error("Draft must never return nil, even with invalid data")
+	}
+	if d.Process() != lot.ProcessUnknown || d.Code() != "" {
+		t.Error("Draft must keep the data as sent; validation happens in New")
+	}
+}

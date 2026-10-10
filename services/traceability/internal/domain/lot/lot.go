@@ -49,6 +49,18 @@ func Default() *Lot {
 	return &l
 }
 
+func Draft(farmID uuid.UUID, code, variety string, process Process, harvestDate time.Time) *Lot {
+	l := Default()
+
+	l.farmID = farmID
+	l.code = code
+	l.variety = variety
+	l.process = process
+	l.harvestDate = harvestDate
+
+	return l
+}
+
 func New(farmID, custodianID uuid.UUID, code, variety string, process Process, harvestDate time.Time) (*Lot, error) {
 	code = helper.ApplyTrim(code)
 	variety = helper.ApplyTrim(variety)

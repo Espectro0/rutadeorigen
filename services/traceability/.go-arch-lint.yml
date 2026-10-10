@@ -7,9 +7,11 @@ allow:
 
 vendors:
   uuid: { in: github.com/google/uuid }
+  lib:  { in: rutadeorigen/lib/** }
 
 commonVendors:
   - uuid
+  - lib
 
 excludeFiles:
   - "^.*_test\\.go$"

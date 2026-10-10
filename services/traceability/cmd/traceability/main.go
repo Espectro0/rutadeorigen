@@ -31,6 +31,8 @@ func main() {
 	mux := http.NewServeMux()
 	h.Register(mux)
 
+	registerRoutes(mux, log)
+
 	if err := app.Run(ctx, app.Params{Config: cfg, Logger: log, Handler: mux, Health: h}); err != nil {
 		log.Error("service stopped with error", "err", err)
 		os.Exit(1)
