@@ -16,7 +16,11 @@ func TestSHA256Hex(t *testing.T) {
 
 	t.Run("same data gives same hash", func(t *testing.T) {
 		data := []byte("lot-1|harvest|2026-10-09")
-		if helper.SHA256Hex(data) != helper.SHA256Hex(data) {
+
+		first := helper.SHA256Hex(data)
+		second := helper.SHA256Hex(data)
+
+		if first != second {
 			t.Error("expected the hash to be deterministic")
 		}
 	})
