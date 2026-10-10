@@ -1,4 +1,4 @@
 services:
   traceability:
-    tag: "b540cc113c9ebd7f871368c4f2897be9af8303d2"
+    tag: "8326f869836b657513c6f01ac7d604d1cd15b01d"
     replicas: 1
