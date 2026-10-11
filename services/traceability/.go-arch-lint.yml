@@ -53,7 +53,7 @@ deps:
     mayDependOn: [inputAssembler]
 
   inputAdapters:
-    mayDependOn: [inputAdapters, inputPorts, dto, usecases, domain]
+    mayDependOn: [inputAdapters, inputAssembler, inputPorts, dto, usecases, domain]
 
   infraInput:
     anyVendorDeps: true
