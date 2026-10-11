@@ -4,18 +4,21 @@ import (
 	"log/slog"
 	"net/http"
 
+	"rutadeorigen/traceability/internal/application/output/ports"
+	"rutadeorigen/traceability/internal/infrastructure/output/repositories/structured/memory"
+	"rutadeorigen/traceability/internal/infrastructure/output/repositories/structured/postgres"
+
 	createlotadapter "rutadeorigen/traceability/internal/application/input/adapters/createlot"
 	createlotuc "rutadeorigen/traceability/internal/application/usecases/createlot"
 	"rutadeorigen/traceability/internal/infrastructure/input/controllers"
 	"rutadeorigen/traceability/internal/infrastructure/output/external/authorizer"
 	"rutadeorigen/traceability/internal/infrastructure/output/messaging"
-	"rutadeorigen/traceability/internal/infrastructure/output/repositories/structured/memory"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func registerRoutes(mux *http.ServeMux, log *slog.Logger) {
-	actors := memory.NewActorRepository(seedActors()...)
-	farms := memory.NewFarmRepository(seedFarms()...)
-	lots := memory.NewLotRepository()
+func registerRoutes(mux *http.ServeMux, log *slog.Logger, pool *pgxpool.Pool) {
+	actors, farms, lots := repositories(pool)
 	auth := authorizer.NewAllowAll()
 	publisher := messaging.NewLogPublisher(log)
 
@@ -27,4 +30,16 @@ func registerRoutes(mux *http.ServeMux, log *slog.Logger) {
 	}
 
 	controllers.NewLotController(createLotAdapter, log).Register(mux, requireActor)
+}
+
+func repositories(pool *pgxpool.Pool) (ports.ActorRepository, ports.FarmRepository, ports.LotRepository) {
+	if pool == nil {
+		return memory.NewActorRepository(seedActors()...),
+			memory.NewFarmRepository(seedFarms()...),
+			memory.NewLotRepository()
+	}
+
+	return postgres.NewActorRepository(pool),
+		postgres.NewFarmRepository(pool),
+		postgres.NewLotRepository(pool)
 }
