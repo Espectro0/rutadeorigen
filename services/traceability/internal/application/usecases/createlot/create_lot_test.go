@@ -25,7 +25,7 @@ type fakeActors struct {
 	err  error
 }
 
-func (r fakeActors) FindById(_ context.Context, id uuid.UUID) (*actor.Actor, error) {
+func (r fakeActors) FindByID(_ context.Context, id uuid.UUID) (*actor.Actor, error) {
 	if r.err != nil {
 		return actor.Default(), r.err
 	}
@@ -40,7 +40,7 @@ type fakeFarms struct {
 	err  error
 }
 
-func (r fakeFarms) FindById(_ context.Context, id uuid.UUID) (*farm.Farm, error) {
+func (r fakeFarms) FindByID(_ context.Context, id uuid.UUID) (*farm.Farm, error) {
 	if r.err != nil {
 		return farm.Default(), r.err
 	}
