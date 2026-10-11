@@ -22,7 +22,7 @@ func TestFarmRepositoryFindById(t *testing.T) {
 		f := newFarm()
 		repo := memory.NewFarmRepository(f)
 
-		got, err := repo.FindById(ctx, f.ID())
+		got, err := repo.FindByID(ctx, f.ID())
 
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -35,7 +35,7 @@ func TestFarmRepositoryFindById(t *testing.T) {
 	t.Run("unknown id returns the default farm", func(t *testing.T) {
 		repo := memory.NewFarmRepository(newFarm())
 
-		got, err := repo.FindById(ctx, uuid.New())
+		got, err := repo.FindByID(ctx, uuid.New())
 
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -48,7 +48,7 @@ func TestFarmRepositoryFindById(t *testing.T) {
 	t.Run("seed ignores nil and default farms", func(t *testing.T) {
 		repo := memory.NewFarmRepository(nil, farm.Default())
 
-		got, err := repo.FindById(ctx, uuid.Nil)
+		got, err := repo.FindByID(ctx, uuid.Nil)
 
 		if err != nil || got == nil || !got.IsDefault() {
 			t.Errorf("got %v, %v; want farm.Default(), nil", got, err)

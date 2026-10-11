@@ -9,5 +9,5 @@ import (
 )
 
 type ActorRepository interface {
-	FindById(ctx context.Context, id uuid.UUID) (*actor.Actor, error)
+	FindByID(ctx context.Context, id uuid.UUID) (*actor.Actor, error)
 }

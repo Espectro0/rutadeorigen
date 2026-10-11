@@ -22,7 +22,7 @@ type fakeActorRepository struct {
 	err   error
 }
 
-func (r fakeActorRepository) FindById(_ context.Context, _ uuid.UUID) (*actor.Actor, error) {
+func (r fakeActorRepository) FindByID(_ context.Context, _ uuid.UUID) (*actor.Actor, error) {
 	return r.actor, r.err
 }
 
@@ -31,7 +31,7 @@ type fakeFarmRepository struct {
 	err  error
 }
 
-func (r fakeFarmRepository) FindById(_ context.Context, _ uuid.UUID) (*farm.Farm, error) {
+func (r fakeFarmRepository) FindByID(_ context.Context, _ uuid.UUID) (*farm.Farm, error) {
 	return r.farm, r.err
 }
 

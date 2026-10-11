@@ -23,7 +23,7 @@ func TestActorRepositoryFindById(t *testing.T) {
 		a := newActor()
 		repo := memory.NewActorRepository(a)
 
-		got, err := repo.FindById(ctx, a.ID())
+		got, err := repo.FindByID(ctx, a.ID())
 
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -36,7 +36,7 @@ func TestActorRepositoryFindById(t *testing.T) {
 	t.Run("unknown id returns the default actor", func(t *testing.T) {
 		repo := memory.NewActorRepository(newActor())
 
-		got, err := repo.FindById(ctx, uuid.New())
+		got, err := repo.FindByID(ctx, uuid.New())
 
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -47,7 +47,7 @@ func TestActorRepositoryFindById(t *testing.T) {
 	})
 
 	t.Run("empty repository returns the default actor", func(t *testing.T) {
-		got, err := memory.NewActorRepository().FindById(ctx, uuid.New())
+		got, err := memory.NewActorRepository().FindByID(ctx, uuid.New())
 
 		if err != nil || got == nil || !got.IsDefault() {
 			t.Errorf("got %v, %v; want actor.Default(), nil", got, err)
@@ -57,7 +57,7 @@ func TestActorRepositoryFindById(t *testing.T) {
 	t.Run("seed ignores nil and default actors", func(t *testing.T) {
 		repo := memory.NewActorRepository(nil, actor.Default())
 
-		got, err := repo.FindById(ctx, uuid.Nil)
+		got, err := repo.FindByID(ctx, uuid.Nil)
 
 		if err != nil || got == nil || !got.IsDefault() {
 			t.Errorf("got %v, %v; want actor.Default(), nil", got, err)

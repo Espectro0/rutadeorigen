@@ -27,7 +27,7 @@ func NewFarmRepository(seed ...*farm.Farm) *FarmRepository {
 	return r
 }
 
-func (r *FarmRepository) FindById(_ context.Context, id uuid.UUID) (*farm.Farm, error) {
+func (r *FarmRepository) FindByID(_ context.Context, id uuid.UUID) (*farm.Farm, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 

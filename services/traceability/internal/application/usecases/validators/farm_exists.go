@@ -12,7 +12,7 @@ import (
 )
 
 func FarmExists(ctx context.Context, repo ports.FarmRepository, id uuid.UUID) (*farm.Farm, error) {
-	f, err := repo.FindById(ctx, id)
+	f, err := repo.FindByID(ctx, id)
 	if err != nil {
 		return farm.Default(), exception.Wrap(err, exception.LayerApplication, "find farm by id")
 	}

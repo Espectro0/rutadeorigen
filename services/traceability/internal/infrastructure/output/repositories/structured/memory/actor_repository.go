@@ -27,7 +27,7 @@ func NewActorRepository(seed ...*actor.Actor) *ActorRepository {
 	return r
 }
 
-func (r *ActorRepository) FindById(_ context.Context, id uuid.UUID) (*actor.Actor, error) {
+func (r *ActorRepository) FindByID(_ context.Context, id uuid.UUID) (*actor.Actor, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 

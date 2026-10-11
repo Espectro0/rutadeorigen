@@ -12,7 +12,7 @@ import (
 )
 
 func ActorActive(ctx context.Context, repo ports.ActorRepository, id uuid.UUID) (*actor.Actor, error) {
-	a, err := repo.FindById(ctx, id)
+	a, err := repo.FindByID(ctx, id)
 	if err != nil {
 		return actor.Default(), exception.Wrap(err, exception.LayerApplication, "find actor by id")
 	}

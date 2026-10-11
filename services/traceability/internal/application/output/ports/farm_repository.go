@@ -9,5 +9,5 @@ import (
 )
 
 type FarmRepository interface {
-	FindById(ctx context.Context, id uuid.UUID) (*farm.Farm, error)
+	FindByID(ctx context.Context, id uuid.UUID) (*farm.Farm, error)
 }
