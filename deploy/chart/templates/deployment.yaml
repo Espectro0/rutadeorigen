@@ -9,6 +9,7 @@ metadata:
     app.kubernetes.io/part-of: rutadeorigen
 spec:
   replicas: {{ $svc.replicas | default 1 }}
+  revisionHistoryLimit: 2
   selector:
     matchLabels:
       app.kubernetes.io/name: {{ $name }}
@@ -37,6 +38,11 @@ spec:
               value: {{ $.Values.port | quote }}
             - name: LOG_LEVEL
               value: {{ $svc.logLevel | default $.Values.logLevel | quote }}
+          {{- with $svc.envFromSecret }}
+          envFrom:
+            - secretRef:
+                name: {{ . }}
+          {{- end }}
           startupProbe:
             httpGet:
               path: /healthz
