@@ -35,3 +35,7 @@ func NewInternal(layer Layer, userMessage, technicalMessage string, cause error)
 func NewForbidden(layer Layer, userMessage, technicalMessage string) *Exception {
 	return New(KindForbidden, layer, userMessage, technicalMessage, nil)
 }
+
+func NewUnauthorized(layer Layer, userMessage, technicalMessage string) *Exception {
+	return New(KindUnauthorized, layer, userMessage, technicalMessage, nil)
+}

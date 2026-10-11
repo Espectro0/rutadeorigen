@@ -8,6 +8,8 @@ import (
 	"net"
 	"net/http"
 	"time"
+
+	"rutadeorigen/lib/httpserver/middleware"
 )
 
 type Server struct {
@@ -19,7 +21,7 @@ func New(addr string, h http.Handler, log *slog.Logger) *Server {
 	return &Server{
 		srv: &http.Server{
 			Addr:              addr,
-			Handler:           h,
+			Handler:           middleware.Correlation(h),
 			ReadHeaderTimeout: 5 * time.Second,
 			ReadTimeout:       15 * time.Second,
 			WriteTimeout:      15 * time.Second,

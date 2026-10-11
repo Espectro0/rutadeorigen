@@ -7,9 +7,11 @@ allow:
 
 vendors:
   uuid: { in: github.com/google/uuid }
+  lib:  { in: rutadeorigen/lib/** }
 
 commonVendors:
   - uuid
+  - lib
 
 excludeFiles:
   - "^.*_test\\.go$"
@@ -19,6 +21,7 @@ components:
   domain:         { in: [internal/domain, internal/domain/**] }
   dto:            { in: [internal/application/input/dto/**] }
   inputPorts:     { in: [internal/application/input/ports, internal/application/input/ports/**] }
+  inputAssembler: { in: [internal/application/input/assembler, internal/application/input/assembler/**] }
   inputAdapters:  { in: [internal/application/input/adapters, internal/application/input/adapters/**] }
   usecases:       { in: [internal/application/usecases, internal/application/usecases/**] }
   outputPorts:    { in: [internal/application/output/ports, internal/application/output/ports/**] }
@@ -46,8 +49,11 @@ deps:
   inputPorts:
     mayDependOn: [inputPorts, dto]
 
+  inputAssembler:
+    mayDependOn: [inputAssembler]
+
   inputAdapters:
-    mayDependOn: [inputAdapters, inputPorts, dto, usecases, domain]
+    mayDependOn: [inputAdapters, inputAssembler, inputPorts, dto, usecases, domain]
 
   infraInput:
     anyVendorDeps: true

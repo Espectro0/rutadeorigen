@@ -58,6 +58,7 @@ func TestConstructorsSetKind(t *testing.T) {
 		{"NewNotFound", exception.NewNotFound(exception.LayerDomain, "msg", ""), exception.KindNotFound},
 		{"NewConflict", exception.NewConflict(exception.LayerDomain, "msg", ""), exception.KindConflict},
 		{"NewForbidden", exception.NewForbidden(exception.LayerDomain, "msg", ""), exception.KindForbidden},
+		{"NewUnauthorized", exception.NewUnauthorized(exception.LayerDomain, "msg", ""), exception.KindUnauthorized},
 		{"NewInternal", exception.NewInternal(exception.LayerDomain, "msg", "", cause), exception.KindInternal},
 	}
 
@@ -112,5 +113,26 @@ func TestWrapKeepsForbidden(t *testing.T) {
 	got, ok := exception.From(exception.Wrap(forbidden, exception.LayerInfrastructure, "create lot"))
 	if !ok || got.Kind() != exception.KindForbidden {
 		t.Error("expected Wrap to keep the forbidden error unchanged")
+	}
+}
+
+func TestNewUnauthorized(t *testing.T) {
+	err := exception.NewUnauthorized(
+		exception.LayerInfrastructure,
+		"Debes identificarte",
+		"missing actor header",
+	)
+
+	if err.Kind() != exception.KindUnauthorized {
+		t.Errorf("Kind: got %v, want %v", err.Kind(), exception.KindUnauthorized)
+	}
+	if err.Layer() != exception.LayerInfrastructure {
+		t.Errorf("Layer: got %v, want %v", err.Layer(), exception.LayerInfrastructure)
+	}
+	if err.UserMessage() != "Debes identificarte" {
+		t.Errorf("UserMessage: got %q, want %q", err.UserMessage(), "Debes identificarte")
+	}
+	if err.Unwrap() != nil {
+		t.Errorf("Unwrap: got %v, want nil", err.Unwrap())
 	}
 }
