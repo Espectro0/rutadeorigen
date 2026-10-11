@@ -26,7 +26,7 @@ linters:
       - std-error-handling
     rules:
       - path: _test\.go
-        linters: [gosec, errcheck, wrapcheck]
+        linters: [gosec, errcheck, wrapcheck, gocyclo]
 
 formatters:
   enable:

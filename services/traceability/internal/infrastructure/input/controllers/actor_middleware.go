@@ -3,6 +3,7 @@ package controllers
 import (
 	"log/slog"
 	"net/http"
+
 	"rutadeorigen/lib/requestcontext"
 	"rutadeorigen/traceability/internal/platform/exception"
 	"rutadeorigen/traceability/internal/platform/helper"

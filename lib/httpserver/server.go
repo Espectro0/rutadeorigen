@@ -7,8 +7,9 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"rutadeorigen/lib/httpserver/middleware"
 	"time"
+
+	"rutadeorigen/lib/httpserver/middleware"
 )
 
 type Server struct {

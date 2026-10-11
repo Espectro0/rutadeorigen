@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+
 	"rutadeorigen/traceability/internal/application/input/dto/request"
 	"rutadeorigen/traceability/internal/application/input/ports"
 	"rutadeorigen/traceability/internal/platform/exception"
