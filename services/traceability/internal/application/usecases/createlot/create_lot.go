@@ -124,7 +124,7 @@ func (uc *CreateLot) publishCreated(ctx context.Context, a *actor.Actor, l *lot.
 		Code:        l.Code(),
 		Variety:     l.Variety(),
 		Process:     l.Process().String(),
-		HarvestDate: l.HarvestDate(),
+		HarvestDate: l.HarvestDate().Format(time.DateOnly),
 		Stage:       l.CurrentStage().String(),
 		Status:      l.Status().String(),
 	})
