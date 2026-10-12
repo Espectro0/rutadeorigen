@@ -43,11 +43,14 @@ func main() {
 			log.Error("failed to connect to database", "err", err)
 			os.Exit(1)
 		}
+		log.Info("connected to database")
 		checkers = append(checkers, health.NewChecker("postgres", pool.Ping))
 		closers = append(closers, func(context.Context) error {
 			pool.Close()
 			return nil
 		})
+	} else {
+		log.Warn("DATABASE_URL not set, using in-memory repositories")
 	}
 
 	h := health.New(log, 2*time.Second, checkers...)

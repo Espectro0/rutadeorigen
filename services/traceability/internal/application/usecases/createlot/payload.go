@@ -1,19 +1,17 @@
 package createlot
 
 import (
-	"time"
-
 	"github.com/google/uuid"
 )
 
 type LotCreatedPayload struct {
-	LotID       uuid.UUID `json:"lotId"`
-	FarmID      uuid.UUID `json:"farmId"`
-	CustodianID uuid.UUID `json:"custodianId"`
+	LotID       uuid.UUID `json:"lot_id"`
+	FarmID      uuid.UUID `json:"farm_id"`
+	CustodianID uuid.UUID `json:"custodian_id"`
 	Code        string    `json:"code"`
 	Variety     string    `json:"variety"`
 	Process     string    `json:"process"`
-	HarvestDate time.Time `json:"harvestDate"`
+	HarvestDate string    `json:"harvest_date"`
 	Stage       string    `json:"stage"`
 	Status      string    `json:"status"`
 }
