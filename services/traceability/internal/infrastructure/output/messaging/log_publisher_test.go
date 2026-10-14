@@ -10,6 +10,8 @@ import (
 
 	"github.com/google/uuid"
 
+	"rutadeorigen/lib/logger"
+	"rutadeorigen/lib/requestcontext"
 	"rutadeorigen/traceability/internal/application/output/ports"
 	"rutadeorigen/traceability/internal/infrastructure/output/messaging"
 )
@@ -20,7 +22,7 @@ type samplePayload struct {
 
 func TestLogPublisherWritesTheEvent(t *testing.T) {
 	var buf bytes.Buffer
-	log := slog.New(slog.NewJSONHandler(&buf, nil))
+	log := logger.New(&buf, "test", slog.LevelInfo)
 
 	event := ports.Event{
 		ID:            uuid.New(),
@@ -35,7 +37,10 @@ func TestLogPublisherWritesTheEvent(t *testing.T) {
 		Payload:       samplePayload{Code: "LOT-001"},
 	}
 
-	if err := messaging.NewLogPublisher(log).Publish(context.Background(), event); err != nil {
+	ctx := requestcontext.WithCorrelationID(context.Background(), event.CorrelationID)
+	ctx = requestcontext.WithActorID(ctx, event.ActorID)
+
+	if err := messaging.NewLogPublisher(log).Publish(ctx, event); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -45,6 +50,7 @@ func TestLogPublisherWritesTheEvent(t *testing.T) {
 	}
 
 	want := map[string]any{
+		"service":        "test",
 		"msg":            "event published",
 		"level":          "INFO",
 		"event_id":       event.ID.String(),
@@ -61,6 +67,13 @@ func TestLogPublisherWritesTheEvent(t *testing.T) {
 		if entry[key] != value {
 			t.Errorf("%s: got %v, want %v", key, entry[key], value)
 		}
+	}
+
+	if count := bytes.Count(buf.Bytes(), []byte(`"actor_id"`)); count != 1 {
+		t.Errorf("actor_id must appear once (added by the logger), got %d", count)
+	}
+	if count := bytes.Count(buf.Bytes(), []byte(`"correlation_id"`)); count != 1 {
+		t.Errorf("correlation_id must appear once (added by the logger), got %d", count)
 	}
 
 	payload, ok := entry["payload"].(map[string]any)

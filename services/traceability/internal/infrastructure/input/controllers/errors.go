@@ -46,7 +46,6 @@ func writeError(w http.ResponseWriter, r *http.Request, log *slog.Logger, err er
 
 	if status == http.StatusInternalServerError {
 		log.ErrorContext(r.Context(), "request failed",
-			"correlation_id", correlationID,
 			"layer", ex.Layer(),
 			"err", ex.Error(),
 		)

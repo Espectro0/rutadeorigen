@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
 	"rutadeorigen/lib/httpserver/middleware"
 )
 
@@ -21,7 +23,7 @@ func New(addr string, h http.Handler, log *slog.Logger) *Server {
 	return &Server{
 		srv: &http.Server{
 			Addr:              addr,
-			Handler:           middleware.Correlation(h),
+			Handler:           instrument(h, log),
 			ReadHeaderTimeout: 5 * time.Second,
 			ReadTimeout:       15 * time.Second,
 			WriteTimeout:      15 * time.Second,
@@ -29,6 +31,18 @@ func New(addr string, h http.Handler, log *slog.Logger) *Server {
 			ErrorLog:          slog.NewLogLogger(log.Handler(), slog.LevelError),
 		},
 	}
+}
+
+func instrument(h http.Handler, log *slog.Logger) http.Handler {
+	return otelhttp.NewHandler(
+		middleware.Correlation(middleware.AccessLog(log, h)),
+		"http.server",
+		otelhttp.WithFilter(isNotHealthCheck),
+	)
+}
+
+func isNotHealthCheck(r *http.Request) bool {
+	return r.URL.Path != "/healthz" && r.URL.Path != "/readyz"
 }
 
 func (s *Server) Listen() error {

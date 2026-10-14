@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"rutadeorigen/lib/logger"
 	"rutadeorigen/lib/requestcontext"
 	"rutadeorigen/traceability/internal/platform/exception"
 )
@@ -97,7 +98,7 @@ func TestWriteErrorHidesInternalDetails(t *testing.T) {
 			var logs bytes.Buffer
 			rec := httptest.NewRecorder()
 
-			writeError(rec, newRequest("req-500"), slog.New(slog.NewJSONHandler(&logs, nil)), tt.err)
+			writeError(rec, newRequest("req-500"), logger.New(&logs, "test", slog.LevelInfo), tt.err)
 
 			if rec.Code != http.StatusInternalServerError {
 				t.Errorf("status: got %d, want %d", rec.Code, http.StatusInternalServerError)
@@ -109,7 +110,7 @@ func TestWriteErrorHidesInternalDetails(t *testing.T) {
 			if strings.Contains(rec.Body.String(), "connection refused") || strings.Contains(rec.Body.String(), "Detalle interno") {
 				t.Errorf("internal details leaked to the client: %s", rec.Body.String())
 			}
-			if !strings.Contains(logs.String(), "request failed") || !strings.Contains(logs.String(), "req-500") {
+			if !strings.Contains(logs.String(), "request failed") || !strings.Contains(logs.String(), `"correlation_id":"req-500"`) {
 				t.Errorf("internal errors must be logged with the correlation id, got %s", logs.String())
 			}
 		})
