@@ -8,10 +8,11 @@ import (
 	"github.com/google/uuid"
 
 	"rutadeorigen/traceability/internal/domain/lot"
+	"rutadeorigen/traceability/internal/platform/helper"
 )
 
 func validHarvestDate() time.Time {
-	return time.Now().AddDate(0, -1, 0)
+	return helper.DateUTC(time.Now().AddDate(0, -1, 0))
 }
 
 func newValidLot(t *testing.T) *lot.Lot {
@@ -234,5 +235,50 @@ func TestDraftIsNotValidated(t *testing.T) {
 	}
 	if d.Process() != lot.ProcessUnknown || d.Code() != "" {
 		t.Error("Draft must keep the data as sent; validation happens in New")
+	}
+}
+
+func TestNewHarvestDateBoundaries(t *testing.T) {
+	today := helper.DateUTC(time.Now())
+
+	tests := []struct {
+		name        string
+		harvestDate time.Time
+		wantErr     error
+	}{
+		{"today (UTC) is valid", today, nil},
+		{"tomorrow (UTC) is in the future", today.AddDate(0, 0, 1), lot.ErrInvalidHarvestDate},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := lot.New(uuid.New(), uuid.New(), "LT-001", "Castillo", lot.ProcessWashed, tt.harvestDate)
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("got %v, want %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestNewNormalizesHarvestDateToUTCDate(t *testing.T) {
+	bogota := time.FixedZone("COT", -5*60*60)
+	harvestDate := time.Date(2026, time.September, 1, 10, 30, 0, 0, bogota)
+
+	l, err := lot.New(uuid.New(), uuid.New(), "LT-001", "Castillo", lot.ProcessWashed, harvestDate)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	want := time.Date(2026, time.September, 1, 0, 0, 0, 0, time.UTC)
+	if !l.HarvestDate().Equal(want) || l.HarvestDate().Location() != time.UTC {
+		t.Errorf("harvest date = %v, want %v", l.HarvestDate(), want)
+	}
+}
+
+func TestNewCreatedAtIsUTC(t *testing.T) {
+	l := newValidLot(t)
+
+	if l.CreatedAt().Location() != time.UTC {
+		t.Errorf("created at location = %v, want UTC", l.CreatedAt().Location())
 	}
 }

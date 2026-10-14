@@ -17,12 +17,12 @@ func (Lot) ToDomain(e entity.Lot) *lot.Lot {
 		Code:         e.Code,
 		Variety:      e.Variety,
 		Process:      lot.ParseProcess(e.Process),
-		HarvestDate:  e.HarvestDate,
+		HarvestDate:  e.HarvestDate.UTC(),
 		CurrentStage: lot.ParseStage(e.CurrentStage),
 		Status:       lot.ParseStatus(e.Status),
 		VoidReason:   e.VoidReason,
 		Version:      e.Version,
-		CreatedAt:    e.CreatedAt,
+		CreatedAt:    e.CreatedAt.UTC(),
 	})
 }
 
@@ -38,11 +38,11 @@ func (Lot) ToEntity(l *lot.Lot) entity.Lot {
 		Code:         l.Code(),
 		Variety:      l.Variety(),
 		Process:      l.Process().String(),
-		HarvestDate:  l.HarvestDate(),
+		HarvestDate:  l.HarvestDate().UTC(),
 		CurrentStage: l.CurrentStage().String(),
 		Status:       l.Status().String(),
 		VoidReason:   l.VoidReason(),
 		Version:      l.Version(),
-		CreatedAt:    l.CreatedAt(),
+		CreatedAt:    l.CreatedAt().UTC(),
 	}
 }

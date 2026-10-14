@@ -10,7 +10,7 @@ var _ EntityAssembler[entity.Farm, *farm.Farm] = Farm{}
 type Farm struct{}
 
 func (Farm) ToDomain(e entity.Farm) *farm.Farm {
-	return farm.Restore(e.ID, e.ProducerID, e.Name, e.Altitude, e.CreatedAt)
+	return farm.Restore(e.ID, e.ProducerID, e.Name, e.Altitude, e.CreatedAt.UTC())
 }
 
 func (Farm) ToEntity(f *farm.Farm) entity.Farm {
@@ -23,6 +23,6 @@ func (Farm) ToEntity(f *farm.Farm) entity.Farm {
 		ProducerID: f.ProducerID(),
 		Name:       f.Name(),
 		Altitude:   f.Altitude(),
-		CreatedAt:  f.CreatedAt(),
+		CreatedAt:  f.CreatedAt().UTC(),
 	}
 }

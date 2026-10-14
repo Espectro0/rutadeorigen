@@ -128,3 +128,26 @@ func TestParseDateTime(t *testing.T) {
 		})
 	}
 }
+
+func TestParseTimeReturnsUTC(t *testing.T) {
+	tests := []struct {
+		name string
+		got  time.Time
+	}{
+		{"date", helper.ParseDate("2026-10-09")},
+		{"date time with offset", helper.ParseDateTime("2026-10-09T18:43:00-05:00")},
+		{"date time in UTC", helper.ParseDateTime("2026-10-09T23:43:00Z")},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.got.Location() != time.UTC {
+				t.Errorf("location = %v, want UTC", tt.got.Location())
+			}
+		})
+	}
+
+	if got := helper.ParseDateTime("2026-10-09T18:43:00-05:00"); got.Format(time.RFC3339) != "2026-10-09T23:43:00Z" {
+		t.Errorf("offset must be converted to UTC, got %s", got.Format(time.RFC3339))
+	}
+}

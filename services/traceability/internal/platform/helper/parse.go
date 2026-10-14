@@ -49,5 +49,5 @@ func parseTime(value, layout string) time.Time {
 	if err != nil {
 		return defaultDate
 	}
-	return parsed
+	return parsed.UTC()
 }

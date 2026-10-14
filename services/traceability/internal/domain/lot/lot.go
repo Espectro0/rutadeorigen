@@ -80,10 +80,9 @@ func New(farmID, custodianID uuid.UUID, code, variety string, process Process, h
 	if !process.IsValid() {
 		return Default(), ErrInvalidProcess
 	}
-	if helper.IsDefaultDate(harvestDate) || harvestDate.After(time.Now()) {
+	if helper.IsDefaultDate(harvestDate) || helper.IsFutureDate(harvestDate) {
 		return Default(), ErrInvalidHarvestDate
 	}
-
 	return &Lot{
 		id:           uuid.New(),
 		farmID:       farmID,
@@ -91,7 +90,7 @@ func New(farmID, custodianID uuid.UUID, code, variety string, process Process, h
 		code:         code,
 		variety:      variety,
 		process:      process,
-		harvestDate:  harvestDate,
+		harvestDate:  helper.DateUTC(harvestDate),
 		currentStage: StageNone,
 		status:       StatusActive,
 		voidReason:   helper.EmptyString,
