@@ -19,7 +19,13 @@ func Connect(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 	ctx, cancel := context.WithTimeout(ctx, connectTimeout)
 	defer cancel()
 
-	pool, err := pgxpool.New(ctx, dsn)
+	cfg, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		return nil, exception.NewInternal(exception.LayerInfrastructure, "", "parse postgres dsn", err)
+	}
+	cfg.ConnConfig.RuntimeParams["timezone"] = "UTC"
+
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, exception.NewInternal(exception.LayerInfrastructure, "", "create postgres pool", err)
 	}

@@ -36,6 +36,8 @@ spec:
               value: {{ $name | quote }}
             - name: SERVICE_VERSION
               value: {{ $svc.tag | quote }}
+            - name: TZ
+              value: "UTC"
             - name: PORT
               value: {{ $.Values.port | quote }}
             - name: LOG_LEVEL
