@@ -63,7 +63,7 @@ func TestInit_SetsServiceResource(t *testing.T) {
 
 	attrs := map[string]string{}
 	for _, kv := range readOnly.Resource().Attributes() {
-		attrs[string(kv.Key)] = kv.Value.Emit()
+		attrs[string(kv.Key)] = kv.Value.String()
 	}
 	if attrs["service.name"] != "traceability" {
 		t.Errorf("service.name = %q, expected traceability", attrs["service.name"])

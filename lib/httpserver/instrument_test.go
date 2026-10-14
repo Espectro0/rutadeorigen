@@ -98,7 +98,7 @@ func startInstrumentedServer(t *testing.T, logs *syncBuffer) string {
 	return "http://" + srv.Addr()
 }
 
-func get(t *testing.T, url string, headers map[string]string) *http.Response {
+func get(t *testing.T, url string, headers map[string]string) http.Header {
 	t.Helper()
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -113,19 +113,19 @@ func get(t *testing.T, url string, headers map[string]string) *http.Response {
 		t.Fatalf("GET %s: %v", url, err)
 	}
 	_ = resp.Body.Close()
-	return resp
+	return resp.Header
 }
 
 func TestServer_LogsCarryTraceAndCorrelation(t *testing.T) {
 	var logs syncBuffer
 	base := startInstrumentedServer(t, &logs)
 
-	resp := get(t, base+"/lots/42", map[string]string{
+	header := get(t, base+"/lots/42", map[string]string{
 		"traceparent":                  incomingParent,
 		middleware.CorrelationIDHeader: "req-xyz",
 	})
-	if resp.Header.Get(middleware.CorrelationIDHeader) != "req-xyz" {
-		t.Errorf("correlation id must be echoed, got %q", resp.Header.Get(middleware.CorrelationIDHeader))
+	if header.Get(middleware.CorrelationIDHeader) != "req-xyz" {
+		t.Errorf("correlation id must be echoed, got %q", header.Get(middleware.CorrelationIDHeader))
 	}
 
 	entries := logs.entries(t)

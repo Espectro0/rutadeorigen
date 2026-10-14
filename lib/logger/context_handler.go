@@ -2,6 +2,7 @@ package logger
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"rutadeorigen/lib/requestcontext"
@@ -28,7 +29,11 @@ func (h contextHandler) Handle(ctx context.Context, r slog.Record) error {
 		)
 	}
 
-	return h.Handler.Handle(ctx, r)
+	if err := h.Handler.Handle(ctx, r); err != nil {
+		return fmt.Errorf("log handler: %w", err)
+	}
+
+	return nil
 }
 
 func (h contextHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
