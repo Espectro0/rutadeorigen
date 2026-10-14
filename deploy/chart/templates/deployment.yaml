@@ -34,6 +34,8 @@ spec:
           env:
             - name: SERVICE_NAME
               value: {{ $name | quote }}
+            - name: SERVICE_VERSION
+              value: {{ $svc.tag | quote }}
             - name: PORT
               value: {{ $.Values.port | quote }}
             - name: LOG_LEVEL

@@ -26,9 +26,7 @@ func (p *LogPublisher) Publish(ctx context.Context, event ports.Event) error {
 		slog.String("aggregate_id", event.AggregateID.String()),
 		slog.Int("version", event.Version),
 		slog.String("occurred_at", event.OccurredAt.Format(time.RFC3339)),
-		slog.String("actor_id", event.ActorID.String()),
 		slog.String("actor_role", event.ActorRole),
-		slog.String("correlation_id", event.CorrelationID),
 		slog.Any("payload", event.Payload),
 	)
 	return nil

@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"slices"
 	"time"
 
 	"rutadeorigen/lib/config"
 	"rutadeorigen/lib/health"
 	"rutadeorigen/lib/httpserver"
+	"rutadeorigen/lib/telemetry"
 )
 
 type Closer func(ctx context.Context) error
@@ -25,10 +27,15 @@ type Params struct {
 
 func Run(ctx context.Context, p Params) error {
 	log := p.Logger
+	shutdownTelemetry, err := telemetry.Init(ctx, p.Config.ServiceName, config.String("SERVICE_VERSION", "dev"))
+	if err != nil {
+		return err
+	}
+	closers := append([]Closer{Closer(shutdownTelemetry)}, p.Closers...)
 	srv := httpserver.New(p.Config.Addr(), p.Handler, log)
 
 	if err := srv.Listen(); err != nil {
-		return err
+		return errors.Join(err, closeAll(context.Background(), closers))
 	}
 
 	errCh := make(chan error, 1)
@@ -46,7 +53,7 @@ func Run(ctx context.Context, p Params) error {
 		defer cancel()
 		return errors.Join(
 			fmt.Errorf("server stopped unexpectedly: %w", err),
-			closeAll(closeCtx, p.Closers),
+			closeAll(closeCtx, closers),
 		)
 	}
 
@@ -64,7 +71,7 @@ func Run(ctx context.Context, p Params) error {
 		errs = append(errs, fmt.Errorf("serve: %w", err))
 	}
 
-	errs = append(errs, closeAll(shutdownCtx, p.Closers))
+	errs = append(errs, closeAll(shutdownCtx, closers))
 
 	if err := errors.Join(errs...); err != nil {
 		return err
@@ -76,8 +83,8 @@ func Run(ctx context.Context, p Params) error {
 func closeAll(ctx context.Context, closers []Closer) error {
 	var errs []error
 
-	for i := len(closers) - 1; i >= 0; i-- {
-		if err := closers[i](ctx); err != nil {
+	for _, closer := range slices.Backward(closers) {
+		if err := closer(ctx); err != nil {
 			errs = append(errs, err)
 		}
 	}
