@@ -193,7 +193,7 @@ func render(tokens []token, params map[string]any) (string, error) {
 		if !ok {
 			return "", fmt.Errorf("%w: %q", ErrMissingParam, t.text)
 		}
-		b.WriteString(fmt.Sprint(v))
+		_, _ = fmt.Fprint(&b, v)
 	}
 
 	return b.String(), nil
