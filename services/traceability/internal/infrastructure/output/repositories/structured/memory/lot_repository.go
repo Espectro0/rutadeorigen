@@ -2,8 +2,9 @@ package memory
 
 import (
 	"context"
-	"rutadeorigen/traceability/internal/platform/exception"
 	"sync"
+
+	"rutadeorigen/traceability/internal/platform/exception"
 
 	"github.com/google/uuid"
 

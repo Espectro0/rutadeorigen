@@ -3,6 +3,7 @@ package main
 import (
 	"log/slog"
 	"net/http"
+
 	"rutadeorigen/lib/catalog"
 	"rutadeorigen/traceability/internal/application/output/ports"
 	"rutadeorigen/traceability/internal/infrastructure/output/repositories/structured/memory"

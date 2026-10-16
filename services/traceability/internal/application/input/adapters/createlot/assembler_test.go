@@ -73,8 +73,8 @@ func TestAssemblerToDomain(t *testing.T) {
 	})
 
 	invalid := []struct {
-		name    string
-		mutate  func(r *request.CreateLot)
+		name     string
+		mutate   func(r *request.CreateLot)
 		wantCode exception.Code
 	}{
 		{"empty farm id", func(r *request.CreateLot) { r.FarmID = "" }, exception.CodeLotInvalidFarmID},

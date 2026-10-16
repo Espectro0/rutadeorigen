@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+
 	"rutadeorigen/traceability/internal/platform/exception"
 
 	"github.com/google/uuid"
