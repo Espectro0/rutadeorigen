@@ -10,7 +10,6 @@ import (
 
 	"rutadeorigen/lib/requestcontext"
 	"rutadeorigen/traceability/internal/application/output/ports"
-	"rutadeorigen/traceability/internal/application/usecases"
 	"rutadeorigen/traceability/internal/application/usecases/createlot"
 	"rutadeorigen/traceability/internal/domain/actor"
 	"rutadeorigen/traceability/internal/domain/farm"
@@ -146,6 +145,13 @@ func (s *scenario) draft() *lot.Lot {
 	return lot.Draft(s.farm.ID(), "  LT-001  ", "Castillo", lot.ProcessWashed, time.Now().AddDate(0, -1, 0))
 }
 
+// execute runs the use case and returns the draft it filled in, which is the
+// created lot on success and still the default lot on failure.
+func execute(uc createlot.UseCase, ctx context.Context, draft *lot.Lot) (*lot.Lot, error) {
+	err := uc.Execute(ctx, draft)
+	return draft, err
+}
+
 func assertFailed(t *testing.T, got *lot.Lot, err, want error) {
 	t.Helper()
 	if !errors.Is(err, want) {
@@ -173,7 +179,7 @@ func assertInternal(t *testing.T, got *lot.Lot, err error) {
 func TestCreateLotSuccess(t *testing.T) {
 	s := newScenario(t)
 
-	got, err := s.useCase().Execute(s.ctx(), s.draft())
+	got, err := execute(s.useCase(), s.ctx(), s.draft())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -254,8 +260,8 @@ func TestCreateLotSuccess(t *testing.T) {
 func TestCreateLotActorErrors(t *testing.T) {
 	t.Run("no actor in the context", func(t *testing.T) {
 		s := newScenario(t)
-		got, err := s.useCase().Execute(context.Background(), s.draft())
-		assertFailed(t, got, err, usecases.ErrActorNotFound)
+		got, err := execute(s.useCase(), context.Background(), s.draft())
+		assertFailed(t, got, err, exception.New(exception.CodeActorNotFound))
 	})
 
 	t.Run("inactive actor", func(t *testing.T) {
@@ -264,14 +270,14 @@ func TestCreateLotActorErrors(t *testing.T) {
 			actor.StatusInactive, time.Now())
 		s.actors.byID[s.producer.ID()] = inactive
 
-		got, err := s.useCase().Execute(s.ctx(), s.draft())
-		assertFailed(t, got, err, usecases.ErrActorNotFound)
+		got, err := execute(s.useCase(), s.ctx(), s.draft())
+		assertFailed(t, got, err, exception.New(exception.CodeActorNotFound))
 	})
 
 	t.Run("actor repository fails", func(t *testing.T) {
 		s := newScenario(t)
 		s.actors.err = errInfra
-		got, err := s.useCase().Execute(s.ctx(), s.draft())
+		got, err := execute(s.useCase(), s.ctx(), s.draft())
 		assertInternal(t, got, err)
 	})
 }
@@ -280,14 +286,14 @@ func TestCreateLotFarmErrors(t *testing.T) {
 	t.Run("farm not found", func(t *testing.T) {
 		s := newScenario(t)
 		draft := lot.Draft(uuid.New(), "LT-001", "Castillo", lot.ProcessWashed, time.Now().AddDate(0, -1, 0))
-		got, err := s.useCase().Execute(s.ctx(), draft)
-		assertFailed(t, got, err, usecases.ErrFarmNotFound)
+		got, err := execute(s.useCase(), s.ctx(), draft)
+		assertFailed(t, got, err, exception.New(exception.CodeFarmNotFound))
 	})
 
 	t.Run("farm repository fails", func(t *testing.T) {
 		s := newScenario(t)
 		s.farms.err = errInfra
-		got, err := s.useCase().Execute(s.ctx(), s.draft())
+		got, err := execute(s.useCase(), s.ctx(), s.draft())
 		assertInternal(t, got, err)
 	})
 }
@@ -297,8 +303,8 @@ func TestCreateLotAuthorization(t *testing.T) {
 		s := newScenario(t)
 		s.authorizer.allowed = false
 
-		got, err := s.useCase().Execute(s.ctx(), s.draft())
-		assertFailed(t, got, err, usecases.ErrNotAllowed)
+		got, err := execute(s.useCase(), s.ctx(), s.draft())
+		assertFailed(t, got, err, exception.New(exception.CodeForbidden))
 
 		e, _ := exception.From(err)
 		if e.Kind() != exception.KindForbidden {
@@ -315,7 +321,7 @@ func TestCreateLotAuthorization(t *testing.T) {
 	t.Run("ABAC fails", func(t *testing.T) {
 		s := newScenario(t)
 		s.authorizer.err = errInfra
-		got, err := s.useCase().Execute(s.ctx(), s.draft())
+		got, err := execute(s.useCase(), s.ctx(), s.draft())
 		assertInternal(t, got, err)
 	})
 
@@ -323,7 +329,7 @@ func TestCreateLotAuthorization(t *testing.T) {
 		s := newScenario(t)
 		s.authorizer.allowed = false
 		s.publisher.err = errInfra
-		got, err := s.useCase().Execute(s.ctx(), s.draft())
+		got, err := execute(s.useCase(), s.ctx(), s.draft())
 		assertInternal(t, got, err)
 	})
 }
@@ -333,8 +339,8 @@ func TestCreateLotCodeErrors(t *testing.T) {
 		s := newScenario(t)
 		s.lots.existingCode = "LT-001"
 
-		got, err := s.useCase().Execute(s.ctx(), s.draft())
-		assertFailed(t, got, err, usecases.ErrLotCodeAlreadyExists)
+		got, err := execute(s.useCase(), s.ctx(), s.draft())
+		assertFailed(t, got, err, exception.New(exception.CodeLotCodeAlreadyExists))
 		if len(s.lots.saved) != 0 {
 			t.Error("nothing must be saved when the code exists")
 		}
@@ -343,7 +349,7 @@ func TestCreateLotCodeErrors(t *testing.T) {
 	t.Run("checking the code fails", func(t *testing.T) {
 		s := newScenario(t)
 		s.lots.existsErr = errInfra
-		got, err := s.useCase().Execute(s.ctx(), s.draft())
+		got, err := execute(s.useCase(), s.ctx(), s.draft())
 		assertInternal(t, got, err)
 	})
 }
@@ -357,10 +363,10 @@ func TestCreateLotDomainErrors(t *testing.T) {
 		draft *lot.Lot
 		want  error
 	}{
-		{"code too short", lot.Draft(s.farm.ID(), "LT", "Castillo", lot.ProcessWashed, harvest), lot.ErrInvalidCode},
-		{"empty variety", lot.Draft(s.farm.ID(), "LT-001", "  ", lot.ProcessWashed, harvest), lot.ErrInvalidVariety},
-		{"unknown process", lot.Draft(s.farm.ID(), "LT-001", "Castillo", lot.ProcessUnknown, harvest), lot.ErrInvalidProcess},
-		{"future harvest date", lot.Draft(s.farm.ID(), "LT-001", "Castillo", lot.ProcessWashed, time.Now().AddDate(0, 0, 1)), lot.ErrInvalidHarvestDate},
+		{"code too short", lot.Draft(s.farm.ID(), "LT", "Castillo", lot.ProcessWashed, harvest), exception.New(exception.CodeLotInvalidCode)},
+		{"empty variety", lot.Draft(s.farm.ID(), "LT-001", "  ", lot.ProcessWashed, harvest), exception.New(exception.CodeLotInvalidVariety)},
+		{"unknown process", lot.Draft(s.farm.ID(), "LT-001", "Castillo", lot.ProcessUnknown, harvest), exception.New(exception.CodeLotInvalidProcess)},
+		{"future harvest date", lot.Draft(s.farm.ID(), "LT-001", "Castillo", lot.ProcessWashed, time.Now().AddDate(0, 0, 1)), exception.New(exception.CodeLotInvalidHarvestDate)},
 	}
 
 	for _, tt := range tests {
@@ -368,7 +374,7 @@ func TestCreateLotDomainErrors(t *testing.T) {
 			lots := &fakeLots{}
 			uc := createlot.New(s.actors, s.farms, lots, &fakeAuthorizer{allowed: true}, &fakePublisher{})
 
-			got, err := uc.Execute(s.ctx(), tt.draft)
+			got, err := execute(uc, s.ctx(), tt.draft)
 			assertFailed(t, got, err, tt.want)
 			if len(lots.saved) != 0 {
 				t.Error("nothing must be saved when the domain rejects the lot")
@@ -382,7 +388,7 @@ func TestCreateLotPersistenceErrors(t *testing.T) {
 		s := newScenario(t)
 		s.lots.saveErr = errInfra
 
-		got, err := s.useCase().Execute(s.ctx(), s.draft())
+		got, err := execute(s.useCase(), s.ctx(), s.draft())
 		assertInternal(t, got, err)
 		if len(s.publisher.events) != 0 {
 			t.Error("no event must be published when saving fails")
@@ -392,7 +398,7 @@ func TestCreateLotPersistenceErrors(t *testing.T) {
 	t.Run("publishing LotCreated fails", func(t *testing.T) {
 		s := newScenario(t)
 		s.publisher.err = errInfra
-		got, err := s.useCase().Execute(s.ctx(), s.draft())
+		got, err := execute(s.useCase(), s.ctx(), s.draft())
 		assertInternal(t, got, err)
 	})
 }
@@ -400,6 +406,6 @@ func TestCreateLotPersistenceErrors(t *testing.T) {
 func TestCreateLotNilDraft(t *testing.T) {
 	s := newScenario(t)
 
-	got, err := s.useCase().Execute(s.ctx(), nil)
-	assertFailed(t, got, err, usecases.ErrFarmNotFound)
+	got, err := execute(s.useCase(), s.ctx(), nil)
+	assertFailed(t, got, err, exception.New(exception.CodeFarmNotFound))
 }

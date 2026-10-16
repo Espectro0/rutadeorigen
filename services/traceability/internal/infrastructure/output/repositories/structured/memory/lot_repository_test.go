@@ -106,9 +106,8 @@ func TestLotRepositorySave(t *testing.T) {
 		t.Run("rejects "+tt.name, func(t *testing.T) {
 			err := memory.NewLotRepository().Save(ctx, tt.lot)
 
-			ex, ok := exception.From(err)
-			if !ok || ex.Kind() != exception.KindInternal || ex.Layer() != exception.LayerInfrastructure {
-				t.Errorf("got %v, want an internal infrastructure exception", err)
+			if !exception.HasCode(err, exception.CodeInternal) {
+				t.Errorf("got %v, want an internal exception", err)
 			}
 		})
 	}

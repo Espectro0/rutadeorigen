@@ -6,5 +6,5 @@ import (
 )
 
 type UseCase interface {
-	usecases.UseCaseWithReturn[*lot.Lot, *lot.Lot]
+	usecases.UseCaseWithoutReturn[*lot.Lot]
 }

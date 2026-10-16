@@ -28,10 +28,9 @@ func (a *Adapter) Execute(ctx context.Context, input request.CreateLot) (respons
 		return response.Lot{}, err
 	}
 
-	created, err := a.useCase.Execute(ctx, draft)
-	if err != nil {
+	if err := a.useCase.Execute(ctx, draft); err != nil {
 		return response.Lot{}, err
 	}
 
-	return a.assembler.ToDTO(created), nil
+	return a.assembler.ToDTO(draft), nil
 }

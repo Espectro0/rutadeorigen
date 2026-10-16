@@ -1,13 +1,13 @@
 package actor_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 
 	"rutadeorigen/traceability/internal/domain/actor"
+	"rutadeorigen/traceability/internal/platform/exception"
 )
 
 func TestNewValid(t *testing.T) {
@@ -35,25 +35,37 @@ func TestNewInvalid(t *testing.T) {
 		userID    string
 		actorType actor.Type
 		actorName string
-		want      error
+		wantCode  exception.Code
 	}{
-		{"empty user ID", "   ", actor.TypeProducer, "Tostadora Andina", actor.ErrInvalidUserID},
-		{"unknown actor type", "user_01", actor.TypeUnknown, "Tostadora Andina", actor.ErrInvalidType},
-		{"invalid actor type", "user_01", actor.Type("admin"), "Tostadora Andina", actor.ErrInvalidType},
-		{"name too short", "user_01", actor.TypeRoaster, "AB", actor.ErrInvalidName},
-		{"name only spaces", "user_01", actor.TypeRoaster, "     ", actor.ErrInvalidName},
+		{"empty user ID", "   ", actor.TypeProducer, "Tostadora Andina", exception.CodeActorInvalidUserID},
+		{"unknown actor type", "user_01", actor.TypeUnknown, "Tostadora Andina", exception.CodeActorInvalidType},
+		{"invalid actor type", "user_01", actor.Type("admin"), "Tostadora Andina", exception.CodeActorInvalidType},
+		{"name too short", "user_01", actor.TypeRoaster, "AB", exception.CodeActorInvalidName},
+		{"name only spaces", "user_01", actor.TypeRoaster, "     ", exception.CodeActorInvalidName},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a, err := actor.New(tt.userID, tt.actorType, tt.actorName)
-			if !errors.Is(err, tt.want) {
-				t.Errorf("got %v, want %v", err, tt.want)
+			if !exception.HasCode(err, tt.wantCode) {
+				t.Errorf("got %v, want code %q", err, tt.wantCode)
 			}
 			if !a.IsDefault() {
 				t.Error("expected default actor on error")
 			}
 		})
+	}
+}
+
+func TestNewInvalidNameCarriesLengthLimits(t *testing.T) {
+	_, err := actor.New("user_01", actor.TypeRoaster, "AB")
+
+	ex, ok := exception.From(err)
+	if !ok {
+		t.Fatalf("expected an exception, got %v", err)
+	}
+	if ex.Params()["min"] != 3 || ex.Params()["max"] != 100 {
+		t.Errorf("params = %v, want min=3 max=100", ex.Params())
 	}
 }
 

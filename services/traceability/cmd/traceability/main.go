@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"rutadeorigen/lib/catalog"
 	"syscall"
 	"time"
 
@@ -26,6 +27,12 @@ func main() {
 		os.Exit(1)
 	}
 	log := logger.New(os.Stdout, cfg.ServiceName, cfg.LogLevel)
+
+	messages, err := catalog.New()
+	if err != nil {
+		log.Error("failed to create catalog", "err", err)
+		os.Exit(1)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
 	defer stop()
@@ -57,7 +64,7 @@ func main() {
 	mux := http.NewServeMux()
 	h.Register(mux)
 
-	registerRoutes(mux, log, pool)
+	registerRoutes(mux, log, pool, messages)
 
 	if err := app.Run(ctx, app.Params{Config: cfg, Logger: log, Handler: mux, Health: h, Closers: closers}); err != nil {
 		log.Error("service stopped with error", "err", err)

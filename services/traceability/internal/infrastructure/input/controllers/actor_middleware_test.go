@@ -12,10 +12,22 @@ import (
 
 	"rutadeorigen/lib/requestcontext"
 	"rutadeorigen/traceability/internal/infrastructure/input/controllers"
+	"rutadeorigen/traceability/internal/platform/catalog"
+	"rutadeorigen/traceability/internal/platform/exception"
 )
 
 func discardLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
+}
+
+func newResponder(t *testing.T) *controllers.ErrorResponder {
+	t.Helper()
+
+	messages, err := catalog.New()
+	if err != nil {
+		t.Fatalf("catalog.New: %v", err)
+	}
+	return controllers.NewErrorResponder(discardLogger(), messages)
 }
 
 func TestRequireActorStoresTheActorInTheContext(t *testing.T) {
@@ -30,7 +42,7 @@ func TestRequireActorStoresTheActorInTheContext(t *testing.T) {
 	req.Header.Set(controllers.ActorIDHeader, actorID.String())
 	rec := httptest.NewRecorder()
 
-	controllers.RequireActor(discardLogger(), next).ServeHTTP(rec, req)
+	controllers.RequireActor(newResponder(t), next).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusNoContent {
 		t.Fatalf("status: got %d, want %d", rec.Code, http.StatusNoContent)
@@ -63,7 +75,7 @@ func TestRequireActorRejectsMissingOrInvalidActor(t *testing.T) {
 			}
 			rec := httptest.NewRecorder()
 
-			controllers.RequireActor(discardLogger(), next).ServeHTTP(rec, req)
+			controllers.RequireActor(newResponder(t), next).ServeHTTP(rec, req)
 
 			if called {
 				t.Error("the next handler must not run without a valid actor")
@@ -76,8 +88,14 @@ func TestRequireActorRejectsMissingOrInvalidActor(t *testing.T) {
 			if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
 				t.Fatalf("body is not JSON: %v", err)
 			}
-			if body["kind"] != "unauthorized" || body["error"] == "" {
-				t.Errorf("unexpected body: %v", body)
+			if body["kind"] != "unauthorized" {
+				t.Errorf("kind: got %q, want unauthorized", body["kind"])
+			}
+			if body["code"] != string(exception.CodeUnauthorized) {
+				t.Errorf("code: got %q, want %q", body["code"], exception.CodeUnauthorized)
+			}
+			if body["error"] == "" {
+				t.Error("error message must not be empty")
 			}
 		})
 	}

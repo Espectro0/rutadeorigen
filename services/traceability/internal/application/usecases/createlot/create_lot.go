@@ -8,7 +8,6 @@ import (
 
 	"rutadeorigen/lib/requestcontext"
 	"rutadeorigen/traceability/internal/application/output/ports"
-	"rutadeorigen/traceability/internal/application/usecases"
 	"rutadeorigen/traceability/internal/application/usecases/validators"
 	"rutadeorigen/traceability/internal/domain/actor"
 	"rutadeorigen/traceability/internal/domain/farm"
@@ -37,44 +36,45 @@ func New(actors ports.ActorRepository, farms ports.FarmRepository, lots ports.Lo
 	}
 }
 
-func (uc *CreateLot) Execute(ctx context.Context, draft *lot.Lot) (*lot.Lot, error) {
+func (uc *CreateLot) Execute(ctx context.Context, draft *lot.Lot) error {
 	if helper.IsNil(draft) {
 		draft = lot.Default()
 	}
 
 	a, err := validators.ActorActive(ctx, uc.actors, requestcontext.ActorID(ctx))
 	if err != nil {
-		return lot.Default(), err
+		return err
 	}
 
 	f, err := validators.FarmExists(ctx, uc.farms, draft.FarmID())
 	if err != nil {
-		return lot.Default(), err
+		return err
 	}
 
 	if err := uc.authorize(ctx, a, f); err != nil {
-		return lot.Default(), err
-	}
-
-	if err := uc.ensureCodeAvailable(ctx, f.ID(), draft.Code()); err != nil {
-		return lot.Default(), err
+		return err
 	}
 
 	created, err := lot.New(draft.FarmID(), f.ProducerID(), draft.Code(),
 		draft.Variety(), draft.Process(), draft.HarvestDate())
 	if err != nil {
-		return lot.Default(), err
+		return err
+	}
+
+	if err := uc.ensureCodeAvailable(ctx, created.FarmID(), created.Code()); err != nil {
+		return err
 	}
 
 	if err := uc.lots.Save(ctx, created); err != nil {
-		return lot.Default(), exception.Wrap(err, exception.LayerApplication, "save lot")
+		return exception.Wrap(err, "save lot")
 	}
 
 	if err := uc.publishCreated(ctx, a, created); err != nil {
-		return lot.Default(), err
+		return err
 	}
 
-	return created, nil
+	*draft = *created
+	return nil
 }
 
 func (uc *CreateLot) authorize(ctx context.Context, a *actor.Actor, f *farm.Farm) error {
@@ -87,7 +87,7 @@ func (uc *CreateLot) authorize(ctx context.Context, a *actor.Actor, f *farm.Farm
 
 	allowed, err := uc.auth.IsAllowed(ctx, subject, ports.ActionCreateLot, resource)
 	if err != nil {
-		return exception.Wrap(err, exception.LayerApplication, "evaluate create lot policy")
+		return exception.Wrap(err, "evaluate create lot policy")
 	}
 	if allowed {
 		return nil
@@ -99,19 +99,19 @@ func (uc *CreateLot) authorize(ctx context.Context, a *actor.Actor, f *farm.Farm
 		"resourceId":   resource.ID.String(),
 	})
 	if err := uc.publisher.Publish(ctx, denied); err != nil {
-		return exception.Wrap(err, exception.LayerApplication, "publish access denied")
+		return exception.Wrap(err, "publish access denied")
 	}
 
-	return usecases.ErrNotAllowed
+	return exception.New(exception.CodeForbidden)
 }
 
 func (uc *CreateLot) ensureCodeAvailable(ctx context.Context, farmID uuid.UUID, code string) error {
 	exists, err := uc.lots.ExistsByCode(ctx, farmID, helper.ApplyTrim(code))
 	if err != nil {
-		return exception.Wrap(err, exception.LayerApplication, "check lot code")
+		return exception.Wrap(err, "check lot code")
 	}
 	if exists {
-		return usecases.ErrLotCodeAlreadyExists
+		return exception.New(exception.CodeLotCodeAlreadyExists)
 	}
 	return nil
 }
@@ -130,7 +130,7 @@ func (uc *CreateLot) publishCreated(ctx context.Context, a *actor.Actor, l *lot.
 	})
 
 	if err := uc.publisher.Publish(ctx, event); err != nil {
-		return exception.Wrap(err, exception.LayerApplication, "publish lot created")
+		return exception.Wrap(err, "publish lot created")
 	}
 	return nil
 }

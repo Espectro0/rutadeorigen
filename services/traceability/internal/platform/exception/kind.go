@@ -1,13 +1,5 @@
 package exception
 
-type Layer string
-
-const (
-	LayerDomain         Layer = "domain"
-	LayerApplication    Layer = "application"
-	LayerInfrastructure Layer = "infrastructure"
-)
-
 type Kind string
 
 const (

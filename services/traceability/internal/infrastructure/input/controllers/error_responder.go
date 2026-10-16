@@ -43,7 +43,9 @@ func (e *ErrorResponder) Write(w http.ResponseWriter, r *http.Request, err error
 
 	ex, ok := exception.From(err)
 	if !ok {
-		ex = exception.NewInternal(exception.LayerInfrastructure, "", "unclassified error", err)
+		ex = exception.New(exception.CodeInternal).
+			WithTechnical("unclassified error").
+			WithCause(err)
 	}
 
 	status, known := statusByKind[ex.Kind()]
@@ -51,28 +53,33 @@ func (e *ErrorResponder) Write(w http.ResponseWriter, r *http.Request, err error
 		status = http.StatusInternalServerError
 	}
 
-	body := errorResponse{
-		Kind:          string(ex.Kind()),
+	code, kind, params := ex.Code(), ex.Kind(), ex.Params()
+	if status == http.StatusInternalServerError {
+		code, kind, params = exception.CodeInternal, exception.KindInternal, nil
+	}
+
+	e.logFailure(ctx, ex, status)
+
+	writeJSON(w, e.log, status, errorResponse{
+		Code:          string(code),
+		Error:         e.message(ctx, code, params),
+		Kind:          string(kind),
 		CorrelationID: requestcontext.CorrelationID(ctx),
+	})
+}
+
+func (e *ErrorResponder) logFailure(ctx context.Context, ex *exception.Exception, status int) {
+	attrs := []any{"code", ex.Code(), "technical", ex.TechnicalMessage()}
+
+	if status >= http.StatusInternalServerError {
+		e.log.ErrorContext(ctx, "request failed", attrs...)
+	} else {
+		e.log.WarnContext(ctx, "request rejected", attrs...)
 	}
 
-	switch {
-	case status == http.StatusInternalServerError:
-		e.log.ErrorContext(ctx, "request failed",
-			"layer", ex.Layer(),
-			"err", ex.Error(),
-		)
-		body.Code = string(exception.CodeInternal)
-		body.Kind = string(exception.KindInternal)
-		body.Error = e.message(ctx, exception.CodeInternal, nil)
-	case ex.Code() != "":
-		body.Code = string(ex.Code())
-		body.Error = e.message(ctx, ex.Code(), ex.Params())
-	default:
-		body.Error = ex.UserMessage()
+	if cause := ex.Unwrap(); cause != nil {
+		e.log.DebugContext(ctx, "request failure cause", "code", ex.Code(), "cause", cause)
 	}
-
-	writeJSON(w, e.log, status, body)
 }
 
 func (e *ErrorResponder) message(ctx context.Context, code exception.Code, params map[string]any) string {

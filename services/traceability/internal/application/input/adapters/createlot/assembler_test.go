@@ -1,7 +1,6 @@
 package createlot_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -76,16 +75,16 @@ func TestAssemblerToDomain(t *testing.T) {
 	invalid := []struct {
 		name    string
 		mutate  func(r *request.CreateLot)
-		wantErr error
+		wantCode exception.Code
 	}{
-		{"empty farm id", func(r *request.CreateLot) { r.FarmID = "" }, createlot.ErrInvalidFarmID},
-		{"malformed farm id", func(r *request.CreateLot) { r.FarmID = "not-a-uuid" }, createlot.ErrInvalidFarmID},
-		{"nil farm id", func(r *request.CreateLot) { r.FarmID = uuid.Nil.String() }, createlot.ErrInvalidFarmID},
-		{"empty harvest date", func(r *request.CreateLot) { r.HarvestDate = "" }, createlot.ErrInvalidHarvestDate},
-		{"wrong date format", func(r *request.CreateLot) { r.HarvestDate = "15/09/2026" }, createlot.ErrInvalidHarvestDate},
-		{"impossible date", func(r *request.CreateLot) { r.HarvestDate = "2026-02-30" }, createlot.ErrInvalidHarvestDate},
-		{"empty process", func(r *request.CreateLot) { r.Process = "" }, createlot.ErrInvalidProcess},
-		{"unknown process", func(r *request.CreateLot) { r.Process = "fermented" }, createlot.ErrInvalidProcess},
+		{"empty farm id", func(r *request.CreateLot) { r.FarmID = "" }, exception.CodeLotInvalidFarmID},
+		{"malformed farm id", func(r *request.CreateLot) { r.FarmID = "not-a-uuid" }, exception.CodeLotInvalidFarmID},
+		{"nil farm id", func(r *request.CreateLot) { r.FarmID = uuid.Nil.String() }, exception.CodeLotInvalidFarmID},
+		{"empty harvest date", func(r *request.CreateLot) { r.HarvestDate = "" }, exception.CodeLotInvalidHarvestDateFormat},
+		{"wrong date format", func(r *request.CreateLot) { r.HarvestDate = "15/09/2026" }, exception.CodeLotInvalidHarvestDateFormat},
+		{"impossible date", func(r *request.CreateLot) { r.HarvestDate = "2026-02-30" }, exception.CodeLotInvalidHarvestDateFormat},
+		{"empty process", func(r *request.CreateLot) { r.Process = "" }, exception.CodeLotInvalidProcess},
+		{"unknown process", func(r *request.CreateLot) { r.Process = "fermented" }, exception.CodeLotInvalidProcess},
 	}
 
 	for _, tc := range invalid {
@@ -95,8 +94,8 @@ func TestAssemblerToDomain(t *testing.T) {
 
 			draft, err := createlot.Assembler{}.ToDomain(req)
 
-			if !errors.Is(err, tc.wantErr) {
-				t.Fatalf("got error %v, want %v", err, tc.wantErr)
+			if !exception.HasCode(err, tc.wantCode) {
+				t.Fatalf("got error %v, want code %q", err, tc.wantCode)
 			}
 			if !draft.IsDefault() || draft.FarmID() != uuid.Nil {
 				t.Error("on error the assembler must return lot.Default()")

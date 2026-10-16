@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"rutadeorigen/traceability/internal/platform/exception"
 	"rutadeorigen/traceability/internal/platform/helper"
 )
 
@@ -66,22 +67,23 @@ func New(farmID, custodianID uuid.UUID, code, variety string, process Process, h
 	variety = helper.ApplyTrim(variety)
 
 	if helper.IsDefaultUUID(farmID) {
-		return Default(), ErrInvalidFarm
+		return Default(), exception.New(exception.CodeLotInvalidFarm)
 	}
 	if helper.IsDefaultUUID(custodianID) {
-		return Default(), ErrInvalidCustodian
+		return Default(), exception.New(exception.CodeLotInvalidCustodian)
 	}
 	if !helper.LengthIsValid(code, codeMinLength, codeMaxLength) {
-		return Default(), ErrInvalidCode
+		return Default(), exception.New(exception.CodeLotInvalidCode).
+			WithParams(map[string]any{"min": codeMinLength, "max": codeMaxLength})
 	}
 	if helper.IsEmpty(variety) {
-		return Default(), ErrInvalidVariety
+		return Default(), exception.New(exception.CodeLotInvalidVariety)
 	}
 	if !process.IsValid() {
-		return Default(), ErrInvalidProcess
+		return Default(), exception.New(exception.CodeLotInvalidProcess)
 	}
 	if helper.IsDefaultDate(harvestDate) || helper.IsFutureDate(harvestDate) {
-		return Default(), ErrInvalidHarvestDate
+		return Default(), exception.New(exception.CodeLotInvalidHarvestDate)
 	}
 	return &Lot{
 		id:           uuid.New(),
@@ -136,17 +138,17 @@ func (l *Lot) HasEvents() bool { return l.currentStage != StageNone }
 
 func (l *Lot) CanBeDeleted() error {
 	if l.HasEvents() {
-		return ErrHasEvents
+		return exception.New(exception.CodeLotHasEvents)
 	}
 	return nil
 }
 
 func (l *Lot) Void(reason string) error {
 	if !l.IsActive() {
-		return ErrVoided
+		return exception.New(exception.CodeLotVoided)
 	}
 	if helper.IsEmpty(reason) {
-		return ErrEmptyVoidReason
+		return exception.New(exception.CodeLotEmptyVoidReason)
 	}
 
 	l.status = StatusVoided
