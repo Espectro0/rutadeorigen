@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"rutadeorigen/traceability/internal/platform/exception"
 	"rutadeorigen/traceability/internal/platform/helper"
 )
 
@@ -40,13 +41,15 @@ func New(producerID uuid.UUID, name string, altitude int) (*Farm, error) {
 	name = helper.ApplyTrim(name)
 
 	if helper.IsDefaultUUID(producerID) {
-		return Default(), ErrInvalidProducer
+		return Default(), exception.New(exception.CodeFarmInvalidProducer)
 	}
 	if !helper.LengthIsValid(name, nameMinLength, nameMaxLength) {
-		return Default(), ErrInvalidName
+		return Default(), exception.New(exception.CodeFarmInvalidName).
+			WithParams(map[string]any{"min": nameMinLength, "max": nameMaxLength})
 	}
 	if !helper.IsInRange(altitude, minAltitude, maxAltitude) {
-		return Default(), ErrInvalidAltitude
+		return Default(), exception.New(exception.CodeFarmInvalidAltitude).
+			WithParams(map[string]any{"min": minAltitude, "max": maxAltitude})
 	}
 
 	return &Farm{

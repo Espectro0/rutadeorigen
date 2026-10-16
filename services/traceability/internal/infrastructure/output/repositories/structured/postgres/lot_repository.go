@@ -3,6 +3,8 @@ package postgres
 import (
 	"context"
 
+	"rutadeorigen/traceability/internal/platform/exception"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -10,7 +12,6 @@ import (
 	"rutadeorigen/traceability/internal/domain/lot"
 	"rutadeorigen/traceability/internal/infrastructure/output/repositories/structured/postgres/assembler"
 	"rutadeorigen/traceability/internal/infrastructure/output/repositories/structured/postgres/entity"
-	"rutadeorigen/traceability/internal/platform/exception"
 )
 
 var _ ports.LotRepository = (*LotRepository)(nil)
@@ -28,13 +29,6 @@ const (
 			id, farm_id, custodian_id, code, variety, process,
 			harvest_date, current_stage, status, void_reason, version, created_at
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
-)
-
-var (
-	errSaveDefaultLot = exception.NewInternal(exception.LayerInfrastructure,
-		"", "cannot save a default lot", nil)
-	errLotCodeTaken = exception.NewConflict(exception.LayerInfrastructure,
-		"Lote ya existe", "unique violation on lot_farm_code_uk")
 )
 
 type LotRepository struct {
@@ -56,7 +50,9 @@ func (r *LotRepository) ExistsByCode(ctx context.Context, farmID uuid.UUID, code
 
 func (r *LotRepository) Save(ctx context.Context, l *lot.Lot) error {
 	if l.IsDefault() {
-		return errSaveDefaultLot
+		return exception.New(exception.CodeInternal).
+			WithTechnical("insert lot").
+			WithCause(ctx.Err())
 	}
 
 	e := r.assembler.ToEntity(l)
@@ -65,7 +61,7 @@ func (r *LotRepository) Save(ctx context.Context, l *lot.Lot) error {
 		e.HarvestDate, e.CurrentStage, e.Status, e.VoidReason, e.Version, e.CreatedAt,
 	)
 	if isUniqueViolation(err, lotFarmCodeConstraint) {
-		return errLotCodeTaken
+		return exception.New(exception.CodeLotCodeAlreadyExists)
 	}
 	if err != nil {
 		return internalError("insert lot", err)

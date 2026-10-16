@@ -10,8 +10,8 @@ import (
 
 	"rutadeorigen/traceability/internal/application/input/adapters/createlot"
 	"rutadeorigen/traceability/internal/application/input/dto/response"
-	"rutadeorigen/traceability/internal/application/usecases"
 	"rutadeorigen/traceability/internal/domain/lot"
+	"rutadeorigen/traceability/internal/platform/exception"
 )
 
 type ctxKey struct{}
@@ -25,14 +25,16 @@ type fakeUseCase struct {
 	ctx      context.Context
 }
 
-func (f *fakeUseCase) Execute(ctx context.Context, draft *lot.Lot) (*lot.Lot, error) {
+func (f *fakeUseCase) Execute(ctx context.Context, draft *lot.Lot) error {
 	f.calls++
-	f.received = draft
+	received := *draft
+	f.received = &received
 	f.ctx = ctx
 	if f.err != nil {
-		return lot.Default(), f.err
+		return f.err
 	}
-	return f.result, nil
+	*draft = *f.result
+	return nil
 }
 
 func createdLot(farmID uuid.UUID) *lot.Lot {
@@ -90,8 +92,8 @@ func TestAdapterExecute(t *testing.T) {
 
 		got, err := createlot.New(uc).Execute(context.Background(), req)
 
-		if !errors.Is(err, createlot.ErrInvalidFarmID) {
-			t.Fatalf("got error %v, want %v", err, createlot.ErrInvalidFarmID)
+		if !exception.HasCode(err, exception.CodeLotInvalidFarmID) {
+			t.Fatalf("got error %v, want code %q", err, exception.CodeLotInvalidFarmID)
 		}
 		if uc.calls != 0 {
 			t.Errorf("use case calls: got %d, want 0", uc.calls)
@@ -105,10 +107,10 @@ func TestAdapterExecute(t *testing.T) {
 		name string
 		err  error
 	}{
-		{"actor not found", usecases.ErrActorNotFound},
-		{"farm not found", usecases.ErrFarmNotFound},
-		{"not allowed", usecases.ErrNotAllowed},
-		{"code already exists", usecases.ErrLotCodeAlreadyExists},
+		{"actor not found", exception.New(exception.CodeActorNotFound)},
+		{"farm not found", exception.New(exception.CodeFarmNotFound)},
+		{"not allowed", exception.New(exception.CodeForbidden)},
+		{"code already exists", exception.New(exception.CodeLotCodeAlreadyExists)},
 		{"unexpected error", errors.New("boom")},
 	}
 

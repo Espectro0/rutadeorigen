@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"rutadeorigen/traceability/internal/platform/exception"
 	"rutadeorigen/traceability/internal/platform/helper"
 )
 
@@ -41,13 +42,13 @@ func New(userID string, actorType Type, name string) (*Actor, error) {
 	name = helper.ApplyTrim(name)
 
 	if helper.IsEmpty(userID) {
-		return Default(), ErrInvalidUserID
+		return Default(), exception.New(exception.CodeActorInvalidUserID)
 	}
 	if !actorType.IsValid() {
-		return Default(), ErrInvalidType
+		return Default(), exception.New(exception.CodeActorInvalidType)
 	}
 	if !helper.LengthIsValid(name, nameMinLength, nameMaxLength) {
-		return Default(), ErrInvalidName
+		return Default(), exception.New(exception.CodeActorInvalidName).WithParams(map[string]any{"min": nameMinLength, "max": nameMaxLength})
 	}
 
 	return &Actor{

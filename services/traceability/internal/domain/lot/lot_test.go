@@ -1,13 +1,13 @@
 package lot_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 
 	"rutadeorigen/traceability/internal/domain/lot"
+	"rutadeorigen/traceability/internal/platform/exception"
 	"rutadeorigen/traceability/internal/platform/helper"
 )
 
@@ -73,23 +73,23 @@ func TestNewInvalid(t *testing.T) {
 		variety     string
 		process     lot.Process
 		harvestDate time.Time
-		want        error
+		wantCode    exception.Code
 	}{
-		{"default farm ID", uuid.Nil, uuid.New(), "LT-001", "Castillo", lot.ProcessWashed, validHarvestDate(), lot.ErrInvalidFarm},
-		{"default custodian ID", uuid.New(), uuid.Nil, "LT-001", "Castillo", lot.ProcessWashed, validHarvestDate(), lot.ErrInvalidCustodian},
-		{"code too short", uuid.New(), uuid.New(), "LT", "Castillo", lot.ProcessWashed, validHarvestDate(), lot.ErrInvalidCode},
-		{"code too long", uuid.New(), uuid.New(), "LT-0000000000000000000000000001", "Castillo", lot.ProcessWashed, validHarvestDate(), lot.ErrInvalidCode},
-		{"empty variety", uuid.New(), uuid.New(), "LT-001", "   ", lot.ProcessWashed, validHarvestDate(), lot.ErrInvalidVariety},
-		{"unknown process", uuid.New(), uuid.New(), "LT-001", "Castillo", lot.ProcessUnknown, validHarvestDate(), lot.ErrInvalidProcess},
-		{"default harvest date", uuid.New(), uuid.New(), "LT-001", "Castillo", lot.ProcessWashed, time.Time{}, lot.ErrInvalidHarvestDate},
-		{"future harvest date", uuid.New(), uuid.New(), "LT-001", "Castillo", lot.ProcessWashed, time.Now().AddDate(0, 0, 1), lot.ErrInvalidHarvestDate},
+		{"default farm ID", uuid.Nil, uuid.New(), "LT-001", "Castillo", lot.ProcessWashed, validHarvestDate(), exception.CodeLotInvalidFarm},
+		{"default custodian ID", uuid.New(), uuid.Nil, "LT-001", "Castillo", lot.ProcessWashed, validHarvestDate(), exception.CodeLotInvalidCustodian},
+		{"code too short", uuid.New(), uuid.New(), "LT", "Castillo", lot.ProcessWashed, validHarvestDate(), exception.CodeLotInvalidCode},
+		{"code too long", uuid.New(), uuid.New(), "LT-0000000000000000000000000001", "Castillo", lot.ProcessWashed, validHarvestDate(), exception.CodeLotInvalidCode},
+		{"empty variety", uuid.New(), uuid.New(), "LT-001", "   ", lot.ProcessWashed, validHarvestDate(), exception.CodeLotInvalidVariety},
+		{"unknown process", uuid.New(), uuid.New(), "LT-001", "Castillo", lot.ProcessUnknown, validHarvestDate(), exception.CodeLotInvalidProcess},
+		{"default harvest date", uuid.New(), uuid.New(), "LT-001", "Castillo", lot.ProcessWashed, time.Time{}, exception.CodeLotInvalidHarvestDate},
+		{"future harvest date", uuid.New(), uuid.New(), "LT-001", "Castillo", lot.ProcessWashed, time.Now().AddDate(0, 0, 1), exception.CodeLotInvalidHarvestDate},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			l, err := lot.New(tt.farmID, tt.custodianID, tt.code, tt.variety, tt.process, tt.harvestDate)
-			if !errors.Is(err, tt.want) {
-				t.Errorf("got %v, want %v", err, tt.want)
+			if !exception.HasCode(err, tt.wantCode) {
+				t.Errorf("got %v, want code %q", err, tt.wantCode)
 			}
 			if !l.IsDefault() {
 				t.Error("expected default lot on error")
@@ -98,11 +98,31 @@ func TestNewInvalid(t *testing.T) {
 	}
 }
 
+func TestNewInvalidCodeCarriesLengthLimits(t *testing.T) {
+	// Limits defined by the lot code rule (codeMinLength and codeMaxLength).
+	const (
+		wantMin = 3
+		wantMax = 30
+	)
+
+	for _, code := range []string{"LT", "LT-0000000000000000000000000001"} {
+		_, err := lot.New(uuid.New(), uuid.New(), code, "Castillo", lot.ProcessWashed, validHarvestDate())
+
+		ex, ok := exception.From(err)
+		if !ok {
+			t.Fatalf("code %q: expected an exception, got %v", code, err)
+		}
+		if ex.Params()["min"] != wantMin || ex.Params()["max"] != wantMax {
+			t.Errorf("code %q: params = %v, want min=%d max=%d", code, ex.Params(), wantMin, wantMax)
+		}
+	}
+}
+
 func TestVoid(t *testing.T) {
 	l := newValidLot(t)
 
-	if err := l.Void("   "); !errors.Is(err, lot.ErrEmptyVoidReason) {
-		t.Errorf("empty reason: got %v, want %v", err, lot.ErrEmptyVoidReason)
+	if err := l.Void("   "); !exception.HasCode(err, exception.CodeLotEmptyVoidReason) {
+		t.Errorf("empty reason: got %v, want code %q", err, exception.CodeLotEmptyVoidReason)
 	}
 	if l.Version() != 1 {
 		t.Error("a failed void must not change the version")
@@ -121,8 +141,8 @@ func TestVoid(t *testing.T) {
 		t.Errorf("expected version 2, got %d", l.Version())
 	}
 
-	if err := l.Void("Again"); !errors.Is(err, lot.ErrVoided) {
-		t.Errorf("void twice: got %v, want %v", err, lot.ErrVoided)
+	if err := l.Void("Again"); !exception.HasCode(err, exception.CodeLotVoided) {
+		t.Errorf("void twice: got %v, want code %q", err, exception.CodeLotVoided)
 	}
 }
 
@@ -136,8 +156,8 @@ func TestCanBeDeleted(t *testing.T) {
 		CurrentStage: lot.StageFarm,
 		Status:       lot.StatusActive,
 	})
-	if err := withEvents.CanBeDeleted(); !errors.Is(err, lot.ErrHasEvents) {
-		t.Errorf("got %v, want %v", err, lot.ErrHasEvents)
+	if err := withEvents.CanBeDeleted(); !exception.HasCode(err, exception.CodeLotHasEvents) {
+		t.Errorf("got %v, want code %q", err, exception.CodeLotHasEvents)
 	}
 }
 
@@ -182,7 +202,7 @@ func TestDefault(t *testing.T) {
 	if d.IsActive() {
 		t.Error("the default lot must not be active")
 	}
-	if err := d.Void("Any reason"); !errors.Is(err, lot.ErrVoided) {
+	if err := d.Void("Any reason"); !exception.HasCode(err, exception.CodeLotVoided) {
 		t.Errorf("the default lot must not be voidable, got %v", err)
 	}
 	if d == lot.Default() {
@@ -244,17 +264,23 @@ func TestNewHarvestDateBoundaries(t *testing.T) {
 	tests := []struct {
 		name        string
 		harvestDate time.Time
-		wantErr     error
+		wantCode    exception.Code
 	}{
-		{"today (UTC) is valid", today, nil},
-		{"tomorrow (UTC) is in the future", today.AddDate(0, 0, 1), lot.ErrInvalidHarvestDate},
+		{"today (UTC) is valid", today, ""},
+		{"tomorrow (UTC) is in the future", today.AddDate(0, 0, 1), exception.CodeLotInvalidHarvestDate},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := lot.New(uuid.New(), uuid.New(), "LT-001", "Castillo", lot.ProcessWashed, tt.harvestDate)
-			if !errors.Is(err, tt.wantErr) {
-				t.Errorf("got %v, want %v", err, tt.wantErr)
+			if tt.wantCode == "" {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+				return
+			}
+			if !exception.HasCode(err, tt.wantCode) {
+				t.Errorf("got %v, want code %q", err, tt.wantCode)
 			}
 		})
 	}

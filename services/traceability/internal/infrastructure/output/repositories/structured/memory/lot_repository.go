@@ -4,17 +4,15 @@ import (
 	"context"
 	"sync"
 
+	"rutadeorigen/traceability/internal/platform/exception"
+
 	"github.com/google/uuid"
 
 	"rutadeorigen/traceability/internal/application/output/ports"
 	"rutadeorigen/traceability/internal/domain/lot"
-	"rutadeorigen/traceability/internal/platform/exception"
 )
 
 var _ ports.LotRepository = (*LotRepository)(nil)
-
-var errSaveDefaultLot = exception.NewInternal(exception.LayerInfrastructure,
-	"No se pudo guardar el lote", "cannot save a default lot", nil)
 
 type LotRepository struct {
 	mu   sync.RWMutex
@@ -45,7 +43,7 @@ func (r *LotRepository) ExistsByCode(_ context.Context, farmID uuid.UUID, code s
 
 func (r *LotRepository) Save(_ context.Context, l *lot.Lot) error {
 	if l.IsDefault() {
-		return errSaveDefaultLot
+		return exception.New(exception.CodeInternal).WithTechnical("cannot save a default lot")
 	}
 
 	r.mu.Lock()

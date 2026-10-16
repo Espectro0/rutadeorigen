@@ -6,6 +6,7 @@ import (
 	"rutadeorigen/traceability/internal/application/input/dto/request"
 	"rutadeorigen/traceability/internal/application/input/dto/response"
 	"rutadeorigen/traceability/internal/domain/lot"
+	"rutadeorigen/traceability/internal/platform/exception"
 	"rutadeorigen/traceability/internal/platform/helper"
 )
 
@@ -16,17 +17,17 @@ type Assembler struct{}
 func (Assembler) ToDomain(req request.CreateLot) (*lot.Lot, error) {
 	farmID := helper.ParseUUID(req.FarmID)
 	if helper.IsDefaultUUID(farmID) {
-		return lot.Default(), ErrInvalidFarmID
+		return lot.Default(), exception.New(exception.CodeLotInvalidFarmID)
 	}
 
 	harvestDate := helper.ParseDate(req.HarvestDate)
 	if helper.IsDefaultDate(harvestDate) {
-		return lot.Default(), ErrInvalidHarvestDate
+		return lot.Default(), exception.New(exception.CodeLotInvalidHarvestDateFormat)
 	}
 
 	process := lot.ParseProcess(req.Process)
 	if !process.IsValid() {
-		return lot.Default(), ErrInvalidProcess
+		return lot.Default(), exception.New(exception.CodeLotInvalidProcess)
 	}
 
 	return lot.Draft(farmID, req.Code, req.Variety, process, harvestDate), nil

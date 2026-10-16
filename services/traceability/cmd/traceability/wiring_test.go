@@ -10,6 +10,9 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+
+	"rutadeorigen/traceability/internal/platform/catalog"
+	"rutadeorigen/traceability/internal/platform/exception"
 )
 
 const producerHeader = "11111111-1111-1111-1111-111111111111"
@@ -17,9 +20,14 @@ const producerHeader = "11111111-1111-1111-1111-111111111111"
 func newTestServer(t *testing.T) (*http.ServeMux, *bytes.Buffer) {
 	t.Helper()
 
+	messages, err := catalog.New()
+	if err != nil {
+		t.Fatalf("catalog.New: %v", err)
+	}
+
 	var logs bytes.Buffer
 	mux := http.NewServeMux()
-	registerRoutes(mux, slog.New(slog.NewJSONHandler(&logs, nil)), nil)
+	registerRoutes(mux, slog.New(slog.NewJSONHandler(&logs, nil)), nil, messages)
 	return mux, &logs
 }
 
@@ -73,19 +81,20 @@ func TestCreateLotEndToEndErrors(t *testing.T) {
 	farm := seedFarmID.String()
 
 	tests := []struct {
-		name    string
-		actorID string
-		body    string
-		want    int
+		name     string
+		actorID  string
+		body     string
+		want     int
+		wantCode string
 	}{
-		{"missing actor", "", lotBody(farm, "LOT-001", "washed", "2026-01-15"), http.StatusUnauthorized},
-		{"unknown actor", uuid.NewString(), lotBody(farm, "LOT-001", "washed", "2026-01-15"), http.StatusNotFound},
-		{"malformed farm id", producerHeader, lotBody("abc", "LOT-001", "washed", "2026-01-15"), http.StatusBadRequest},
-		{"unknown farm", producerHeader, lotBody(uuid.NewString(), "LOT-001", "washed", "2026-01-15"), http.StatusNotFound},
-		{"unknown process", producerHeader, lotBody(farm, "LOT-001", "fermented", "2026-01-15"), http.StatusBadRequest},
-		{"future harvest date", producerHeader, lotBody(farm, "LOT-001", "washed", "2999-01-01"), http.StatusBadRequest},
-		{"code too short", producerHeader, lotBody(farm, "L1", "washed", "2026-01-15"), http.StatusBadRequest},
-		{"unknown json field", producerHeader, `{"farm_id":"` + farm + `","x":1}`, http.StatusBadRequest},
+		{"missing actor", "", lotBody(farm, "LOT-001", "washed", "2026-01-15"), http.StatusUnauthorized, "UNAUTHORIZED"},
+		{"unknown actor", uuid.NewString(), lotBody(farm, "LOT-001", "washed", "2026-01-15"), http.StatusNotFound, string(exception.CodeActorNotFound)},
+		{"malformed farm id", producerHeader, lotBody("abc", "LOT-001", "washed", "2026-01-15"), http.StatusBadRequest, string(exception.CodeLotInvalidFarmID)},
+		{"unknown farm", producerHeader, lotBody(uuid.NewString(), "LOT-001", "washed", "2026-01-15"), http.StatusNotFound, string(exception.CodeFarmNotFound)},
+		{"unknown process", producerHeader, lotBody(farm, "LOT-001", "fermented", "2026-01-15"), http.StatusBadRequest, string(exception.CodeLotInvalidProcess)},
+		{"future harvest date", producerHeader, lotBody(farm, "LOT-001", "washed", "2999-01-01"), http.StatusBadRequest, string(exception.CodeLotInvalidHarvestDate)},
+		{"code too short", producerHeader, lotBody(farm, "L1", "washed", "2026-01-15"), http.StatusBadRequest, string(exception.CodeLotInvalidCode)},
+		{"unknown json field", producerHeader, `{"farm_id":"` + farm + `","x":1}`, http.StatusBadRequest, "INVALID_REQUEST_BODY"},
 	}
 
 	for _, tt := range tests {
@@ -95,7 +104,18 @@ func TestCreateLotEndToEndErrors(t *testing.T) {
 			rec := createLot(mux, tt.actorID, tt.body)
 
 			if rec.Code != tt.want {
-				t.Errorf("status: got %d, want %d (%s)", rec.Code, tt.want, rec.Body.String())
+				t.Fatalf("status: got %d, want %d (%s)", rec.Code, tt.want, rec.Body.String())
+			}
+
+			var body map[string]string
+			if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+				t.Fatalf("body is not JSON: %v", err)
+			}
+			if body["code"] != tt.wantCode {
+				t.Errorf("code: got %q, want %q", body["code"], tt.wantCode)
+			}
+			if body["error"] == "" {
+				t.Error("error message must not be empty")
 			}
 		})
 	}

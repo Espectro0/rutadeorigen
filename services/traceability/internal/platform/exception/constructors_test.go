@@ -7,132 +7,166 @@ import (
 	"rutadeorigen/traceability/internal/platform/exception"
 )
 
-func TestNewMessages(t *testing.T) {
-	tests := []struct {
-		name          string
-		userMessage   string
-		techMessage   string
-		wantUser      string
-		wantTechnical string
-	}{
-		{"both messages given", "Invalid lot", "lot name is empty", "Invalid lot", "lot name is empty"},
-		{"messages are trimmed", "  Invalid lot  ", "  lot name is empty  ", "Invalid lot", "lot name is empty"},
-		{"empty technical message uses user message", "Invalid lot", "", "Invalid lot", "Invalid lot"},
-		{"blank technical message uses user message", "Invalid lot", "   ", "Invalid lot", "Invalid lot"},
+func TestNewTakesKindFromRegistry(t *testing.T) {
+	ex := exception.New(exception.CodeLotVoided)
+
+	if ex.Code() != exception.CodeLotVoided {
+		t.Errorf("Code: got %q, want %q", ex.Code(), exception.CodeLotVoided)
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := exception.New(exception.KindValidation, exception.LayerDomain, tt.userMessage, tt.techMessage, nil)
-
-			if err.UserMessage() != tt.wantUser {
-				t.Errorf("UserMessage: got %q, want %q", err.UserMessage(), tt.wantUser)
-			}
-			if err.TechnicalMessage() != tt.wantTechnical {
-				t.Errorf("TechnicalMessage: got %q, want %q", err.TechnicalMessage(), tt.wantTechnical)
-			}
-		})
+	if ex.Kind() != exception.KindConflict {
+		t.Errorf("Kind: got %v, want %v", ex.Kind(), exception.KindConflict)
+	}
+	if ex.TechnicalMessage() != string(exception.CodeLotVoided) {
+		t.Errorf("TechnicalMessage: got %q, want %q", ex.TechnicalMessage(), exception.CodeLotVoided)
+	}
+	if ex.Unwrap() != nil {
+		t.Errorf("Unwrap: got %v, want nil", ex.Unwrap())
 	}
 }
 
-func TestNewWithEmptyMessagesUsesDefault(t *testing.T) {
-	err := exception.New(exception.KindInternal, exception.LayerApplication, "   ", "", nil)
+func TestNewUnregisteredCodeFallsBackToInternal(t *testing.T) {
+	ex := exception.New("NOT_A_REAL_CODE")
 
-	if err.UserMessage() == "" {
-		t.Error("expected a default user message, got empty")
+	if ex.Code() != exception.CodeInternal {
+		t.Errorf("Code: got %q, want %q", ex.Code(), exception.CodeInternal)
 	}
-	if err.TechnicalMessage() != err.UserMessage() {
-		t.Errorf("expected technical message to fall back to the user message, got %q", err.TechnicalMessage())
+	if ex.Kind() != exception.KindInternal {
+		t.Errorf("Kind: got %v, want %v", ex.Kind(), exception.KindInternal)
 	}
-}
-
-func TestConstructorsSetKind(t *testing.T) {
-	cause := errors.New("cause")
-
-	tests := []struct {
-		name string
-		err  *exception.Exception
-		want exception.Kind
-	}{
-		{"NewValidation", exception.NewValidation(exception.LayerDomain, "msg", ""), exception.KindValidation},
-		{"NewNotFound", exception.NewNotFound(exception.LayerDomain, "msg", ""), exception.KindNotFound},
-		{"NewConflict", exception.NewConflict(exception.LayerDomain, "msg", ""), exception.KindConflict},
-		{"NewForbidden", exception.NewForbidden(exception.LayerDomain, "msg", ""), exception.KindForbidden},
-		{"NewUnauthorized", exception.NewUnauthorized(exception.LayerDomain, "msg", ""), exception.KindUnauthorized},
-		{"NewInternal", exception.NewInternal(exception.LayerDomain, "msg", "", cause), exception.KindInternal},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.err.Kind() != tt.want {
-				t.Errorf("Kind: got %v, want %v", tt.err.Kind(), tt.want)
-			}
-			if tt.err.Layer() != exception.LayerDomain {
-				t.Errorf("Layer: got %v, want %v", tt.err.Layer(), exception.LayerDomain)
-			}
-		})
+	want := "unregistered error code: NOT_A_REAL_CODE"
+	if ex.TechnicalMessage() != want {
+		t.Errorf("TechnicalMessage: got %q, want %q", ex.TechnicalMessage(), want)
 	}
 }
 
-func TestNewInternalKeepsCause(t *testing.T) {
+func TestWithParamsReturnsCopy(t *testing.T) {
+	original := exception.New(exception.CodeLotInvalidCode)
+	withParams := original.WithParams(map[string]any{"min": 3, "max": 30})
+
+	if withParams == original {
+		t.Fatal("WithParams returned the same pointer")
+	}
+	if len(original.Params()) != 0 {
+		t.Errorf("original params changed: got %v", original.Params())
+	}
+	if withParams.Params()["min"] != 3 || withParams.Params()["max"] != 30 {
+		t.Errorf("params: got %v", withParams.Params())
+	}
+	if withParams.Code() != original.Code() || withParams.Kind() != original.Kind() {
+		t.Errorf("code or kind changed: got %q/%v, want %q/%v",
+			withParams.Code(), withParams.Kind(), original.Code(), original.Kind())
+	}
+}
+
+func TestWithParamsDoesNotAliasInput(t *testing.T) {
+	input := map[string]any{"min": 3}
+	ex := exception.New(exception.CodeLotInvalidCode).WithParams(input)
+
+	input["min"] = 99
+	input["extra"] = "x"
+
+	got := ex.Params()
+	if got["min"] != 3 {
+		t.Errorf("min: got %v, want 3", got["min"])
+	}
+	if _, ok := got["extra"]; ok {
+		t.Error("exception picked up a key added to the caller's map")
+	}
+}
+
+func TestWithParamsNilGivesEmptyMap(t *testing.T) {
+	ex := exception.New(exception.CodeLotInvalidCode).WithParams(nil)
+
+	if ex.Params() == nil {
+		t.Fatal("Params is nil, want empty map")
+	}
+	if len(ex.Params()) != 0 {
+		t.Errorf("Params: got %v, want empty", ex.Params())
+	}
+}
+
+func TestWithTechnical(t *testing.T) {
+	t.Run("returns a copy with the new message", func(t *testing.T) {
+		original := exception.New(exception.CodeInternal)
+
+		got := original.WithTechnical("  cannot save a default lot  ")
+
+		if got == original {
+			t.Fatal("WithTechnical returned the same pointer")
+		}
+		if got.TechnicalMessage() != "cannot save a default lot" {
+			t.Errorf("TechnicalMessage: got %q, want the trimmed message", got.TechnicalMessage())
+		}
+		if original.TechnicalMessage() != string(exception.CodeInternal) {
+			t.Errorf("original changed: got %q", original.TechnicalMessage())
+		}
+	})
+
+	t.Run("keeps code, kind and params", func(t *testing.T) {
+		original := exception.New(exception.CodeLotInvalidCode).WithParams(map[string]any{"min": 3})
+
+		got := original.WithTechnical("code too short")
+
+		if got.Code() != original.Code() || got.Kind() != original.Kind() || got.Params()["min"] != 3 {
+			t.Errorf("code, kind or params changed: %q/%v/%v", got.Code(), got.Kind(), got.Params())
+		}
+	})
+}
+
+func TestWithCause(t *testing.T) {
 	cause := errors.New("connection refused")
-	err := exception.NewInternal(exception.LayerInfrastructure, "", "save lot", cause)
 
-	if !errors.Is(err, cause) {
-		t.Error("expected the cause to be kept")
+	t.Run("returns a copy that keeps the cause", func(t *testing.T) {
+		original := exception.New(exception.CodeInternal)
+
+		got := original.WithCause(cause)
+
+		if got == original {
+			t.Fatal("WithCause returned the same pointer")
+		}
+		if !errors.Is(got, cause) {
+			t.Error("expected the cause to be reachable with errors.Is")
+		}
+		if original.Unwrap() != nil {
+			t.Error("original must not get the cause")
+		}
+	})
+
+	t.Run("keeps matching by code", func(t *testing.T) {
+		got := exception.New(exception.CodeInternal).WithCause(cause)
+
+		if !errors.Is(got, exception.New(exception.CodeInternal)) {
+			t.Error("an exception with a cause must still match its code")
+		}
+	})
+}
+
+func TestIsMatchesByCodeIgnoringParams(t *testing.T) {
+	a := exception.New(exception.CodeLotInvalidCode).WithParams(map[string]any{"min": 3})
+	b := exception.New(exception.CodeLotInvalidCode).WithParams(map[string]any{"min": 5})
+	other := exception.New(exception.CodeLotVoided)
+
+	if !errors.Is(a, b) {
+		t.Error("exceptions with the same code must match")
+	}
+	if errors.Is(a, other) {
+		t.Error("exceptions with different codes must not match")
 	}
 }
 
-func TestNewForbidden(t *testing.T) {
-	err := exception.NewForbidden(
-		exception.LayerApplication,
-		"You are not allowed to register this stage",
-		"actor is not the current custodian of the lot",
-	)
+func TestIsIgnoresExceptionsWithoutCode(t *testing.T) {
+	a := &exception.Exception{}
+	b := &exception.Exception{}
 
-	if err.Kind() != exception.KindForbidden {
-		t.Errorf("Kind: got %v, want %v", err.Kind(), exception.KindForbidden)
-	}
-	if err.Layer() != exception.LayerApplication {
-		t.Errorf("Layer: got %v, want %v", err.Layer(), exception.LayerApplication)
-	}
-	if err.UserMessage() != "You are not allowed to register this stage" {
-		t.Errorf("UserMessage: got %q", err.UserMessage())
-	}
-	if err.TechnicalMessage() != "actor is not the current custodian of the lot" {
-		t.Errorf("TechnicalMessage: got %q", err.TechnicalMessage())
-	}
-	if err.Unwrap() != nil {
-		t.Error("expected no cause for a forbidden error")
+	if errors.Is(a, b) {
+		t.Error("exceptions without code must not match each other")
 	}
 }
 
-func TestWrapKeepsForbidden(t *testing.T) {
-	forbidden := exception.NewForbidden(exception.LayerApplication, "Not allowed", "")
+func TestIsDoesNotMatchPlainError(t *testing.T) {
+	ex := exception.New(exception.CodeLotVoided)
 
-	got, ok := exception.From(exception.Wrap(forbidden, exception.LayerInfrastructure, "create lot"))
-	if !ok || got.Kind() != exception.KindForbidden {
-		t.Error("expected Wrap to keep the forbidden error unchanged")
-	}
-}
-
-func TestNewUnauthorized(t *testing.T) {
-	err := exception.NewUnauthorized(
-		exception.LayerInfrastructure,
-		"Debes identificarte",
-		"missing actor header",
-	)
-
-	if err.Kind() != exception.KindUnauthorized {
-		t.Errorf("Kind: got %v, want %v", err.Kind(), exception.KindUnauthorized)
-	}
-	if err.Layer() != exception.LayerInfrastructure {
-		t.Errorf("Layer: got %v, want %v", err.Layer(), exception.LayerInfrastructure)
-	}
-	if err.UserMessage() != "Debes identificarte" {
-		t.Errorf("UserMessage: got %q, want %q", err.UserMessage(), "Debes identificarte")
-	}
-	if err.Unwrap() != nil {
-		t.Errorf("Unwrap: got %v, want nil", err.Unwrap())
+	if errors.Is(ex, errors.New("lot is voided")) {
+		t.Error("an exception must not match an unrelated error")
 	}
 }

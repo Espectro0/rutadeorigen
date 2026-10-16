@@ -16,5 +16,7 @@ func isUniqueViolation(err error, constraint string) bool {
 }
 
 func internalError(technicalMessage string, cause error) error {
-	return exception.NewInternal(exception.LayerInfrastructure, "", technicalMessage, cause)
+	return exception.New(exception.CodeInternal).
+		WithTechnical(technicalMessage).
+		WithCause(cause)
 }

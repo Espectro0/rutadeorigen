@@ -12,18 +12,16 @@ import (
 
 const maxBodyBytes = 1 << 20
 
-var errInvalidBody = exception.NewValidation(exception.LayerInfrastructure,
-	"El cuerpo de la petición no es un JSON válido", "cannot decode request body")
-
 type Middleware func(http.Handler) http.Handler
 
 type LotController struct {
 	createLot ports.CreateLotPort
+	errs      *ErrorResponder
 	log       *slog.Logger
 }
 
-func NewLotController(createLot ports.CreateLotPort, log *slog.Logger) *LotController {
-	return &LotController{createLot: createLot, log: log}
+func NewLotController(createLot ports.CreateLotPort, errs *ErrorResponder, log *slog.Logger) *LotController {
+	return &LotController{createLot: createLot, errs: errs, log: log}
 }
 
 func (c *LotController) Register(mux *http.ServeMux, requireActor Middleware) {
@@ -36,13 +34,13 @@ func (c *LotController) create(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBodyBytes))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&req); err != nil {
-		writeError(w, r, c.log, errInvalidBody)
+		c.errs.Write(w, r, exception.New(exception.CodeInvalidRequestBody))
 		return
 	}
 
 	res, err := c.createLot.Execute(r.Context(), req)
 	if err != nil {
-		writeError(w, r, c.log, err)
+		c.errs.Write(w, r, err)
 		return
 	}
 

@@ -1,41 +1,56 @@
 package exception
 
-import "rutadeorigen/traceability/internal/platform/helper"
+import (
+	"errors"
+	"maps"
 
-const defaultUserMessage = "An unexpected error occurred, please try again later. If this error persists, please contact support."
+	"rutadeorigen/traceability/internal/platform/helper"
+)
 
-func New(kind Kind, layer Layer, userMessage, technicalMessage string, cause error) *Exception {
-	userMessage = helper.TextIfEmpty(userMessage, defaultUserMessage)
+func New(code Code) *Exception {
+	kind, ok := KindOf(code)
+	if !ok {
+		return &Exception{
+			code:             CodeInternal,
+			kind:             KindInternal,
+			technicalMessage: "unregistered error code: " + string(code),
+		}
+	}
 
 	return &Exception{
-		userMessage:      helper.ApplyTrim(userMessage),
-		technicalMessage: helper.ApplyTrim(helper.TextIfEmpty(technicalMessage, userMessage)),
-		cause:            cause,
-		layer:            layer,
+		code:             code,
 		kind:             kind,
+		technicalMessage: string(code),
 	}
 }
 
-func NewValidation(layer Layer, userMessage, technicalMessage string) *Exception {
-	return New(KindValidation, layer, userMessage, technicalMessage, nil)
+func (e *Exception) WithParams(params map[string]any) *Exception {
+	cp := *e
+	cp.params = cloneParams(params)
+	return &cp
 }
 
-func NewNotFound(layer Layer, userMessage, technicalMessage string) *Exception {
-	return New(KindNotFound, layer, userMessage, technicalMessage, nil)
+func cloneParams(params map[string]any) map[string]any {
+	if len(params) == 0 {
+		return map[string]any{}
+	}
+	return maps.Clone(params)
 }
 
-func NewConflict(layer Layer, userMessage, technicalMessage string) *Exception {
-	return New(KindConflict, layer, userMessage, technicalMessage, nil)
+func (e *Exception) Is(target error) bool {
+	var t *Exception
+	ok := errors.As(target, &t)
+	return ok && t.code != "" && t.code == e.code
 }
 
-func NewInternal(layer Layer, userMessage, technicalMessage string, cause error) *Exception {
-	return New(KindInternal, layer, userMessage, technicalMessage, cause)
+func (e *Exception) WithTechnical(message string) *Exception {
+	cp := *e
+	cp.technicalMessage = helper.ApplyTrim(message)
+	return &cp
 }
 
-func NewForbidden(layer Layer, userMessage, technicalMessage string) *Exception {
-	return New(KindForbidden, layer, userMessage, technicalMessage, nil)
-}
-
-func NewUnauthorized(layer Layer, userMessage, technicalMessage string) *Exception {
-	return New(KindUnauthorized, layer, userMessage, technicalMessage, nil)
+func (e *Exception) WithCause(cause error) *Exception {
+	cp := *e
+	cp.cause = cause
+	return &cp
 }

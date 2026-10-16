@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"rutadeorigen/traceability/internal/application/usecases"
 	"rutadeorigen/traceability/internal/application/usecases/validators"
 	"rutadeorigen/traceability/internal/domain/actor"
 	"rutadeorigen/traceability/internal/domain/farm"
@@ -63,8 +62,8 @@ func TestActorActive(t *testing.T) {
 
 	t.Run("actor not found", func(t *testing.T) {
 		got, err := validators.ActorActive(context.Background(), fakeActorRepository{actor: actor.Default()}, uuid.New())
-		if !errors.Is(err, usecases.ErrActorNotFound) {
-			t.Errorf("got %v, want %v", err, usecases.ErrActorNotFound)
+		if !errors.Is(err, exception.New(exception.CodeActorNotFound)) {
+			t.Errorf("got %v, want %v", err, exception.New(exception.CodeActorNotFound))
 		}
 		if !got.IsDefault() {
 			t.Error("expected default actor on error")
@@ -73,8 +72,8 @@ func TestActorActive(t *testing.T) {
 
 	t.Run("inactive actor counts as not found", func(t *testing.T) {
 		got, err := validators.ActorActive(context.Background(), fakeActorRepository{actor: inactive}, inactive.ID())
-		if !errors.Is(err, usecases.ErrActorNotFound) {
-			t.Errorf("got %v, want %v", err, usecases.ErrActorNotFound)
+		if !errors.Is(err, exception.New(exception.CodeActorNotFound)) {
+			t.Errorf("got %v, want %v", err, exception.New(exception.CodeActorNotFound))
 		}
 		if !got.IsDefault() {
 			t.Error("expected default actor on error")
@@ -83,8 +82,8 @@ func TestActorActive(t *testing.T) {
 
 	t.Run("nil actor from repository counts as not found", func(t *testing.T) {
 		_, err := validators.ActorActive(context.Background(), fakeActorRepository{actor: nil}, uuid.New())
-		if !errors.Is(err, usecases.ErrActorNotFound) {
-			t.Errorf("got %v, want %v", err, usecases.ErrActorNotFound)
+		if !errors.Is(err, exception.New(exception.CodeActorNotFound)) {
+			t.Errorf("got %v, want %v", err, exception.New(exception.CodeActorNotFound))
 		}
 	})
 
@@ -115,8 +114,8 @@ func TestFarmExists(t *testing.T) {
 
 	t.Run("farm not found", func(t *testing.T) {
 		got, err := validators.FarmExists(context.Background(), fakeFarmRepository{farm: farm.Default()}, uuid.New())
-		if !errors.Is(err, usecases.ErrFarmNotFound) {
-			t.Errorf("got %v, want %v", err, usecases.ErrFarmNotFound)
+		if !errors.Is(err, exception.New(exception.CodeFarmNotFound)) {
+			t.Errorf("got %v, want %v", err, exception.New(exception.CodeFarmNotFound))
 		}
 		if !got.IsDefault() {
 			t.Error("expected default farm on error")
@@ -125,8 +124,8 @@ func TestFarmExists(t *testing.T) {
 
 	t.Run("nil farm from repository counts as not found", func(t *testing.T) {
 		_, err := validators.FarmExists(context.Background(), fakeFarmRepository{farm: nil}, uuid.New())
-		if !errors.Is(err, usecases.ErrFarmNotFound) {
-			t.Errorf("got %v, want %v", err, usecases.ErrFarmNotFound)
+		if !errors.Is(err, exception.New(exception.CodeFarmNotFound)) {
+			t.Errorf("got %v, want %v", err, exception.New(exception.CodeFarmNotFound))
 		}
 	})
 

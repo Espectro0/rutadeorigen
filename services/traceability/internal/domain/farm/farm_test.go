@@ -1,13 +1,13 @@
 package farm_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 
 	"rutadeorigen/traceability/internal/domain/farm"
+	"rutadeorigen/traceability/internal/platform/exception"
 )
 
 func TestNewValid(t *testing.T) {
@@ -34,22 +34,49 @@ func TestNewInvalid(t *testing.T) {
 		producerID uuid.UUID
 		farmName   string
 		altitude   int
-		want       error
+		wantCode   exception.Code
 	}{
-		{"default producer ID", uuid.Nil, "La Esperanza", 1650, farm.ErrInvalidProducer},
-		{"name too short", uuid.New(), "LE", 1650, farm.ErrInvalidName},
-		{"altitude below range", uuid.New(), "La Esperanza", -1, farm.ErrInvalidAltitude},
-		{"altitude above range", uuid.New(), "La Esperanza", 3001, farm.ErrInvalidAltitude},
+		{"default producer ID", uuid.Nil, "La Esperanza", 1650, exception.CodeFarmInvalidProducer},
+		{"name too short", uuid.New(), "LE", 1650, exception.CodeFarmInvalidName},
+		{"altitude below range", uuid.New(), "La Esperanza", -1, exception.CodeFarmInvalidAltitude},
+		{"altitude above range", uuid.New(), "La Esperanza", 3001, exception.CodeFarmInvalidAltitude},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			f, err := farm.New(tt.producerID, tt.farmName, tt.altitude)
-			if !errors.Is(err, tt.want) {
-				t.Errorf("got %v, want %v", err, tt.want)
+			if !exception.HasCode(err, tt.wantCode) {
+				t.Errorf("got %v, want code %q", err, tt.wantCode)
 			}
 			if !f.IsDefault() {
 				t.Error("expected default farm on error")
+			}
+		})
+	}
+}
+
+func TestNewInvalidCarriesLimits(t *testing.T) {
+	tests := []struct {
+		name     string
+		farmName string
+		altitude int
+		wantMin  int
+		wantMax  int
+	}{
+		{"name", "LE", 1650, 3, 100},
+		{"altitude", "La Esperanza", -1, 0, 3000},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := farm.New(uuid.New(), tt.farmName, tt.altitude)
+
+			ex, ok := exception.From(err)
+			if !ok {
+				t.Fatalf("expected an exception, got %v", err)
+			}
+			if ex.Params()["min"] != tt.wantMin || ex.Params()["max"] != tt.wantMax {
+				t.Errorf("params = %v, want min=%d max=%d", ex.Params(), tt.wantMin, tt.wantMax)
 			}
 		})
 	}
