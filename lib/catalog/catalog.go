@@ -34,10 +34,10 @@ func NewWithGeneric(sources ...[]byte) (*Catalog, error) {
 	all = append(all, genericYAML)
 	all = append(all, sources...)
 
-	return New(all...)
+	return NewFromSources(all...)
 }
 
-func New(sources ...[]byte) (*Catalog, error) {
+func NewFromSources(sources ...[]byte) (*Catalog, error) {
 	messages := make(map[string][]token)
 	var errs []error
 
