@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"rutadeorigen/traceability/internal/platform/catalog"
 	"syscall"
 	"time"
 
@@ -17,6 +16,7 @@ import (
 	"rutadeorigen/lib/health"
 	"rutadeorigen/lib/logger"
 	"rutadeorigen/traceability/internal/infrastructure/output/repositories/structured/postgres"
+	"rutadeorigen/traceability/internal/platform/catalog"
 )
 
 func main() {
