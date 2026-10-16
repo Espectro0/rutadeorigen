@@ -6,10 +6,9 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"rutadeorigen/traceability/internal/platform/catalog"
 	"syscall"
 	"time"
-
-	"rutadeorigen/lib/catalog"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 

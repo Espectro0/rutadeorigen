@@ -24,7 +24,7 @@ func toBytes(sources []string) [][]byte {
 func build(t *testing.T, sources ...string) *catalog.Catalog {
 	t.Helper()
 
-	c, err := catalog.New(toBytes(sources)...)
+	c, err := catalog.NewFromSources(toBytes(sources)...)
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -108,7 +108,7 @@ func TestNewFails(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c, err := catalog.New(toBytes(tc.sources)...)
+			c, err := catalog.NewFromSources(toBytes(tc.sources)...)
 			if err == nil {
 				t.Fatalf("expected an error, got catalog %v", c)
 			}
@@ -123,7 +123,7 @@ func TestNewFails(t *testing.T) {
 }
 
 func TestNewReportsEverySourceProblem(t *testing.T) {
-	_, err := catalog.New(
+	_, err := catalog.NewFromSources(
 		[]byte(internalOnly),
 		[]byte(`LOT_VOIDED: ""`),
 		[]byte(`FARM_NOT_FOUND: "Farm {id"`),
