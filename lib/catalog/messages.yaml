@@ -1,0 +1,4 @@
+INTERNAL: "An unexpected error occurred, please try again later. If this error persists, please contact support."
+INVALID_REQUEST_BODY: "The request body is not valid."
+UNAUTHORIZED: "You must identify yourself to perform this operation."
+FORBIDDEN: "You do not have permission to perform this action."
