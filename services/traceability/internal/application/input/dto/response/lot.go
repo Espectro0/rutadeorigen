@@ -2,6 +2,7 @@ package response
 
 type Lot struct {
 	ID          string `json:"id"`
+	Version     int    `json:"version"`
 	FarmID      string `json:"farm_id"`
 	CustodianID string `json:"custodian_id"`
 	Code        string `json:"code"`

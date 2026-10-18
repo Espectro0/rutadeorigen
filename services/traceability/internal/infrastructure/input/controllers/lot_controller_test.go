@@ -36,6 +36,40 @@ func (f *fakeCreateLotPort) Execute(ctx context.Context, input request.CreateLot
 	return f.result, nil
 }
 
+type fakeGetLotPort struct {
+	result response.Lot
+	err    error
+
+	calls    int
+	received request.GetLot
+}
+
+func (f *fakeGetLotPort) Execute(_ context.Context, input request.GetLot) (response.Lot, error) {
+	f.calls++
+	f.received = input
+	if f.err != nil {
+		return response.Lot{}, f.err
+	}
+	return f.result, nil
+}
+
+type fakeListLotsPort struct {
+	result response.LotPage
+	err    error
+
+	calls    int
+	received request.ListLots
+}
+
+func (f *fakeListLotsPort) Execute(_ context.Context, input request.ListLots) (response.LotPage, error) {
+	f.calls++
+	f.received = input
+	if f.err != nil {
+		return response.LotPage{}, f.err
+	}
+	return f.result, nil
+}
+
 type ctxKey struct{}
 
 func passThrough(next http.Handler) http.Handler { return next }
@@ -44,7 +78,7 @@ func newMux(t *testing.T, port *fakeCreateLotPort, middleware controllers.Middle
 	t.Helper()
 
 	mux := http.NewServeMux()
-	controllers.NewLotController(port, newResponder(t), discardLogger()).Register(mux, middleware)
+	controllers.NewLotController(port, &fakeGetLotPort{}, &fakeListLotsPort{}, newResponder(t), discardLogger()).Register(mux, middleware)
 	return mux
 }
 
@@ -205,14 +239,18 @@ func TestCreateLotMapsPortErrors(t *testing.T) {
 	}
 }
 
-func TestCreateLotOnlyAcceptsPost(t *testing.T) {
-	port := &fakeCreateLotPort{}
-	req := httptest.NewRequest(http.MethodGet, "/lots", nil)
-	rec := httptest.NewRecorder()
+func TestLotsCollectionRejectsUnsupportedMethods(t *testing.T) {
+	for _, method := range []string{http.MethodPut, http.MethodPatch, http.MethodDelete} {
+		t.Run(method, func(t *testing.T) {
+			port := &fakeCreateLotPort{}
+			req := httptest.NewRequest(method, "/lots", nil)
+			rec := httptest.NewRecorder()
 
-	newMux(t, port, passThrough).ServeHTTP(rec, req)
+			newMux(t, port, passThrough).ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusMethodNotAllowed || port.calls != 0 {
-		t.Errorf("got status %d and %d port calls, want 405 and 0", rec.Code, port.calls)
+			if rec.Code != http.StatusMethodNotAllowed || port.calls != 0 {
+				t.Errorf("got status %d and %d port calls, want 405 and 0", rec.Code, port.calls)
+			}
+		})
 	}
 }

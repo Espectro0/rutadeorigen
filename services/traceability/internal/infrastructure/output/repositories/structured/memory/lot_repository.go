@@ -1,7 +1,9 @@
 package memory
 
 import (
+	"bytes"
 	"context"
+	"sort"
 	"sync"
 
 	"rutadeorigen/traceability/internal/platform/exception"
@@ -51,4 +53,56 @@ func (r *LotRepository) Save(_ context.Context, l *lot.Lot) error {
 
 	r.lots[l.ID()] = l
 	return nil
+}
+
+func (r *LotRepository) FindByID(_ context.Context, id uuid.UUID) (*lot.Lot, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	l, ok := r.lots[id]
+	if !ok {
+		return lot.Default(), nil
+	}
+	return l, nil
+}
+
+func (r *LotRepository) List(_ context.Context, f lot.Filter, after lot.Cursor, limit int) ([]*lot.Lot, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	matches := make([]*lot.Lot, 0, len(r.lots))
+	for _, l := range r.lots {
+		if f.HasFarm() && l.FarmID() != f.FarmID {
+			continue
+		}
+		if f.HasCustodian() && l.CustodianID() != f.CustodianID {
+			continue
+		}
+		if !after.IsDefault() && !comesAfter(l, after) {
+			continue
+		}
+		matches = append(matches, l)
+	}
+
+	sort.Slice(matches, func(i, j int) bool { return newer(matches[i], matches[j]) })
+	if len(matches) > limit {
+		matches = matches[:limit]
+	}
+	return matches, nil
+}
+
+func newer(a, b *lot.Lot) bool {
+	if !a.CreatedAt().Equal(b.CreatedAt()) {
+		return a.CreatedAt().After(b.CreatedAt())
+	}
+	aid, bid := a.ID(), b.ID()
+	return bytes.Compare(aid[:], bid[:]) > 0
+}
+
+func comesAfter(l *lot.Lot, c lot.Cursor) bool {
+	if !l.CreatedAt().Equal(c.CreatedAt) {
+		return l.CreatedAt().Before(c.CreatedAt)
+	}
+	id := l.ID()
+	return bytes.Compare(id[:], c.ID[:]) < 0
 }

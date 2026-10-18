@@ -37,6 +37,7 @@ func TestToResponse(t *testing.T) {
 
 		want := response.Lot{
 			ID:          p.ID.String(),
+			Version:     p.Version,
 			FarmID:      p.FarmID.String(),
 			CustodianID: p.CustodianID.String(),
 			Code:        "LOT-001",

@@ -2,10 +2,12 @@ package postgres
 
 import (
 	"context"
+	"errors"
 
 	"rutadeorigen/traceability/internal/platform/exception"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"rutadeorigen/traceability/internal/application/output/ports"
@@ -67,4 +69,40 @@ func (r *LotRepository) Save(ctx context.Context, l *lot.Lot) error {
 		return internalError("insert lot", err)
 	}
 	return nil
+}
+
+func (r *LotRepository) FindByID(ctx context.Context, id uuid.UUID) (*lot.Lot, error) {
+	rows, err := r.pool.Query(ctx, selectLot+" WHERE id = $1", id)
+	if err != nil {
+		return lot.Default(), internalError("query lot by id", err)
+	}
+
+	row, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[entity.Lot])
+	if errors.Is(err, pgx.ErrNoRows) {
+		return lot.Default(), nil
+	}
+	if err != nil {
+		return lot.Default(), internalError("scan lot", err)
+	}
+	return r.assembler.ToDomain(row), nil
+}
+
+func (r *LotRepository) List(ctx context.Context, f lot.Filter, after lot.Cursor, limit int) ([]*lot.Lot, error) {
+	query, args := listLotsQuery(f, after, limit)
+
+	rows, err := r.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, internalError("query lots", err)
+	}
+
+	entities, err := pgx.CollectRows(rows, pgx.RowToStructByName[entity.Lot])
+	if err != nil {
+		return nil, internalError("scan lots", err)
+	}
+
+	lots := make([]*lot.Lot, 0, len(entities))
+	for _, e := range entities {
+		lots = append(lots, r.assembler.ToDomain(e))
+	}
+	return lots, nil
 }

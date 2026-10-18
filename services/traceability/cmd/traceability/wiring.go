@@ -3,6 +3,8 @@ package main
 import (
 	"log/slog"
 	"net/http"
+	getlotuc "rutadeorigen/traceability/internal/application/usecases/getlot"
+	listlotsuc "rutadeorigen/traceability/internal/application/usecases/listlots"
 
 	"rutadeorigen/lib/catalog"
 	"rutadeorigen/traceability/internal/application/output/ports"
@@ -10,6 +12,8 @@ import (
 	"rutadeorigen/traceability/internal/infrastructure/output/repositories/structured/postgres"
 
 	createlotadapter "rutadeorigen/traceability/internal/application/input/adapters/createlot"
+	getlotadapter "rutadeorigen/traceability/internal/application/input/adapters/getlot"
+	listlotsadapter "rutadeorigen/traceability/internal/application/input/adapters/listlots"
 	createlotuc "rutadeorigen/traceability/internal/application/usecases/createlot"
 	"rutadeorigen/traceability/internal/infrastructure/input/controllers"
 	"rutadeorigen/traceability/internal/infrastructure/output/external/authorizer"
@@ -26,12 +30,14 @@ func registerRoutes(mux *http.ServeMux, log *slog.Logger, pool *pgxpool.Pool, ca
 
 	createLotUseCase := createlotuc.New(actors, farms, lots, auth, publisher)
 	createLotAdapter := createlotadapter.New(createLotUseCase)
+	getLotAdapter := getlotadapter.New(getlotuc.New(actors, lots, auth))
+	listLotsAdapter := listlotsadapter.New(listlotsuc.New(actors, lots, auth))
 
 	requireActor := func(next http.Handler) http.Handler {
 		return controllers.RequireActor(errs, next)
 	}
 
-	controllers.NewLotController(createLotAdapter, errs, log).Register(mux, requireActor)
+	controllers.NewLotController(createLotAdapter, getLotAdapter, listLotsAdapter, errs, log).Register(mux, requireActor)
 }
 
 func repositories(pool *pgxpool.Pool) (ports.ActorRepository, ports.FarmRepository, ports.LotRepository) {
