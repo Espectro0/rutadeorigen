@@ -32,10 +32,13 @@ type Health struct {
 	checkers []Checker
 	timeout  time.Duration
 	log      *slog.Logger
+
+	mu      sync.Mutex
+	failing map[string]bool
 }
 
 func New(log *slog.Logger, timeout time.Duration, checkers ...Checker) *Health {
-	return &Health{log: log, timeout: timeout, checkers: checkers}
+	return &Health{log: log, timeout: timeout, checkers: checkers, failing: make(map[string]bool)}
 }
 
 func (h *Health) SetReady(v bool) { h.ready.Store(v) }
@@ -83,13 +86,14 @@ func (h *Health) runChecks(ctx context.Context) (map[string]string, bool) {
 	checks := make(map[string]string, len(h.checkers))
 	ok := true
 	for i, c := range h.checkers {
+		name := c.Name()
 		if results[i] == nil {
-			checks[c.Name()] = "ok"
+			checks[name] = "ok"
 		} else {
-			checks[c.Name()] = "fail"
+			checks[name] = "fail"
 			ok = false
-			h.log.Warn("readiness check failed", "check", c.Name(), "err", results[i])
 		}
+		h.track(name, results[i])
 	}
 
 	return checks, ok
@@ -100,4 +104,18 @@ func writeJSON(w http.ResponseWriter, status int, body response) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(body)
+}
+
+func (h *Health) track(name string, err error) {
+	h.mu.Lock()
+	wasFailing := h.failing[name]
+	h.failing[name] = err != nil
+	h.mu.Unlock()
+
+	switch {
+	case err != nil && !wasFailing:
+		h.log.Warn("readiness check failed", "check", name, "err", err)
+	case err == nil && wasFailing:
+		h.log.Info("readiness check recovered", "check", name)
+	}
 }

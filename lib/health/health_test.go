@@ -1,12 +1,15 @@
 package health_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -180,5 +183,43 @@ func TestEndpoints_RejectOtherMethods(t *testing.T) {
 		if rec.Code != http.StatusMethodNotAllowed {
 			t.Errorf("POST %s = %d, expected 405", path, rec.Code)
 		}
+	}
+}
+func TestReadiness_LogsOnlyOnStateChange(t *testing.T) {
+	var buf bytes.Buffer
+	log := slog.New(slog.NewJSONHandler(&buf, nil))
+
+	var fail atomic.Bool
+	fail.Store(true)
+	checker := health.NewChecker("db", func(context.Context) error {
+		if fail.Load() {
+			return errors.New("down")
+		}
+		return nil
+	})
+
+	h := health.New(log, time.Second, checker)
+	h.SetReady(true)
+	mux := newMux(h)
+
+	for range 3 {
+		get(t, mux, "/readyz")
+	}
+	if got := strings.Count(buf.String(), "readiness check failed"); got != 1 {
+		t.Fatalf("failed logs = %d after 3 failing probes, expected 1", got)
+	}
+
+	fail.Store(false)
+	for range 2 {
+		get(t, mux, "/readyz")
+	}
+	if got := strings.Count(buf.String(), "readiness check recovered"); got != 1 {
+		t.Fatalf("recovered logs = %d after recovery, expected 1", got)
+	}
+
+	fail.Store(true)
+	get(t, mux, "/readyz")
+	if got := strings.Count(buf.String(), "readiness check failed"); got != 2 {
+		t.Errorf("failed logs = %d after a second outage, expected 2", got)
 	}
 }
