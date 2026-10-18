@@ -62,6 +62,14 @@ func LoadBase() (Base, error) {
 	return b, nil
 }
 
+func Required(key string) (string, error) {
+	v := String(key, "")
+	if v == "" {
+		return "", fmt.Errorf("%s is required", key)
+	}
+	return v, nil
+}
+
 func String(key, def string) string {
 	if v, ok := os.LookupEnv(key); ok && v != "" {
 		return v

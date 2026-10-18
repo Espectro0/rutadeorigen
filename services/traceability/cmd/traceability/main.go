@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -37,27 +38,35 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
 	defer stop()
 
-	dsn := config.String("DATABASE_URL", "")
-
 	var checkers []health.Checker
 	var closers []app.Closer
-
 	var pool *pgxpool.Pool
 
-	if dsn != "" {
+	switch storage := config.String("STORAGE", "postgres"); storage {
+	case "postgres":
+		dsn, err := config.Required("DATABASE_URL")
+		if err != nil {
+			log.Error("invalid configuration", "err", err)
+			os.Exit(1)
+		}
+
 		pool, err = postgres.Connect(ctx, dsn)
 		if err != nil {
 			log.Error("failed to connect to database", "err", err)
 			os.Exit(1)
 		}
 		log.Info("connected to database")
+
 		checkers = append(checkers, health.NewChecker("postgres", pool.Ping))
 		closers = append(closers, func(context.Context) error {
 			pool.Close()
 			return nil
 		})
-	} else {
-		log.Warn("DATABASE_URL not set, using in-memory repositories")
+	case "memory":
+		log.Warn("STORAGE=memory, using in-memory repositories (development only)")
+	default:
+		log.Error("invalid configuration", "err", fmt.Errorf("unknown STORAGE %q", storage))
+		os.Exit(1)
 	}
 
 	h := health.New(log, 2*time.Second, checkers...)

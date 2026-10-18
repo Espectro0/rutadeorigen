@@ -120,3 +120,28 @@ func TestLoadBase_VariosErrores(t *testing.T) {
 		}
 	}
 }
+
+func TestRequired(t *testing.T) {
+	t.Run("set", func(t *testing.T) {
+		t.Setenv("TEST_REQUIRED_KEY", "value")
+
+		got, err := config.Required("TEST_REQUIRED_KEY")
+		if err != nil || got != "value" {
+			t.Fatalf("got (%q, %v), want (value, nil)", got, err)
+		}
+	})
+
+	t.Run("empty", func(t *testing.T) {
+		t.Setenv("TEST_REQUIRED_KEY", "")
+
+		if _, err := config.Required("TEST_REQUIRED_KEY"); err == nil {
+			t.Fatal("expected error for empty value")
+		}
+	})
+
+	t.Run("unset", func(t *testing.T) {
+		if _, err := config.Required("TEST_REQUIRED_KEY_NEVER_SET"); err == nil {
+			t.Fatal("expected error for unset key")
+		}
+	})
+}
