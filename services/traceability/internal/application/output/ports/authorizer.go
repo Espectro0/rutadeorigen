@@ -12,6 +12,7 @@ type Action string
 
 const (
 	ActionCreateLot Action = "lot:create"
+	ActionReadLot   Action = "lot:read"
 )
 
 type Subject struct {

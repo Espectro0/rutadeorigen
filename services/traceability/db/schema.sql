@@ -33,7 +33,10 @@ CREATE TABLE IF NOT EXISTS lot (
     CONSTRAINT lot_farm_code_uk UNIQUE (farm_id, code)
     );
 
-CREATE INDEX IF NOT EXISTS lot_custodian_id_idx ON lot (custodian_id);
+DROP INDEX IF EXISTS lot_custodian_id_idx;
+CREATE INDEX IF NOT EXISTS lot_created_at_id_idx           ON lot (created_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS lot_farm_created_at_id_idx      ON lot (farm_id, created_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS lot_custodian_created_at_id_idx ON lot (custodian_id, created_at DESC, id DESC);
 
 CREATE TABLE IF NOT EXISTS lot_event (
                                          id                 UUID        PRIMARY KEY,

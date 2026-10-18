@@ -14,6 +14,7 @@ func ToResponse(l *lot.Lot) response.Lot {
 
 	return response.Lot{
 		ID:          l.ID().String(),
+		Version:     l.Version(),
 		FarmID:      l.FarmID().String(),
 		CustodianID: l.CustodianID().String(),
 		Code:        l.Code(),

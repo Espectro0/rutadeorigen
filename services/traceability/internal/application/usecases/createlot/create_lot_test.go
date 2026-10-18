@@ -65,6 +65,14 @@ func (r *fakeLots) ExistsByCode(_ context.Context, _ uuid.UUID, code string) (bo
 	return code == r.existingCode, nil
 }
 
+func (r *fakeLots) FindByID(_ context.Context, _ uuid.UUID) (*lot.Lot, error) {
+	return lot.Default(), nil
+}
+
+func (r *fakeLots) List(_ context.Context, _ lot.Filter, _ lot.Cursor, _ int) ([]*lot.Lot, error) {
+	return nil, nil
+}
+
 func (r *fakeLots) Save(_ context.Context, l *lot.Lot) error {
 	if r.saveErr != nil {
 		return r.saveErr

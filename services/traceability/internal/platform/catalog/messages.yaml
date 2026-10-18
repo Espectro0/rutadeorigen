@@ -11,6 +11,8 @@ TRACEABILITY_LOT_VOIDED: "The lot is voided and cannot be changed."
 TRACEABILITY_LOT_HAS_EVENTS: "The lot already has registered events and cannot be changed or deleted."
 TRACEABILITY_LOT_STAGE_OUT_OF_ORDER: "Stages must be registered in order: farm, roasting and then packaging."
 TRACEABILITY_LOT_CODE_ALREADY_EXISTS: "The lot already exists."
+TRACEABILITY_LOT_NOT_FOUND: "No lot was found."
+TRACEABILITY_LOT_INVALID_CUSTODIAN_ID: "The custodian identifier is not valid."
 
 TRACEABILITY_ACTOR_INVALID_USER_ID: "The actor must be linked to a user."
 TRACEABILITY_ACTOR_INVALID_NAME: "The actor name must have between {min} and {max} characters."

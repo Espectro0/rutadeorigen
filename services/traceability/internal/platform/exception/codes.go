@@ -7,6 +7,8 @@ const (
 	CodeInvalidRequestBody Code = "INVALID_REQUEST_BODY"
 	CodeUnauthorized       Code = "UNAUTHORIZED"
 	CodeForbidden          Code = "FORBIDDEN"
+	CodeInvalidCursor      Code = "INVALID_CURSOR"
+	CodeInvalidLimit       Code = "INVALID_LIMIT"
 )
 
 const (
@@ -23,6 +25,8 @@ const (
 	CodeLotHasEvents                Code = "TRACEABILITY_LOT_HAS_EVENTS"
 	CodeLotStageOutOfOrder          Code = "TRACEABILITY_LOT_STAGE_OUT_OF_ORDER"
 	CodeLotCodeAlreadyExists        Code = "TRACEABILITY_LOT_CODE_ALREADY_EXISTS"
+	CodeLotNotFound                 Code = "TRACEABILITY_LOT_NOT_FOUND"
+	CodeLotInvalidCustodianID       Code = "TRACEABILITY_LOT_INVALID_CUSTODIAN_ID"
 
 	CodeActorInvalidUserID Code = "TRACEABILITY_ACTOR_INVALID_USER_ID"
 	CodeActorInvalidName   Code = "TRACEABILITY_ACTOR_INVALID_NAME"
@@ -40,6 +44,8 @@ var kindByCode = map[Code]Kind{
 	CodeInvalidRequestBody: KindValidation,
 	CodeUnauthorized:       KindUnauthorized,
 	CodeForbidden:          KindForbidden,
+	CodeInvalidCursor:      KindValidation,
+	CodeInvalidLimit:       KindValidation,
 
 	CodeLotInvalidCode:              KindValidation,
 	CodeLotInvalidVariety:           KindValidation,
@@ -54,6 +60,8 @@ var kindByCode = map[Code]Kind{
 	CodeLotHasEvents:                KindConflict,
 	CodeLotStageOutOfOrder:          KindConflict,
 	CodeLotCodeAlreadyExists:        KindConflict,
+	CodeLotNotFound:                 KindNotFound,
+	CodeLotInvalidCustodianID:       KindValidation,
 
 	CodeActorInvalidUserID: KindValidation,
 	CodeActorInvalidName:   KindValidation,
