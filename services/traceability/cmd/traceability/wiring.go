@@ -3,21 +3,20 @@ package main
 import (
 	"log/slog"
 	"net/http"
-	getlotuc "rutadeorigen/traceability/internal/application/usecases/getlot"
-	listlotsuc "rutadeorigen/traceability/internal/application/usecases/listlots"
 
 	"rutadeorigen/lib/catalog"
-	"rutadeorigen/traceability/internal/application/output/ports"
-	"rutadeorigen/traceability/internal/infrastructure/output/repositories/structured/memory"
-	"rutadeorigen/traceability/internal/infrastructure/output/repositories/structured/postgres"
-
 	createlotadapter "rutadeorigen/traceability/internal/application/input/adapters/createlot"
 	getlotadapter "rutadeorigen/traceability/internal/application/input/adapters/getlot"
 	listlotsadapter "rutadeorigen/traceability/internal/application/input/adapters/listlots"
+	"rutadeorigen/traceability/internal/application/output/ports"
 	createlotuc "rutadeorigen/traceability/internal/application/usecases/createlot"
+	getlotuc "rutadeorigen/traceability/internal/application/usecases/getlot"
+	listlotsuc "rutadeorigen/traceability/internal/application/usecases/listlots"
 	"rutadeorigen/traceability/internal/infrastructure/input/controllers"
 	"rutadeorigen/traceability/internal/infrastructure/output/external/authorizer"
 	"rutadeorigen/traceability/internal/infrastructure/output/messaging"
+	"rutadeorigen/traceability/internal/infrastructure/output/repositories/structured/memory"
+	"rutadeorigen/traceability/internal/infrastructure/output/repositories/structured/postgres"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
