@@ -15,3 +15,9 @@ type LotCreatedPayload struct {
 	Stage       string    `json:"stage"`
 	Status      string    `json:"status"`
 }
+
+type AccessDeniedPayload struct {
+	Action       string `json:"action"`
+	ResourceType string `json:"resource_type"`
+	ResourceID   string `json:"resource_id"`
+}

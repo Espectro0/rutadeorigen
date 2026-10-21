@@ -24,10 +24,10 @@ import (
 func registerRoutes(mux *http.ServeMux, log *slog.Logger, pool *pgxpool.Pool, catalog *catalog.Catalog) {
 	actors, farms, lots := repositories(pool)
 	auth := authorizer.NewAllowAll()
-	publisher := messaging.NewLogPublisher(log)
+	tx, publisher := outputs(pool, log)
 	errs := controllers.NewErrorResponder(log, catalog)
 
-	createLotUseCase := createlotuc.New(actors, farms, lots, auth, publisher)
+	createLotUseCase := createlotuc.New(actors, farms, lots, auth, publisher, tx)
 	createLotAdapter := createlotadapter.New(createLotUseCase)
 	getLotAdapter := getlotadapter.New(getlotuc.New(actors, lots, auth))
 	listLotsAdapter := listlotsadapter.New(listlotsuc.New(actors, lots, auth))
@@ -49,4 +49,11 @@ func repositories(pool *pgxpool.Pool) (ports.ActorRepository, ports.FarmReposito
 	return postgres.NewActorRepository(pool),
 		postgres.NewFarmRepository(pool),
 		postgres.NewLotRepository(pool)
+}
+
+func outputs(pool *pgxpool.Pool, log *slog.Logger) (ports.TxManager, ports.EventPublisher) {
+	if pool == nil {
+		return memory.NewTxManager(), messaging.NewLogPublisher(log)
+	}
+	return postgres.NewTxManager(pool), postgres.NewOutboxPublisher(pool)
 }

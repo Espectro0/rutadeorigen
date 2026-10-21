@@ -24,15 +24,17 @@ type CreateLot struct {
 	lots      ports.LotRepository
 	auth      ports.Authorizer
 	publisher ports.EventPublisher
+	tx        ports.TxManager
 }
 
-func New(actors ports.ActorRepository, farms ports.FarmRepository, lots ports.LotRepository, auth ports.Authorizer, publisher ports.EventPublisher) *CreateLot {
+func New(actors ports.ActorRepository, farms ports.FarmRepository, lots ports.LotRepository, auth ports.Authorizer, publisher ports.EventPublisher, tx ports.TxManager) *CreateLot {
 	return &CreateLot{
 		actors:    actors,
 		farms:     farms,
 		lots:      lots,
 		auth:      auth,
 		publisher: publisher,
+		tx:        tx,
 	}
 }
 
@@ -65,12 +67,14 @@ func (uc *CreateLot) Execute(ctx context.Context, draft *lot.Lot) error {
 		return err
 	}
 
-	if err := uc.lots.Save(ctx, created); err != nil {
-		return exception.Wrap(err, "save lot")
-	}
-
-	if err := uc.publishCreated(ctx, a, created); err != nil {
-		return err
+	err = uc.tx.WithinTx(ctx, func(ctx context.Context) error {
+		if err := uc.lots.Save(ctx, created); err != nil {
+			return exception.Wrap(err, "save lot")
+		}
+		return uc.publishCreated(ctx, a, created)
+	})
+	if err != nil {
+		return exception.Wrap(err, "create lot transaction")
 	}
 
 	*draft = *created
@@ -93,10 +97,10 @@ func (uc *CreateLot) authorize(ctx context.Context, a *actor.Actor, f *farm.Farm
 		return nil
 	}
 
-	denied := uc.newEvent(ctx, a, ports.EventAccessDenied, ports.AggregateLot, uuid.Nil, 0, map[string]string{
-		"action":       string(ports.ActionCreateLot),
-		"resourceType": string(resource.Type),
-		"resourceId":   resource.ID.String(),
+	denied := uc.newEvent(ctx, a, ports.EventAccessDenied, ports.AggregateLot, uuid.Nil, 0, AccessDeniedPayload{
+		Action:       string(ports.ActionCreateLot),
+		ResourceType: string(resource.Type),
+		ResourceID:   resource.ID.String(),
 	})
 	if err := uc.publisher.Publish(ctx, denied); err != nil {
 		return exception.Wrap(err, "publish access denied")

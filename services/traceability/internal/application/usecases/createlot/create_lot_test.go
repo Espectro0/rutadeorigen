@@ -19,6 +19,26 @@ import (
 
 var errInfra = errors.New("infrastructure failure")
 
+type txKey struct{}
+
+func inTx(ctx context.Context) bool {
+	v, _ := ctx.Value(txKey{}).(bool)
+	return v
+}
+
+type fakeTxManager struct {
+	err   error
+	calls int
+}
+
+func (m *fakeTxManager) WithinTx(ctx context.Context, fn func(context.Context) error) error {
+	m.calls++
+	if m.err != nil {
+		return m.err
+	}
+	return fn(context.WithValue(ctx, txKey{}, true))
+}
+
 type fakeActors struct {
 	byID map[uuid.UUID]*actor.Actor
 	err  error
@@ -55,6 +75,7 @@ type fakeLots struct {
 	saveErr      error
 	checkedCode  string
 	saved        []*lot.Lot
+	savedInTx    []bool
 }
 
 func (r *fakeLots) ExistsByCode(_ context.Context, _ uuid.UUID, code string) (bool, error) {
@@ -73,11 +94,12 @@ func (r *fakeLots) List(_ context.Context, _ lot.Filter, _ lot.Cursor, _ int) ([
 	return nil, nil
 }
 
-func (r *fakeLots) Save(_ context.Context, l *lot.Lot) error {
+func (r *fakeLots) Save(ctx context.Context, l *lot.Lot) error {
 	if r.saveErr != nil {
 		return r.saveErr
 	}
 	r.saved = append(r.saved, l)
+	r.savedInTx = append(r.savedInTx, inTx(ctx))
 	return nil
 }
 
@@ -97,13 +119,15 @@ func (a *fakeAuthorizer) IsAllowed(_ context.Context, s ports.Subject, act ports
 type fakePublisher struct {
 	err    error
 	events []ports.Event
+	inTx   []bool
 }
 
-func (p *fakePublisher) Publish(_ context.Context, e ports.Event) error {
+func (p *fakePublisher) Publish(ctx context.Context, e ports.Event) error {
 	if p.err != nil {
 		return p.err
 	}
 	p.events = append(p.events, e)
+	p.inTx = append(p.inTx, inTx(ctx))
 	return nil
 }
 
@@ -115,6 +139,7 @@ type scenario struct {
 	lots       *fakeLots
 	authorizer *fakeAuthorizer
 	publisher  *fakePublisher
+	tx         *fakeTxManager
 }
 
 func newScenario(t *testing.T) *scenario {
@@ -137,11 +162,12 @@ func newScenario(t *testing.T) *scenario {
 		lots:       &fakeLots{},
 		authorizer: &fakeAuthorizer{allowed: true},
 		publisher:  &fakePublisher{},
+		tx:         &fakeTxManager{},
 	}
 }
 
 func (s *scenario) useCase() *createlot.CreateLot {
-	return createlot.New(s.actors, s.farms, s.lots, s.authorizer, s.publisher)
+	return createlot.New(s.actors, s.farms, s.lots, s.authorizer, s.publisher, s.tx)
 }
 
 func (s *scenario) ctx() context.Context {
@@ -153,8 +179,6 @@ func (s *scenario) draft() *lot.Lot {
 	return lot.Draft(s.farm.ID(), "  LT-001  ", "Castillo", lot.ProcessWashed, time.Now().AddDate(0, -1, 0))
 }
 
-// execute runs the use case and returns the draft it filled in, which is the
-// created lot on success and still the default lot on failure.
 func execute(ctx context.Context, uc createlot.UseCase, draft *lot.Lot) (*lot.Lot, error) {
 	err := uc.Execute(ctx, draft)
 	return draft, err
@@ -380,7 +404,7 @@ func TestCreateLotDomainErrors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			lots := &fakeLots{}
-			uc := createlot.New(s.actors, s.farms, lots, &fakeAuthorizer{allowed: true}, &fakePublisher{})
+			uc := createlot.New(s.actors, s.farms, lots, &fakeAuthorizer{allowed: true}, &fakePublisher{}, &fakeTxManager{})
 
 			got, err := execute(s.ctx(), uc, tt.draft)
 			assertFailed(t, got, err, tt.want)
@@ -416,4 +440,65 @@ func TestCreateLotNilDraft(t *testing.T) {
 
 	got, err := execute(s.ctx(), s.useCase(), nil)
 	assertFailed(t, got, err, exception.New(exception.CodeFarmNotFound))
+}
+
+func TestCreateLotTransaction(t *testing.T) {
+	t.Run("saves the lot and publishes LotCreated in one transaction", func(t *testing.T) {
+		s := newScenario(t)
+
+		if _, err := execute(s.ctx(), s.useCase(), s.draft()); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if s.tx.calls != 1 {
+			t.Errorf("got %d transactions, want 1", s.tx.calls)
+		}
+		if len(s.lots.savedInTx) != 1 || !s.lots.savedInTx[0] {
+			t.Error("expected the lot to be saved inside the transaction")
+		}
+		if len(s.publisher.inTx) != 1 || !s.publisher.inTx[0] {
+			t.Error("expected LotCreated to be published inside the transaction")
+		}
+	})
+
+	t.Run("the transaction fails: internal error, nothing saved or published", func(t *testing.T) {
+		s := newScenario(t)
+		s.tx.err = errInfra
+
+		got, err := execute(s.ctx(), s.useCase(), s.draft())
+		assertInternal(t, got, err)
+		if len(s.lots.saved) != 0 || len(s.publisher.events) != 0 {
+			t.Error("nothing must be saved or published when the transaction fails")
+		}
+	})
+
+	t.Run("a domain error inside the transaction keeps its code", func(t *testing.T) {
+		s := newScenario(t)
+		s.lots.saveErr = exception.New(exception.CodeLotCodeAlreadyExists)
+
+		got, err := execute(s.ctx(), s.useCase(), s.draft())
+		assertFailed(t, got, err, exception.New(exception.CodeLotCodeAlreadyExists))
+	})
+
+	t.Run("AccessDenied is published outside a transaction", func(t *testing.T) {
+		s := newScenario(t)
+		s.authorizer.allowed = false
+
+		_, _ = execute(s.ctx(), s.useCase(), s.draft())
+		if s.tx.calls != 0 {
+			t.Errorf("got %d transactions, want 0", s.tx.calls)
+		}
+		if len(s.publisher.inTx) != 1 || s.publisher.inTx[0] {
+			t.Error("expected AccessDenied to be published outside a transaction")
+		}
+	})
+
+	t.Run("a duplicated code does not open a transaction", func(t *testing.T) {
+		s := newScenario(t)
+		s.lots.existingCode = "LT-001"
+
+		_, _ = execute(s.ctx(), s.useCase(), s.draft())
+		if s.tx.calls != 0 {
+			t.Errorf("got %d transactions, want 0", s.tx.calls)
+		}
+	})
 }
