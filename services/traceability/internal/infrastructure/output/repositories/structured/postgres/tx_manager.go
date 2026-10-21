@@ -2,11 +2,12 @@ package postgres
 
 import (
 	"context"
-	"rutadeorigen/traceability/internal/platform/exception"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"rutadeorigen/traceability/internal/platform/exception"
 )
 
 type txKey struct{}
