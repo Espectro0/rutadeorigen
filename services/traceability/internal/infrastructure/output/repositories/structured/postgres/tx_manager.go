@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"rutadeorigen/traceability/internal/platform/exception"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -24,9 +25,10 @@ func (m *TxManager) WithinTx(ctx context.Context, fn func(context.Context) error
 	if _, ok := ctx.Value(txKey{}).(pgx.Tx); ok {
 		return fn(ctx)
 	}
-	return pgx.BeginFunc(ctx, m.pool, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, m.pool, func(tx pgx.Tx) error {
 		return fn(context.WithValue(ctx, txKey{}, tx))
 	})
+	return exception.Wrap(err, "run transaction")
 }
 
 func conn(ctx context.Context, pool *pgxpool.Pool) executor {

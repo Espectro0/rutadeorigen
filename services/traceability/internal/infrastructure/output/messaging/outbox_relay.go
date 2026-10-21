@@ -3,6 +3,7 @@ package messaging
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -71,23 +72,27 @@ func (r *OutboxRelay) Run(ctx context.Context) {
 }
 
 func (r *OutboxRelay) flush(ctx context.Context) error {
-	return pgx.BeginFunc(ctx, r.pool, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, r.pool, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, claimOutbox)
 		if err != nil {
-			return err
+			return fmt.Errorf("claim outbox: %w", err)
 		}
 		pending, err := pgx.CollectRows(rows, pgx.RowToStructByName[outboxRow])
 		if err != nil {
-			return err
+			return fmt.Errorf("scan outbox: %w", err)
 		}
 		for _, row := range pending {
 			if err := r.publisher.Publish(ctx, row.toMessage()); err != nil {
 				return err
 			}
 			if _, err := tx.Exec(ctx, `UPDATE outbox SET published_at = now() WHERE id = $1`, row.ID); err != nil {
-				return err
+				return fmt.Errorf("mark outbox %s as published: %w", row.ID, err)
 			}
 		}
 		return nil
 	})
+	if err != nil {
+		return fmt.Errorf("outbox relay: %w", err)
+	}
+	return nil
 }

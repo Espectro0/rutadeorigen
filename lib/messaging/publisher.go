@@ -3,6 +3,7 @@ package messaging
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -25,20 +26,17 @@ type Publisher struct {
 func NewPublisher(url string) (*Publisher, error) {
 	conn, err := amqp.Dial(url)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("dial rabbitmq: %w", err)
 	}
 	ch, err := conn.Channel()
 	if err != nil {
-		conn.Close()
-		return nil, err
+		return nil, errors.Join(fmt.Errorf("open rabbitmq channel: %w", err), conn.Close())
 	}
 	if err := ch.Confirm(false); err != nil {
-		conn.Close()
-		return nil, err
+		return nil, errors.Join(fmt.Errorf("enable publisher confirms: %w", err), conn.Close())
 	}
 	if err := ch.ExchangeDeclare(Exchange, "topic", true, false, false, false, nil); err != nil {
-		conn.Close()
-		return nil, err
+		return nil, errors.Join(fmt.Errorf("declare exchange %s: %w", Exchange, err), conn.Close())
 	}
 	return &Publisher{conn: conn, ch: ch}, nil
 }
@@ -52,15 +50,15 @@ func (p *Publisher) Publish(ctx context.Context, m Message) error {
 			Timestamp:     m.OccurredAt,
 			ContentType:   "application/json",
 			DeliveryMode:  amqp.Persistent,
-			Headers:       amqp.Table{"version": int32(m.Version)},
+			Headers:       amqp.Table{"version": int64(m.Version)},
 			Body:          m.Body,
 		})
 	if err != nil {
-		return err
+		return fmt.Errorf("publish %s: %w", m.Type, err)
 	}
 	ok, err := conf.WaitContext(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("wait confirm for %s: %w", m.Type, err)
 	}
 	if !ok {
 		return errors.New("message nacked by broker")
@@ -79,4 +77,9 @@ func (p *Publisher) Closed() <-chan *amqp.Error {
 	return p.conn.NotifyClose(make(chan *amqp.Error, 1))
 }
 
-func (p *Publisher) Close(context.Context) error { return p.conn.Close() }
+func (p *Publisher) Close(context.Context) error {
+	if err := p.conn.Close(); err != nil && !errors.Is(err, amqp.ErrClosed) {
+		return fmt.Errorf("close rabbitmq connection: %w", err)
+	}
+	return nil
+}
