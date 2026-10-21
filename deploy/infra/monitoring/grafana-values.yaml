@@ -7,17 +7,41 @@ service:
   type: NodePort
   nodePort: 30300
 
+ingress:
+  enabled: true
+  ingressClassName: traefik
+  hosts:
+    - grafana.rutadeorigen.internal
+
 grafana.ini:
   server:
-    root_url: https://homeserver.tailf2a613.ts.net:3000
+    root_url: http://grafana.rutadeorigen.internal
 
 persistence:
   enabled: true
   size: 2Gi
 
+deploymentStrategy:
+  type: Recreate
+
+livenessProbe:
+  httpGet:
+    path: /api/health
+    port: 3000
+  initialDelaySeconds: 300
+  timeoutSeconds: 30
+  failureThreshold: 10
+
+readinessProbe:
+  httpGet:
+    path: /api/health
+    port: 3000
+  initialDelaySeconds: 60
+  timeoutSeconds: 30
+
 resources:
-  requests: { cpu: 50m, memory: 128Mi }
-  limits: { memory: 256Mi }
+  requests: { cpu: 100m, memory: 256Mi }
+  limits: { memory: 512Mi }
 
 datasources:
   datasources.yaml:
