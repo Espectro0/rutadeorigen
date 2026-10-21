@@ -44,7 +44,7 @@ func NewLotRepository(pool *pgxpool.Pool) *LotRepository {
 
 func (r *LotRepository) ExistsByCode(ctx context.Context, farmID uuid.UUID, code string) (bool, error) {
 	var exists bool
-	if err := r.pool.QueryRow(ctx, existsLotByCode, farmID, code).Scan(&exists); err != nil {
+	if err := conn(ctx, r.pool).QueryRow(ctx, existsLotByCode, farmID, code).Scan(&exists); err != nil {
 		return false, internalError("check lot code", err)
 	}
 	return exists, nil
@@ -58,7 +58,7 @@ func (r *LotRepository) Save(ctx context.Context, l *lot.Lot) error {
 	}
 
 	e := r.assembler.ToEntity(l)
-	_, err := r.pool.Exec(ctx, insertLot,
+	_, err := conn(ctx, r.pool).Exec(ctx, insertLot,
 		e.ID, e.FarmID, e.CustodianID, e.Code, e.Variety, e.Process,
 		e.HarvestDate, e.CurrentStage, e.Status, e.VoidReason, e.Version, e.CreatedAt,
 	)
@@ -72,7 +72,7 @@ func (r *LotRepository) Save(ctx context.Context, l *lot.Lot) error {
 }
 
 func (r *LotRepository) FindByID(ctx context.Context, id uuid.UUID) (*lot.Lot, error) {
-	rows, err := r.pool.Query(ctx, selectLot+" WHERE id = $1", id)
+	rows, err := conn(ctx, r.pool).Query(ctx, selectLot+" WHERE id = $1", id)
 	if err != nil {
 		return lot.Default(), internalError("query lot by id", err)
 	}
@@ -90,7 +90,7 @@ func (r *LotRepository) FindByID(ctx context.Context, id uuid.UUID) (*lot.Lot, e
 func (r *LotRepository) List(ctx context.Context, f lot.Filter, after lot.Cursor, limit int) ([]*lot.Lot, error) {
 	query, args := listLotsQuery(f, after, limit)
 
-	rows, err := r.pool.Query(ctx, query, args...)
+	rows, err := conn(ctx, r.pool).Query(ctx, query, args...)
 	if err != nil {
 		return nil, internalError("query lots", err)
 	}

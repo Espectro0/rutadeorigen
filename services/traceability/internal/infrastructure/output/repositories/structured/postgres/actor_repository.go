@@ -31,7 +31,7 @@ func NewActorRepository(pool *pgxpool.Pool) *ActorRepository {
 }
 
 func (r *ActorRepository) FindByID(ctx context.Context, id uuid.UUID) (*actor.Actor, error) {
-	rows, err := r.pool.Query(ctx, selectActorByID, id)
+	rows, err := conn(ctx, r.pool).Query(ctx, selectActorByID, id)
 	if err != nil {
 		return actor.Default(), internalError("query actor by id", err)
 	}

@@ -31,7 +31,7 @@ func NewFarmRepository(pool *pgxpool.Pool) *FarmRepository {
 }
 
 func (r *FarmRepository) FindByID(ctx context.Context, id uuid.UUID) (*farm.Farm, error) {
-	rows, err := r.pool.Query(ctx, selectFarmByID, id)
+	rows, err := conn(ctx, r.pool).Query(ctx, selectFarmByID, id)
 	if err != nil {
 		return farm.Default(), internalError("query farm by id", err)
 	}
