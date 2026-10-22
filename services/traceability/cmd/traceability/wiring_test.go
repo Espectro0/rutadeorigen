@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -331,5 +332,205 @@ func TestListLotsEndToEnd(t *testing.T) {
 				t.Errorf("code: got %q, want %q", body["code"], tt.wantCode)
 			}
 		})
+	}
+}
+
+type farmView struct {
+	ID         string `json:"id"`
+	ProducerID string `json:"producer_id"`
+	Name       string `json:"name"`
+	Altitude   int    `json:"altitude"`
+	CreatedAt  string `json:"created_at"`
+}
+
+type farmListView struct {
+	Items []farmView `json:"items"`
+}
+
+func farmBody(name string, altitude int) string {
+	return `{"name":"` + name + `","altitude":` + strconv.Itoa(altitude) + `}`
+}
+
+func createFarm(mux http.Handler, actorID, body string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodPost, "/farms", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	if actorID != "" {
+		req.Header.Set("X-Actor-ID", actorID)
+	}
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	return rec
+}
+
+func mustCreateFarm(t *testing.T, mux http.Handler, name string) farmView {
+	t.Helper()
+
+	rec := createFarm(mux, producerHeader, farmBody(name, 1650))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create farm %s: status %d (%s)", name, rec.Code, rec.Body.String())
+	}
+
+	var created farmView
+	if err := json.NewDecoder(rec.Body).Decode(&created); err != nil {
+		t.Fatalf("body is not JSON: %v", err)
+	}
+	return created
+}
+
+func decodeFarms(t *testing.T, rec *httptest.ResponseRecorder) farmListView {
+	t.Helper()
+
+	var list farmListView
+	if err := json.NewDecoder(rec.Body).Decode(&list); err != nil {
+		t.Fatalf("body is not JSON: %v", err)
+	}
+	return list
+}
+
+func assertErrorCode(t *testing.T, rec *httptest.ResponseRecorder, want int, wantCode string) {
+	t.Helper()
+
+	if rec.Code != want {
+		t.Fatalf("status: got %d, want %d (%s)", rec.Code, want, rec.Body.String())
+	}
+	var body map[string]string
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("body is not JSON: %v", err)
+	}
+	if body["code"] != wantCode {
+		t.Errorf("code: got %q, want %q", body["code"], wantCode)
+	}
+	if body["error"] == "" {
+		t.Error("error message must not be empty")
+	}
+}
+
+func TestCreateFarmEndToEnd(t *testing.T) {
+	mux, _ := newTestServer(t)
+
+	rec := createFarm(mux, producerHeader, farmBody("  La Esperanza  ", 1650))
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status: got %d, want %d (%s)", rec.Code, http.StatusCreated, rec.Body.String())
+	}
+
+	var body farmView
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("body is not JSON: %v", err)
+	}
+	if _, err := uuid.Parse(body.ID); err != nil {
+		t.Errorf("id must be a UUID, got %q", body.ID)
+	}
+	if rec.Header().Get("Location") != "/farms/"+body.ID {
+		t.Errorf("Location: got %q", rec.Header().Get("Location"))
+	}
+	if body.ProducerID != producerHeader {
+		t.Errorf("producer must be the actor of the request, got %q", body.ProducerID)
+	}
+	if body.Name != "La Esperanza" || body.Altitude != 1650 {
+		t.Errorf("name/altitude: got %q/%d, want La Esperanza/1650", body.Name, body.Altitude)
+	}
+	if body.CreatedAt == "" {
+		t.Error("created_at must not be empty")
+	}
+}
+
+func TestCreateFarmEndToEndErrors(t *testing.T) {
+	tests := []struct {
+		name     string
+		actorID  string
+		body     string
+		want     int
+		wantCode string
+	}{
+		{"missing actor", "", farmBody("La Esperanza", 1650), http.StatusUnauthorized, "UNAUTHORIZED"},
+		{"unknown actor", uuid.NewString(), farmBody("La Esperanza", 1650), http.StatusNotFound, string(exception.CodeActorNotFound)},
+		{"name too short", producerHeader, farmBody("LE", 1650), http.StatusBadRequest, string(exception.CodeFarmInvalidName)},
+		{"negative altitude", producerHeader, farmBody("La Esperanza", -1), http.StatusBadRequest, string(exception.CodeFarmInvalidAltitude)},
+		{"altitude above the limit", producerHeader, farmBody("La Esperanza", 3001), http.StatusBadRequest, string(exception.CodeFarmInvalidAltitude)},
+		{"altitude as text", producerHeader, `{"name":"La Esperanza","altitude":"1650"}`, http.StatusBadRequest, "INVALID_REQUEST_BODY"},
+		{"unknown json field", producerHeader, `{"name":"La Esperanza","producer_id":"x"}`, http.StatusBadRequest, "INVALID_REQUEST_BODY"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mux, _ := newTestServer(t)
+
+			assertErrorCode(t, createFarm(mux, tt.actorID, tt.body), tt.want, tt.wantCode)
+		})
+	}
+}
+
+func TestListFarmsEndToEnd(t *testing.T) {
+	mux, _ := newTestServer(t)
+
+	t.Run("lists the seeded farm of the producer", func(t *testing.T) {
+		rec := get(mux, producerHeader, "/farms")
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status: got %d, want %d (%s)", rec.Code, http.StatusOK, rec.Body.String())
+		}
+		list := decodeFarms(t, rec)
+		if len(list.Items) != 1 || list.Items[0].ID != seedFarmID.String() {
+			t.Errorf("got %+v, want only the seeded farm", list.Items)
+		}
+	})
+
+	created := mustCreateFarm(t, mux, "El Mirador")
+
+	t.Run("includes the created farm first", func(t *testing.T) {
+		list := decodeFarms(t, get(mux, producerHeader, "/farms"))
+
+		if len(list.Items) != 2 {
+			t.Fatalf("got %d farms, want 2", len(list.Items))
+		}
+		if list.Items[0].ID != created.ID || list.Items[1].ID != seedFarmID.String() {
+			t.Errorf("got %+v, want the created farm and then the seeded one", list.Items)
+		}
+		for _, f := range list.Items {
+			if f.ProducerID != producerHeader {
+				t.Errorf("farm %s belongs to %s, want %s", f.ID, f.ProducerID, producerHeader)
+			}
+		}
+	})
+
+	t.Run("missing actor", func(t *testing.T) {
+		assertErrorCode(t, get(mux, "", "/farms"), http.StatusUnauthorized, "UNAUTHORIZED")
+	})
+
+	t.Run("unknown actor", func(t *testing.T) {
+		assertErrorCode(t, get(mux, uuid.NewString(), "/farms"), http.StatusNotFound, string(exception.CodeActorNotFound))
+	})
+}
+
+func TestCreateLotOnACreatedFarmEndToEnd(t *testing.T) {
+	mux, logs := newTestServer(t)
+	created := mustCreateFarm(t, mux, "La Esperanza")
+
+	rec := createLot(mux, producerHeader, lotBody(created.ID, "LOT-001", "washed", "2026-01-15"))
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status: got %d, want %d (%s)", rec.Code, http.StatusCreated, rec.Body.String())
+	}
+
+	var lot struct {
+		ID          string `json:"id"`
+		FarmID      string `json:"farm_id"`
+		CustodianID string `json:"custodian_id"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&lot); err != nil {
+		t.Fatalf("body is not JSON: %v", err)
+	}
+	if lot.FarmID != created.ID || lot.CustodianID != producerHeader {
+		t.Errorf("farm/custodian: got %q/%q, want %q/%q", lot.FarmID, lot.CustodianID, created.ID, producerHeader)
+	}
+
+	page := decodePage(t, get(mux, producerHeader, "/lots?farm_id="+created.ID))
+	if len(page.Items) != 1 || page.Items[0].ID != lot.ID {
+		t.Errorf("lots of the created farm: got %+v, want only the new lot", page.Items)
+	}
+
+	if !strings.Contains(logs.String(), `"name":"La Esperanza"`) {
+		t.Errorf("lot.created must carry the created farm snapshot, logs: %s", logs.String())
 	}
 }

@@ -34,6 +34,14 @@ func (r fakeFarmRepository) FindByID(_ context.Context, _ uuid.UUID) (*farm.Farm
 	return r.farm, r.err
 }
 
+func (r fakeFarmRepository) Save(_ context.Context, _ *farm.Farm) error {
+	return nil
+}
+
+func (r fakeFarmRepository) ListByProducer(_ context.Context, _ uuid.UUID) ([]*farm.Farm, error) {
+	return []*farm.Farm{}, nil
+}
+
 func assertKind(t *testing.T, err error, want exception.Kind) {
 	t.Helper()
 	e, ok := exception.From(err)

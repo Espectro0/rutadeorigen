@@ -11,8 +11,10 @@ import (
 type Action string
 
 const (
-	ActionCreateLot Action = "lot:create"
-	ActionReadLot   Action = "lot:read"
+	ActionCreateLot  Action = "lot:create"
+	ActionReadLot    Action = "lot:read"
+	ActionCreateFarm Action = "farm:create"
+	ActionReadFarm   Action = "farm:read"
 )
 
 type Subject struct {

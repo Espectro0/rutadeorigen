@@ -71,7 +71,7 @@ func (uc *CreateLot) Execute(ctx context.Context, draft *lot.Lot) error {
 		if err := uc.lots.Save(ctx, created); err != nil {
 			return exception.Wrap(err, "save lot")
 		}
-		return uc.publishCreated(ctx, a, created)
+		return uc.publishCreated(ctx, f, a, created)
 	})
 	if err != nil {
 		return exception.Wrap(err, "create lot transaction")
@@ -120,10 +120,23 @@ func (uc *CreateLot) ensureCodeAvailable(ctx context.Context, farmID uuid.UUID, 
 	return nil
 }
 
-func (uc *CreateLot) publishCreated(ctx context.Context, a *actor.Actor, l *lot.Lot) error {
+func (uc *CreateLot) publishCreated(ctx context.Context, f *farm.Farm, a *actor.Actor, l *lot.Lot) error {
+	producer, err := validators.ActorActive(ctx, uc.actors, f.ProducerID())
+	if err != nil {
+		return exception.Wrap(err, "get producer")
+	}
+
 	event := uc.newEvent(ctx, a, ports.EventLotCreated, ports.AggregateLot, l.ID(), l.Version(), LotCreatedPayload{
-		LotID:       l.ID(),
-		FarmID:      l.FarmID(),
+		LotID: l.ID(),
+		Farm: FarmSnapshot{
+			ID:       f.ID(),
+			Name:     f.Name(),
+			Altitude: f.Altitude(),
+		},
+		Producer: ProducerSnapshot{
+			ID:   producer.ID(),
+			Name: producer.Name(),
+		},
 		CustodianID: l.CustodianID(),
 		Code:        l.Code(),
 		Variety:     l.Variety(),
