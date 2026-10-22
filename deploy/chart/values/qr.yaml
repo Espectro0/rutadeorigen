@@ -1,4 +1,4 @@
 services:
   qr:
-    tag: "fa8b343023576dcde980c72dec0899256859fb13"
+    tag: "7dc9e454e2dfa512d1becec614f71615d6f57b58"
     replicas: 1
