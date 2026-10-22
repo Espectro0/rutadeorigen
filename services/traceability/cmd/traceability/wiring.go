@@ -3,18 +3,18 @@ package main
 import (
 	"log/slog"
 	"net/http"
+
+	"rutadeorigen/lib/catalog"
 	createfarmadapter "rutadeorigen/traceability/internal/application/input/adapters/createfarm"
 	createlotadapter "rutadeorigen/traceability/internal/application/input/adapters/createlot"
 	getlotadapter "rutadeorigen/traceability/internal/application/input/adapters/getlot"
 	listfarmadapter "rutadeorigen/traceability/internal/application/input/adapters/listfarm"
-	createfarmuc "rutadeorigen/traceability/internal/application/usecases/createfarm"
-	listfarmuc "rutadeorigen/traceability/internal/application/usecases/listfarm"
-
-	"rutadeorigen/lib/catalog"
 	listlotsadapter "rutadeorigen/traceability/internal/application/input/adapters/listlots"
 	"rutadeorigen/traceability/internal/application/output/ports"
+	createfarmuc "rutadeorigen/traceability/internal/application/usecases/createfarm"
 	createlotuc "rutadeorigen/traceability/internal/application/usecases/createlot"
 	getlotuc "rutadeorigen/traceability/internal/application/usecases/getlot"
+	listfarmuc "rutadeorigen/traceability/internal/application/usecases/listfarm"
 	listlotsuc "rutadeorigen/traceability/internal/application/usecases/listlots"
 	"rutadeorigen/traceability/internal/infrastructure/input/controllers"
 	"rutadeorigen/traceability/internal/infrastructure/output/external/authorizer"
