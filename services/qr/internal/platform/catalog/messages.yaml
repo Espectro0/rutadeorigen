@@ -1,0 +1,23 @@
+QR_LOT_VIEW_INVALID_ID: "The lot identifier is not valid."
+QR_LOT_VIEW_INVALID_CODE: "The lot code must have between {min} and {max} characters."
+QR_LOT_VIEW_INVALID_VARIETY: "The coffee variety is required."
+QR_LOT_VIEW_INVALID_PROCESS: "The process must be washed, natural or honey."
+QR_LOT_VIEW_INVALID_HARVEST_DATE: "The harvest date is required."
+QR_LOT_VIEW_INVALID_FARM: "The lot must belong to a farm."
+QR_LOT_VIEW_INVALID_PRODUCER: "The lot must belong to a producer."
+QR_LOT_VIEW_INVALID_CUSTODIAN: "The lot must have a custodian."
+QR_LOT_VIEW_INVALID_STAGE: "The stage must be none, farm, roasting or packaging."
+QR_LOT_VIEW_INVALID_STATUS: "The status must be active or voided."
+QR_LOT_VIEW_INVALID_VERSION: "The lot version must be greater than zero."
+QR_LOT_VIEW_NOT_FOUND: "No lot was found."
+QR_LOT_VIEW_IMAGE_NOT_AVAILABLE: "The QR image is only available once the lot has been packaged."
+
+QR_CODE_INVALID_CONTENT: "The QR content is required."
+QR_CODE_INVALID_SIZE: "The image size is not supported."
+QR_CODE_INVALID_FORMAT: "The image format must be png or svg."
+QR_CODE_INVALID_ERROR_CORRECTION: "The error correction level must be L, M, Q or H."
+
+QR_REDIRECT_INVALID_RULE: "The redirect rule is not valid."
+QR_REDIRECT_NOT_FOUND: "No redirect rule matches the scanned path."
+
+QR_EVENT_INVALID_PAYLOAD: "The event payload is not valid."
