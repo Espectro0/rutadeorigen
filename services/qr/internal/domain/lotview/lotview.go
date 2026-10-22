@@ -86,40 +86,8 @@ func New(p NewParams) (*LotView, error) {
 	farmName := helper.ApplyTrim(p.FarmName)
 	producerName := helper.ApplyTrim(p.ProducerName)
 
-	if helper.IsDefaultUUID(p.LotID) {
-		return Default(), exception.New(exception.CodeLotViewInvalidID)
-	}
-	if !helper.LengthIsValid(code, codeMinLength, codeMaxLength) {
-		return Default(), exception.New(exception.CodeLotViewInvalidCode).
-			WithParams(map[string]any{"min": codeMinLength, "max": codeMaxLength})
-	}
-	if helper.IsEmpty(variety) {
-		return Default(), exception.New(exception.CodeLotViewInvalidVariety)
-	}
-	if !p.Process.IsValid() {
-		return Default(), exception.New(exception.CodeLotViewInvalidProcess)
-	}
-	if helper.IsDefaultDate(p.HarvestDate) {
-		return Default(), exception.New(exception.CodeLotViewInvalidHarvest)
-	}
-	if helper.IsDefaultUUID(p.FarmID) || helper.IsEmpty(farmName) ||
-		!helper.IsInRange(p.FarmAltitude, minAltitude, maxAltitude) {
-		return Default(), exception.New(exception.CodeLotViewInvalidFarm)
-	}
-	if helper.IsDefaultUUID(p.ProducerID) || helper.IsEmpty(producerName) {
-		return Default(), exception.New(exception.CodeLotViewInvalidProducer)
-	}
-	if helper.IsDefaultUUID(p.CustodianID) {
-		return Default(), exception.New(exception.CodeLotViewInvalidCustodian)
-	}
-	if !p.CurrentStage.IsValid() {
-		return Default(), exception.New(exception.CodeLotViewInvalidStage)
-	}
-	if !p.Status.IsValid() {
-		return Default(), exception.New(exception.CodeLotViewInvalidStatus)
-	}
-	if p.Version <= 0 {
-		return Default(), exception.New(exception.CodeLotViewInvalidVersion)
+	if err := validateNewParams(p, code, variety, farmName, producerName); err != nil {
+		return Default(), err
 	}
 
 	now := time.Now().UTC()
@@ -147,6 +115,46 @@ func New(p NewParams) (*LotView, error) {
 		createdAt:    createdAt,
 		updatedAt:    now,
 	}, nil
+}
+
+func validateNewParams(p NewParams, code, variety, farmName, producerName string) error {
+	if helper.IsDefaultUUID(p.LotID) {
+		return exception.New(exception.CodeLotViewInvalidID)
+	}
+	if !helper.LengthIsValid(code, codeMinLength, codeMaxLength) {
+		return exception.New(exception.CodeLotViewInvalidCode).
+			WithParams(map[string]any{"min": codeMinLength, "max": codeMaxLength})
+	}
+	if helper.IsEmpty(variety) {
+		return exception.New(exception.CodeLotViewInvalidVariety)
+	}
+	if !p.Process.IsValid() {
+		return exception.New(exception.CodeLotViewInvalidProcess)
+	}
+	if helper.IsDefaultDate(p.HarvestDate) {
+		return exception.New(exception.CodeLotViewInvalidHarvest)
+	}
+	if helper.IsDefaultUUID(p.FarmID) || helper.IsEmpty(farmName) ||
+		!helper.IsInRange(p.FarmAltitude, minAltitude, maxAltitude) {
+		return exception.New(exception.CodeLotViewInvalidFarm)
+	}
+	if helper.IsDefaultUUID(p.ProducerID) || helper.IsEmpty(producerName) {
+		return exception.New(exception.CodeLotViewInvalidProducer)
+	}
+	if helper.IsDefaultUUID(p.CustodianID) {
+		return exception.New(exception.CodeLotViewInvalidCustodian)
+	}
+	if !p.CurrentStage.IsValid() {
+		return exception.New(exception.CodeLotViewInvalidStage)
+	}
+	if !p.Status.IsValid() {
+		return exception.New(exception.CodeLotViewInvalidStatus)
+	}
+	if p.Version <= 0 {
+		return exception.New(exception.CodeLotViewInvalidVersion)
+	}
+
+	return nil
 }
 
 type RestoreParams struct {
