@@ -69,6 +69,14 @@ func (r fakeFarms) FindByID(_ context.Context, id uuid.UUID) (*farm.Farm, error)
 	return farm.Default(), nil
 }
 
+func (r fakeFarms) Save(_ context.Context, _ *farm.Farm) error {
+	return nil
+}
+
+func (r fakeFarms) ListByProducer(_ context.Context, _ uuid.UUID) ([]*farm.Farm, error) {
+	return []*farm.Farm{}, nil
+}
+
 type fakeLots struct {
 	existingCode string
 	existsErr    error
@@ -285,6 +293,84 @@ func TestCreateLotSuccess(t *testing.T) {
 		}
 		if payload.LotID != got.ID() || payload.Code != "LT-001" || payload.Status != lot.StatusActive.String() {
 			t.Error("unexpected payload data")
+		}
+		if payload.CustodianID != got.CustodianID() {
+			t.Errorf("custodian: got %s, want %s", payload.CustodianID, got.CustodianID())
+		}
+	})
+
+	t.Run("LotCreated carries a snapshot of the farm", func(t *testing.T) {
+		payload := s.publisher.events[0].Payload.(createlot.LotCreatedPayload)
+		want := createlot.FarmSnapshot{ID: s.farm.ID(), Name: "La Esperanza", Altitude: 1650}
+		if payload.Farm != want {
+			t.Errorf("farm: got %+v, want %+v", payload.Farm, want)
+		}
+	})
+
+	t.Run("LotCreated carries a snapshot of the producer", func(t *testing.T) {
+		payload := s.publisher.events[0].Payload.(createlot.LotCreatedPayload)
+		want := createlot.ProducerSnapshot{ID: s.producer.ID(), Name: "Finca La Esperanza SAS"}
+		if payload.Producer != want {
+			t.Errorf("producer: got %+v, want %+v", payload.Producer, want)
+		}
+	})
+}
+
+func TestCreateLotProducerSnapshot(t *testing.T) {
+	t.Run("the producer comes from the farm, not from the requester", func(t *testing.T) {
+		s := newScenario(t)
+		org, err := actor.New("user_02", actor.TypeOrganization, "Cooperativa de Caficultores")
+		if err != nil {
+			t.Fatal(err)
+		}
+		s.actors.byID[org.ID()] = org
+		ctx := requestcontext.WithActorID(context.Background(), org.ID())
+
+		if _, err := execute(ctx, s.useCase(), s.draft()); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		e := s.publisher.events[0]
+		payload := e.Payload.(createlot.LotCreatedPayload)
+		if payload.Producer.ID != s.producer.ID() || payload.Producer.Name != "Finca La Esperanza SAS" {
+			t.Errorf("producer: got %+v, want the farm producer", payload.Producer)
+		}
+		if e.ActorID != org.ID() || e.ActorRole != actor.TypeOrganization.String() {
+			t.Error("expected the requester as the event actor")
+		}
+	})
+
+	t.Run("the producer of the farm is inactive: nothing published", func(t *testing.T) {
+		s := newScenario(t)
+		org, err := actor.New("user_02", actor.TypeOrganization, "Cooperativa de Caficultores")
+		if err != nil {
+			t.Fatal(err)
+		}
+		s.actors.byID[org.ID()] = org
+		s.actors.byID[s.producer.ID()] = actor.Restore(s.producer.ID(), "user_01", actor.TypeProducer,
+			"Finca La Esperanza SAS", actor.StatusInactive, time.Now())
+		ctx := requestcontext.WithActorID(context.Background(), org.ID())
+
+		got, err := execute(ctx, s.useCase(), s.draft())
+		assertFailed(t, got, err, exception.New(exception.CodeActorNotFound))
+		if len(s.publisher.events) != 0 {
+			t.Error("no event must be published when the producer is inactive")
+		}
+	})
+
+	t.Run("the producer of the farm does not exist: nothing published", func(t *testing.T) {
+		s := newScenario(t)
+		org, err := actor.New("user_02", actor.TypeOrganization, "Cooperativa de Caficultores")
+		if err != nil {
+			t.Fatal(err)
+		}
+		s.actors.byID = map[uuid.UUID]*actor.Actor{org.ID(): org}
+		ctx := requestcontext.WithActorID(context.Background(), org.ID())
+
+		got, err := execute(ctx, s.useCase(), s.draft())
+		assertFailed(t, got, err, exception.New(exception.CodeActorNotFound))
+		if len(s.publisher.events) != 0 {
+			t.Error("no event must be published when the producer does not exist")
 		}
 	})
 }

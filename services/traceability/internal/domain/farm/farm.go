@@ -37,6 +37,15 @@ func Default() *Farm {
 	return &f
 }
 
+func Draft(name string, altitude int) *Farm {
+	f := Default()
+
+	f.name = name
+	f.altitude = altitude
+
+	return f
+}
+
 func New(producerID uuid.UUID, name string, altitude int) (*Farm, error) {
 	name = helper.ApplyTrim(name)
 

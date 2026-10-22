@@ -10,4 +10,6 @@ import (
 
 type FarmRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*farm.Farm, error)
+	Save(ctx context.Context, farm *farm.Farm) error
+	ListByProducer(ctx context.Context, producerID uuid.UUID) ([]*farm.Farm, error)
 }
