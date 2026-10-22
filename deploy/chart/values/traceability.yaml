@@ -1,5 +1,5 @@
 services:
   traceability:
-    tag: "052c3fd7b3d578be5527aa3a61be876e9c28b827"
+    tag: "b1630be4f8bcebcf8603ec12ca475ef0fc2776a2"
     replicas: 1
     envFromSecret: traceability-db
