@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/xml"
+	"errors"
 	"image/png"
 	"io"
 	"strings"
@@ -49,7 +50,7 @@ func TestRenderSVG(t *testing.T) {
 	var root string
 	for {
 		token, err := decoder.Token()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

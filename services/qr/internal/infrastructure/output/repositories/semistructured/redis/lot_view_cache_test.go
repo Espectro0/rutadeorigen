@@ -25,7 +25,7 @@ func newFake() *fakeClient {
 	return &fakeClient{store: map[string][]byte{}}
 }
 
-func (f *fakeClient) Get(ctx context.Context, key string) *goredis.StringCmd {
+func (f *fakeClient) Get(_ context.Context, key string) *goredis.StringCmd {
 	if f.failing != nil {
 		return goredis.NewStringResult("", f.failing)
 	}
@@ -36,7 +36,7 @@ func (f *fakeClient) Get(ctx context.Context, key string) *goredis.StringCmd {
 	return goredis.NewStringResult(string(raw), nil)
 }
 
-func (f *fakeClient) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *goredis.StatusCmd {
+func (f *fakeClient) Set(_ context.Context, key string, value interface{}, expiration time.Duration) *goredis.StatusCmd {
 	if f.failing != nil {
 		return goredis.NewStatusResult("", f.failing)
 	}
@@ -45,7 +45,7 @@ func (f *fakeClient) Set(ctx context.Context, key string, value interface{}, exp
 	return goredis.NewStatusResult("OK", nil)
 }
 
-func (f *fakeClient) Del(ctx context.Context, keys ...string) *goredis.IntCmd {
+func (f *fakeClient) Del(_ context.Context, keys ...string) *goredis.IntCmd {
 	if f.failing != nil {
 		return goredis.NewIntResult(0, f.failing)
 	}
