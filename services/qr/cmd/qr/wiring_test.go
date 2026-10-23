@@ -92,7 +92,7 @@ func TestLotCreatedEventFeedsPublicLot(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	rec := h.get("/lots/"+lotID.String(), nil)
+	rec := h.get("/public/lots/"+lotID.String(), nil)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
 	}
@@ -122,7 +122,7 @@ func TestDuplicateEventIsIdempotent(t *testing.T) {
 		}
 	}
 
-	if rec := h.get("/lots/"+lotID.String(), nil); rec.Code != http.StatusOK {
+	if rec := h.get("/public/lots/"+lotID.String(), nil); rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rec.Code)
 	}
 }
@@ -141,7 +141,7 @@ func TestUnknownLotIsNotFound(t *testing.T) {
 	h := newHarness(t)
 	id := uuid.NewString()
 
-	if rec := h.get("/lots/"+id, nil); rec.Code != http.StatusNotFound {
+	if rec := h.get("/public/lots/"+id, nil); rec.Code != http.StatusNotFound {
 		t.Errorf("lot: expected 404, got %d", rec.Code)
 	}
 	if rec := h.get("/l/"+id, nil); rec.Code != http.StatusNotFound {
@@ -174,11 +174,11 @@ func TestQRImageOnlyForPackagedLots(t *testing.T) {
 	}
 	actor := map[string]string{controllers.ActorIDHeader: uuid.NewString()}
 
-	if rec := h.get("/lots/"+packaged.String()+"/qr", nil); rec.Code != http.StatusUnauthorized {
+	if rec := h.get("/public/lots/"+packaged.String()+"/qr", nil); rec.Code != http.StatusUnauthorized {
 		t.Errorf("without actor: expected 401, got %d", rec.Code)
 	}
 
-	rec := h.get("/lots/"+packaged.String()+"/qr?size=256&format=png", actor)
+	rec := h.get("/public/lots/"+packaged.String()+"/qr?size=256&format=png", actor)
 	if rec.Code != http.StatusOK || rec.Header().Get("Content-Type") != "image/png" {
 		t.Fatalf("packaged: expected png, got %d %q", rec.Code, rec.Header().Get("Content-Type"))
 	}
@@ -186,15 +186,15 @@ func TestQRImageOnlyForPackagedLots(t *testing.T) {
 		t.Errorf("invalid png: %v", err)
 	}
 
-	svg := h.get("/lots/"+packaged.String()+"/qr?format=svg", actor)
+	svg := h.get("/public/lots/"+packaged.String()+"/qr?format=svg", actor)
 	if svg.Code != http.StatusOK || svg.Header().Get("Content-Type") != "image/svg+xml" {
 		t.Errorf("svg: unexpected response %d %q", svg.Code, svg.Header().Get("Content-Type"))
 	}
 
-	if rec := h.get("/lots/"+early.String()+"/qr", actor); rec.Code != http.StatusConflict {
+	if rec := h.get("/public/lots/"+early.String()+"/qr", actor); rec.Code != http.StatusConflict {
 		t.Errorf("early stage: expected 409, got %d", rec.Code)
 	}
-	if rec := h.get("/lots/"+packaged.String()+"/qr?size=300", actor); rec.Code != http.StatusBadRequest {
+	if rec := h.get("/public/lots/"+packaged.String()+"/qr?size=300", actor); rec.Code != http.StatusBadRequest {
 		t.Errorf("invalid size: expected 400, got %d", rec.Code)
 	}
 }
@@ -206,7 +206,7 @@ func TestPackagedLotAdvertisesQR(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	rec := h.get("/lots/"+lotID.String(), nil)
+	rec := h.get("/public/lots/"+lotID.String(), nil)
 
 	var body struct {
 		QRAvailable bool `json:"qr_available"`

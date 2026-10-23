@@ -79,7 +79,7 @@ func TestLotControllerReturnsPublicLot(t *testing.T) {
 	mux := http.NewServeMux()
 	controllers.NewLotController(fake, newErrs(), discardLog()).Register(mux)
 
-	rec := serve(mux, httptest.NewRequest(http.MethodGet, "/lots/abc", nil))
+	rec := serve(mux, httptest.NewRequest(http.MethodGet, "/public/lots/abc", nil))
 
 	if rec.Code != http.StatusOK || fake.got.ID != "abc" {
 		t.Fatalf("unexpected response: %d %q", rec.Code, fake.got.ID)
@@ -98,7 +98,7 @@ func TestLotControllerMapsNotFound(t *testing.T) {
 	mux := http.NewServeMux()
 	controllers.NewLotController(fake, newErrs(), discardLog()).Register(mux)
 
-	rec := serve(mux, httptest.NewRequest(http.MethodGet, "/lots/abc", nil))
+	rec := serve(mux, httptest.NewRequest(http.MethodGet, "/public/lots/abc", nil))
 
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", rec.Code)
@@ -147,7 +147,7 @@ func imageMux(fake *imageFake) *http.ServeMux {
 func TestQRImageControllerRequiresActor(t *testing.T) {
 	mux := imageMux(&imageFake{})
 
-	rec := serve(mux, httptest.NewRequest(http.MethodGet, "/lots/abc/qr", nil))
+	rec := serve(mux, httptest.NewRequest(http.MethodGet, "/public/lots/abc/qr", nil))
 
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401, got %d", rec.Code)
@@ -159,7 +159,7 @@ func TestQRImageControllerServesAttachment(t *testing.T) {
 	mux := imageMux(fake)
 	actor := uuid.New()
 
-	req := httptest.NewRequest(http.MethodGet, "/lots/abc/qr?size=256&format=png", nil)
+	req := httptest.NewRequest(http.MethodGet, "/public/lots/abc/qr?size=256&format=png", nil)
 	req.Header.Set(controllers.ActorIDHeader, actor.String())
 	rec := serve(mux, req)
 
@@ -187,11 +187,11 @@ func TestQRImageControllerHonorsIfNoneMatch(t *testing.T) {
 	fake := &imageFake{res: response.QRImage{Data: []byte{1, 2, 3}, ContentType: "image/png", Filename: "qr.png"}}
 	mux := imageMux(fake)
 
-	first := httptest.NewRequest(http.MethodGet, "/lots/abc/qr", nil)
+	first := httptest.NewRequest(http.MethodGet, "/public/lots/abc/qr", nil)
 	first.Header.Set(controllers.ActorIDHeader, uuid.NewString())
 	etag := serve(mux, first).Header().Get("Etag")
 
-	second := httptest.NewRequest(http.MethodGet, "/lots/abc/qr", nil)
+	second := httptest.NewRequest(http.MethodGet, "/public/lots/abc/qr", nil)
 	second.Header.Set(controllers.ActorIDHeader, uuid.NewString())
 	second.Header.Set("If-None-Match", etag)
 	rec := serve(mux, second)
@@ -205,7 +205,7 @@ func TestQRImageControllerMapsConflict(t *testing.T) {
 	fake := &imageFake{err: exception.New(exception.CodeLotViewImageNotAvailable)}
 	mux := imageMux(fake)
 
-	req := httptest.NewRequest(http.MethodGet, "/lots/abc/qr", nil)
+	req := httptest.NewRequest(http.MethodGet, "/public/lots/abc/qr", nil)
 	req.Header.Set(controllers.ActorIDHeader, uuid.NewString())
 	rec := serve(mux, req)
 
