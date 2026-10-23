@@ -2,3 +2,4 @@ services:
   qr:
     tag: "da94001fb98617afebcc4601ae847ecc0da6f777"
     replicas: 1
+    envFromSecret: qr-db
