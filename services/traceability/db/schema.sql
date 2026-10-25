@@ -1,3 +1,5 @@
+ALTER TABLE lot_event ADD COLUMN IF NOT EXISTS details JSONB NOT NULL DEFAULT '{}'
+
 CREATE TABLE IF NOT EXISTS actor (
                                      id          UUID        PRIMARY KEY,
                                      user_id     TEXT        NOT NULL UNIQUE,
