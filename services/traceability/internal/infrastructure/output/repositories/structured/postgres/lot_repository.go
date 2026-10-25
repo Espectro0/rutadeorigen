@@ -26,6 +26,15 @@ const (
 			SELECT 1 FROM lot WHERE farm_id = $1 AND code = $2
 		)`
 
+	updateLotStage = `
+		UPDATE lot SET current_stage = $2, version = $3
+		WHERE id = $1 AND version = $4`
+
+	existsLotByID = `
+		SELECT EXISTS (
+			SELECT 1 FROM lot WHERE id = $1
+		)`
+
 	insertLot = `
 		INSERT INTO lot (
 			id, farm_id, custodian_id, code, variety, process,
@@ -69,6 +78,30 @@ func (r *LotRepository) Save(ctx context.Context, l *lot.Lot) error {
 		return internalError("insert lot", err)
 	}
 	return nil
+}
+
+func (r *LotRepository) UpdateStage(ctx context.Context, l *lot.Lot, expectedVersion int) error {
+	if l.IsDefault() {
+		return exception.New(exception.CodeInternal).WithTechnical("update lot stage of a default lot")
+	}
+
+	e := r.assembler.ToEntity(l)
+	tag, err := conn(ctx, r.pool).Exec(ctx, updateLotStage, e.ID, e.CurrentStage, e.Version, expectedVersion)
+	if err != nil {
+		return internalError("update lot stage", err)
+	}
+	if tag.RowsAffected() == 1 {
+		return nil
+	}
+
+	var exists bool
+	if err := conn(ctx, r.pool).QueryRow(ctx, existsLotByID, e.ID).Scan(&exists); err != nil {
+		return internalError("check lot exists", err)
+	}
+	if !exists {
+		return exception.New(exception.CodeLotNotFound)
+	}
+	return exception.New(exception.CodeLotVersionConflict)
 }
 
 func (r *LotRepository) FindByID(ctx context.Context, id uuid.UUID) (*lot.Lot, error) {

@@ -102,6 +102,10 @@ func (r *fakeLots) List(_ context.Context, _ lot.Filter, _ lot.Cursor, _ int) ([
 	return nil, nil
 }
 
+func (r *fakeLots) UpdateStage(_ context.Context, _ *lot.Lot, _ int) error {
+	return nil
+}
+
 func (r *fakeLots) Save(ctx context.Context, l *lot.Lot) error {
 	if r.saveErr != nil {
 		return r.saveErr

@@ -41,6 +41,8 @@ func (f *fakeLots) ExistsByCode(_ context.Context, _ uuid.UUID, _ string) (bool,
 	return false, nil
 }
 
+func (f *fakeLots) UpdateStage(_ context.Context, _ *lot.Lot, _ int) error { return nil }
+
 func (f *fakeLots) Save(_ context.Context, _ *lot.Lot) error { return nil }
 
 func (f *fakeLots) FindByID(_ context.Context, _ uuid.UUID) (*lot.Lot, error) {
