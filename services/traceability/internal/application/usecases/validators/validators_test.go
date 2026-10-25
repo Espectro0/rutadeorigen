@@ -11,6 +11,7 @@ import (
 	"rutadeorigen/traceability/internal/application/usecases/validators"
 	"rutadeorigen/traceability/internal/domain/actor"
 	"rutadeorigen/traceability/internal/domain/farm"
+	"rutadeorigen/traceability/internal/domain/lot"
 	"rutadeorigen/traceability/internal/platform/exception"
 )
 
@@ -40,6 +41,31 @@ func (r fakeFarmRepository) Save(_ context.Context, _ *farm.Farm) error {
 
 func (r fakeFarmRepository) ListByProducer(_ context.Context, _ uuid.UUID) ([]*farm.Farm, error) {
 	return []*farm.Farm{}, nil
+}
+
+type fakeLotRepository struct {
+	lot *lot.Lot
+	err error
+}
+
+func (r fakeLotRepository) ExistsByCode(_ context.Context, _ uuid.UUID, _ string) (bool, error) {
+	return false, nil
+}
+
+func (r fakeLotRepository) UpdateStage(_ context.Context, _ *lot.Lot, _ int) error {
+	return nil
+}
+
+func (r fakeLotRepository) Save(_ context.Context, _ *lot.Lot) error {
+	return nil
+}
+
+func (r fakeLotRepository) FindByID(_ context.Context, _ uuid.UUID) (*lot.Lot, error) {
+	return r.lot, r.err
+}
+
+func (r fakeLotRepository) List(_ context.Context, _ lot.Filter, _ lot.Cursor, _ int) ([]*lot.Lot, error) {
+	return nil, nil
 }
 
 func assertKind(t *testing.T, err error, want exception.Kind) {
@@ -145,6 +171,102 @@ func TestFarmExists(t *testing.T) {
 		}
 		if !got.IsDefault() {
 			t.Error("expected default farm on error")
+		}
+	})
+}
+
+func newValidatorsLot(t *testing.T) *lot.Lot {
+	t.Helper()
+	l, err := lot.New(uuid.New(), uuid.New(), "LT-001", "Castillo", lot.ProcessWashed, time.Now().AddDate(0, -1, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return l
+}
+
+func TestLotExists(t *testing.T) {
+	existing := newValidatorsLot(t)
+
+	t.Run("returns the lot when it exists", func(t *testing.T) {
+		got, err := validators.LotExists(context.Background(), fakeLotRepository{lot: existing}, existing.ID())
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.ID() != existing.ID() {
+			t.Errorf("got lot %s, want %s", got.ID(), existing.ID())
+		}
+	})
+
+	t.Run("lot not found", func(t *testing.T) {
+		got, err := validators.LotExists(context.Background(), fakeLotRepository{lot: lot.Default()}, uuid.New())
+		if !errors.Is(err, exception.New(exception.CodeLotNotFound)) {
+			t.Errorf("got %v, want %v", err, exception.New(exception.CodeLotNotFound))
+		}
+		if !got.IsDefault() {
+			t.Error("expected default lot on error")
+		}
+	})
+
+	t.Run("nil lot from repository counts as not found", func(t *testing.T) {
+		_, err := validators.LotExists(context.Background(), fakeLotRepository{lot: nil}, uuid.New())
+		if !errors.Is(err, exception.New(exception.CodeLotNotFound)) {
+			t.Errorf("got %v, want %v", err, exception.New(exception.CodeLotNotFound))
+		}
+	})
+
+	t.Run("repository failure is an internal error", func(t *testing.T) {
+		got, err := validators.LotExists(context.Background(), fakeLotRepository{err: errDatabase}, uuid.New())
+		assertKind(t, err, exception.KindInternal)
+		if !errors.Is(err, errDatabase) {
+			t.Error("expected the original cause to be kept")
+		}
+		if !got.IsDefault() {
+			t.Error("expected default lot on error")
+		}
+	})
+}
+
+func TestLotVersion(t *testing.T) {
+	l := newValidatorsLot(t)
+
+	t.Run("the version matches", func(t *testing.T) {
+		if err := validators.LotVersion(l, 1); err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("the version matches after the lot advances", func(t *testing.T) {
+		advanced := newValidatorsLot(t)
+		if err := advanced.AdvanceTo(lot.StageFarm); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if err := validators.LotVersion(advanced, 2); err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+		if err := validators.LotVersion(advanced, 1); !exception.HasCode(err, exception.CodeLotVersionConflict) {
+			t.Errorf("got %v, want code %q", err, exception.CodeLotVersionConflict)
+		}
+	})
+
+	for _, expected := range []int{-1, 0, 2, 99} {
+		t.Run("a different version conflicts", func(t *testing.T) {
+			err := validators.LotVersion(l, expected)
+			if !exception.HasCode(err, exception.CodeLotVersionConflict) {
+				t.Fatalf("expected %d: got %v, want code %q", expected, err, exception.CodeLotVersionConflict)
+			}
+			assertKind(t, err, exception.KindConflict)
+		})
+	}
+
+	t.Run("a default lot is not found even with a zero version", func(t *testing.T) {
+		if err := validators.LotVersion(lot.Default(), 0); !exception.HasCode(err, exception.CodeLotNotFound) {
+			t.Errorf("got %v, want code %q", err, exception.CodeLotNotFound)
+		}
+	})
+
+	t.Run("a nil lot is not found", func(t *testing.T) {
+		if err := validators.LotVersion(nil, 1); !exception.HasCode(err, exception.CodeLotNotFound) {
+			t.Errorf("got %v, want code %q", err, exception.CodeLotNotFound)
 		}
 	})
 }

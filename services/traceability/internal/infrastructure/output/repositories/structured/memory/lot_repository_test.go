@@ -162,3 +162,225 @@ func TestLotRepositoryIsSafeForConcurrentUse(t *testing.T) {
 		}
 	}
 }
+
+func TestLotRepositoryReturnsCopies(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("changing a found lot does not change the stored one", func(t *testing.T) {
+		seeded := newLot(t, uuid.New(), "LOT-001")
+		repo := memory.NewLotRepository(seeded)
+
+		found, err := repo.FindByID(ctx, seeded.ID())
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if err := found.AdvanceTo(lot.StageFarm); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		again, _ := repo.FindByID(ctx, seeded.ID())
+		if again.CurrentStage() != lot.StageNone || again.Version() != 1 {
+			t.Errorf("stored lot changed: stage %q, version %d", again.CurrentStage(), again.Version())
+		}
+	})
+
+	t.Run("changing the saved lot does not change the stored one", func(t *testing.T) {
+		repo := memory.NewLotRepository()
+		l := newLot(t, uuid.New(), "LOT-001")
+		if err := repo.Save(ctx, l); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if err := l.AdvanceTo(lot.StageFarm); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		stored, _ := repo.FindByID(ctx, l.ID())
+		if stored.CurrentStage() != lot.StageNone || stored.Version() != 1 {
+			t.Errorf("stored lot changed: stage %q, version %d", stored.CurrentStage(), stored.Version())
+		}
+	})
+
+	t.Run("changing the seeded lot does not change the stored one", func(t *testing.T) {
+		seeded := newLot(t, uuid.New(), "LOT-001")
+		repo := memory.NewLotRepository(seeded)
+		if err := seeded.AdvanceTo(lot.StageFarm); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		stored, _ := repo.FindByID(ctx, seeded.ID())
+		if stored.CurrentStage() != lot.StageNone {
+			t.Errorf("stored lot changed: stage %q", stored.CurrentStage())
+		}
+	})
+
+	t.Run("changing a listed lot does not change the stored one", func(t *testing.T) {
+		seeded := newLot(t, uuid.New(), "LOT-001")
+		repo := memory.NewLotRepository(seeded)
+
+		listed, err := repo.List(ctx, lot.Filter{}, lot.Cursor{}, 10)
+		if err != nil || len(listed) != 1 {
+			t.Fatalf("got %v, %v; want one lot", listed, err)
+		}
+		if err := listed[0].AdvanceTo(lot.StageFarm); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		stored, _ := repo.FindByID(ctx, seeded.ID())
+		if stored.CurrentStage() != lot.StageNone {
+			t.Errorf("stored lot changed: stage %q", stored.CurrentStage())
+		}
+	})
+
+	t.Run("the copy keeps every field", func(t *testing.T) {
+		seeded := newLot(t, uuid.New(), "LOT-001")
+		if err := seeded.Void("Registered by mistake"); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		repo := memory.NewLotRepository(seeded)
+
+		found, _ := repo.FindByID(ctx, seeded.ID())
+		if found.ID() != seeded.ID() || found.FarmID() != seeded.FarmID() || found.CustodianID() != seeded.CustodianID() {
+			t.Error("unexpected identity")
+		}
+		if found.Code() != seeded.Code() || found.Variety() != seeded.Variety() || found.Process() != seeded.Process() {
+			t.Error("unexpected lot data")
+		}
+		if !found.HarvestDate().Equal(seeded.HarvestDate()) || !found.CreatedAt().Equal(seeded.CreatedAt()) {
+			t.Error("unexpected dates")
+		}
+		if found.Status() != lot.StatusVoided || found.VoidReason() != seeded.VoidReason() || found.Version() != seeded.Version() {
+			t.Error("unexpected state")
+		}
+	})
+}
+
+func TestLotRepositoryUpdateStage(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("persists the new stage and version", func(t *testing.T) {
+		seeded := newLot(t, uuid.New(), "LOT-001")
+		repo := memory.NewLotRepository(seeded)
+
+		l, _ := repo.FindByID(ctx, seeded.ID())
+		if err := l.AdvanceTo(lot.StageFarm); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if err := repo.UpdateStage(ctx, l, 1); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		stored, _ := repo.FindByID(ctx, seeded.ID())
+		if stored.CurrentStage() != lot.StageFarm || stored.Version() != 2 {
+			t.Errorf("got stage %q, version %d; want farm, 2", stored.CurrentStage(), stored.Version())
+		}
+	})
+
+	t.Run("a stale expected version conflicts and keeps the stored lot", func(t *testing.T) {
+		seeded := newLot(t, uuid.New(), "LOT-001")
+		repo := memory.NewLotRepository(seeded)
+
+		l, _ := repo.FindByID(ctx, seeded.ID())
+		if err := l.AdvanceTo(lot.StageFarm); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		for _, expected := range []int{0, 2} {
+			if err := repo.UpdateStage(ctx, l, expected); !exception.HasCode(err, exception.CodeLotVersionConflict) {
+				t.Errorf("expected %d: got %v, want code %q", expected, err, exception.CodeLotVersionConflict)
+			}
+		}
+
+		stored, _ := repo.FindByID(ctx, seeded.ID())
+		if stored.CurrentStage() != lot.StageNone || stored.Version() != 1 {
+			t.Errorf("stored lot changed: stage %q, version %d", stored.CurrentStage(), stored.Version())
+		}
+	})
+
+	t.Run("the second of two concurrent updates conflicts", func(t *testing.T) {
+		seeded := newLot(t, uuid.New(), "LOT-001")
+		repo := memory.NewLotRepository(seeded)
+
+		first, _ := repo.FindByID(ctx, seeded.ID())
+		second, _ := repo.FindByID(ctx, seeded.ID())
+		if err := first.AdvanceTo(lot.StageFarm); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if err := second.AdvanceTo(lot.StageFarm); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if err := repo.UpdateStage(ctx, first, 1); err != nil {
+			t.Fatalf("first update: unexpected error: %v", err)
+		}
+		if err := repo.UpdateStage(ctx, second, 1); !exception.HasCode(err, exception.CodeLotVersionConflict) {
+			t.Errorf("second update: got %v, want code %q", err, exception.CodeLotVersionConflict)
+		}
+	})
+
+	t.Run("a lot that does not exist is not found", func(t *testing.T) {
+		repo := memory.NewLotRepository()
+
+		err := repo.UpdateStage(ctx, newLot(t, uuid.New(), "LOT-001"), 1)
+		if !exception.HasCode(err, exception.CodeLotNotFound) {
+			t.Errorf("got %v, want code %q", err, exception.CodeLotNotFound)
+		}
+	})
+
+	rejected := []struct {
+		name string
+		lot  *lot.Lot
+	}{
+		{"default lot", lot.Default()},
+		{"nil lot", nil},
+	}
+
+	for _, tt := range rejected {
+		t.Run("rejects "+tt.name, func(t *testing.T) {
+			err := memory.NewLotRepository().UpdateStage(ctx, tt.lot, 1)
+
+			if !exception.HasCode(err, exception.CodeInternal) {
+				t.Errorf("got %v, want an internal exception", err)
+			}
+		})
+	}
+
+	t.Run("only one of many concurrent updates wins", func(t *testing.T) {
+		seeded := newLot(t, uuid.New(), "LOT-001")
+		repo := memory.NewLotRepository(seeded)
+
+		const workers = 20
+		results := make(chan error, workers)
+
+		loaded := make([]*lot.Lot, workers)
+		for i := range loaded {
+			loaded[i], _ = repo.FindByID(ctx, seeded.ID())
+			if err := loaded[i].AdvanceTo(lot.StageFarm); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		}
+
+		var wg sync.WaitGroup
+		for _, l := range loaded {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				results <- repo.UpdateStage(ctx, l, 1)
+			}()
+		}
+		wg.Wait()
+		close(results)
+
+		wins := 0
+		for err := range results {
+			switch {
+			case err == nil:
+				wins++
+			case !exception.HasCode(err, exception.CodeLotVersionConflict):
+				t.Errorf("unexpected error: %v", err)
+			}
+		}
+		if wins != 1 {
+			t.Errorf("got %d winners, want 1", wins)
+		}
+	})
+}

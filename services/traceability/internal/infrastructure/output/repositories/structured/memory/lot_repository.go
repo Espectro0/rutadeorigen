@@ -25,7 +25,7 @@ func NewLotRepository(seed ...*lot.Lot) *LotRepository {
 	r := &LotRepository{lots: make(map[uuid.UUID]*lot.Lot)}
 	for _, l := range seed {
 		if !l.IsDefault() {
-			r.lots[l.ID()] = l
+			r.lots[l.ID()] = clone(l)
 		}
 	}
 	return r
@@ -51,7 +51,27 @@ func (r *LotRepository) Save(_ context.Context, l *lot.Lot) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.lots[l.ID()] = l
+	r.lots[l.ID()] = clone(l)
+	return nil
+}
+
+func (r *LotRepository) UpdateStage(_ context.Context, l *lot.Lot, expectedVersion int) error {
+	if l.IsDefault() {
+		return exception.New(exception.CodeInternal).WithTechnical("cannot update a default lot")
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	stored, ok := r.lots[l.ID()]
+	if !ok {
+		return exception.New(exception.CodeLotNotFound)
+	}
+	if stored.Version() != expectedVersion {
+		return exception.New(exception.CodeLotVersionConflict)
+	}
+
+	r.lots[l.ID()] = clone(l)
 	return nil
 }
 
@@ -63,7 +83,7 @@ func (r *LotRepository) FindByID(_ context.Context, id uuid.UUID) (*lot.Lot, err
 	if !ok {
 		return lot.Default(), nil
 	}
-	return l, nil
+	return clone(l), nil
 }
 
 func (r *LotRepository) List(_ context.Context, f lot.Filter, after lot.Cursor, limit int) ([]*lot.Lot, error) {
@@ -88,7 +108,12 @@ func (r *LotRepository) List(_ context.Context, f lot.Filter, after lot.Cursor, 
 	if len(matches) > limit {
 		matches = matches[:limit]
 	}
-	return matches, nil
+
+	result := make([]*lot.Lot, len(matches))
+	for i, l := range matches {
+		result[i] = clone(l)
+	}
+	return result, nil
 }
 
 func newer(a, b *lot.Lot) bool {
@@ -105,4 +130,21 @@ func comesAfter(l *lot.Lot, c lot.Cursor) bool {
 	}
 	id := l.ID()
 	return bytes.Compare(id[:], c.ID[:]) < 0
+}
+
+func clone(l *lot.Lot) *lot.Lot {
+	return lot.Restore(lot.RestoreParams{
+		ID:           l.ID(),
+		FarmID:       l.FarmID(),
+		CustodianID:  l.CustodianID(),
+		Code:         l.Code(),
+		Variety:      l.Variety(),
+		Process:      l.Process(),
+		HarvestDate:  l.HarvestDate(),
+		CurrentStage: l.CurrentStage(),
+		Status:       l.Status(),
+		VoidReason:   l.VoidReason(),
+		Version:      l.Version(),
+		CreatedAt:    l.CreatedAt(),
+	})
 }
