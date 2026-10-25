@@ -308,3 +308,98 @@ func TestNewCreatedAtIsUTC(t *testing.T) {
 		t.Errorf("created at location = %v, want UTC", l.CreatedAt().Location())
 	}
 }
+
+func lotAtStage(t *testing.T, stage lot.Stage) *lot.Lot {
+	t.Helper()
+	l := newValidLot(t)
+	for _, s := range []lot.Stage{lot.StageFarm, lot.StageRoasting, lot.StagePackaging} {
+		if l.CurrentStage() == stage {
+			break
+		}
+		if err := l.AdvanceTo(s); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+	return l
+}
+
+func TestAdvanceToFullPath(t *testing.T) {
+	l := newValidLot(t)
+
+	for i, stage := range []lot.Stage{lot.StageFarm, lot.StageRoasting, lot.StagePackaging} {
+		if err := l.AdvanceTo(stage); err != nil {
+			t.Fatalf("%s: unexpected error: %v", stage, err)
+		}
+		if l.CurrentStage() != stage {
+			t.Errorf("expected stage %q, got %q", stage, l.CurrentStage())
+		}
+		if want := 2 + i; l.Version() != want {
+			t.Errorf("%s: expected version %d, got %d", stage, want, l.Version())
+		}
+		if !l.HasEvents() {
+			t.Errorf("%s: expected the lot to have events", stage)
+		}
+		if !l.IsActive() {
+			t.Errorf("%s: expected the lot to stay active", stage)
+		}
+	}
+}
+
+func TestAdvanceToOutOfOrder(t *testing.T) {
+	tests := []struct {
+		name  string
+		from  lot.Stage
+		to    lot.Stage
+		wantV int
+	}{
+		{"none to roasting", lot.StageNone, lot.StageRoasting, 1},
+		{"none to packaging", lot.StageNone, lot.StagePackaging, 1},
+		{"none to none", lot.StageNone, lot.StageNone, 1},
+		{"none to unknown", lot.StageNone, lot.StageUnknown, 1},
+		{"none to invalid value", lot.StageNone, lot.Stage("bogus"), 1},
+		{"farm to farm", lot.StageFarm, lot.StageFarm, 2},
+		{"farm to packaging", lot.StageFarm, lot.StagePackaging, 2},
+		{"farm to none", lot.StageFarm, lot.StageNone, 2},
+		{"roasting to farm", lot.StageRoasting, lot.StageFarm, 3},
+		{"roasting to roasting", lot.StageRoasting, lot.StageRoasting, 3},
+		{"packaging to roasting", lot.StagePackaging, lot.StageRoasting, 4},
+		{"packaging to packaging", lot.StagePackaging, lot.StagePackaging, 4},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lotAtStage(t, tt.from)
+
+			err := l.AdvanceTo(tt.to)
+			if !exception.HasCode(err, exception.CodeLotStageOutOfOrder) {
+				t.Fatalf("got %v, want code %q", err, exception.CodeLotStageOutOfOrder)
+			}
+			if l.CurrentStage() != tt.from {
+				t.Errorf("stage changed to %q, want %q", l.CurrentStage(), tt.from)
+			}
+			if l.Version() != tt.wantV {
+				t.Errorf("version changed to %d, want %d", l.Version(), tt.wantV)
+			}
+		})
+	}
+}
+
+func TestAdvanceToVoidedLot(t *testing.T) {
+	l := newValidLot(t)
+	if err := l.Void("Registered by mistake"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	for _, stage := range []lot.Stage{lot.StageFarm, lot.StagePackaging, lot.StageUnknown} {
+		err := l.AdvanceTo(stage)
+		if !exception.HasCode(err, exception.CodeLotVoided) {
+			t.Errorf("%s: got %v, want code %q", stage, err, exception.CodeLotVoided)
+		}
+	}
+	if l.CurrentStage() != lot.StageNone || l.HasEvents() {
+		t.Error("a voided lot must not advance")
+	}
+	if l.Version() != 2 {
+		t.Errorf("expected version 2, got %d", l.Version())
+	}
+}

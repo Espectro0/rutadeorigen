@@ -135,6 +135,19 @@ func Restore(p RestoreParams) *Lot {
 
 func (l *Lot) IsActive() bool  { return l.status == StatusActive }
 func (l *Lot) HasEvents() bool { return l.currentStage != StageNone }
+func (l *Lot) AdvanceTo(stage Stage) error {
+	if !l.IsActive() {
+		return exception.New(exception.CodeLotVoided)
+	}
+	if !stage.CanFollow(l.currentStage) {
+		return exception.New(exception.CodeLotStageOutOfOrder)
+	}
+
+	l.currentStage = stage
+	l.version++
+
+	return nil
+}
 
 func (l *Lot) CanBeDeleted() error {
 	if l.HasEvents() {
