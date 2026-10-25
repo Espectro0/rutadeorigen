@@ -127,9 +127,9 @@ func TestToEventResponse(t *testing.T) {
 	})
 
 	t.Run("an event without a note omits it", func(t *testing.T) {
-		e, p := restoredEvent(lot.FarmDetails{})
+		_, p := restoredEvent(lot.FarmDetails{})
 		p.Note = ""
-		e = lot.RestoreEvent(p)
+		e := lot.RestoreEvent(p)
 
 		raw, err := json.Marshal(lotmapper.ToEventResponse(e))
 		if err != nil {
