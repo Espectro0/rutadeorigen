@@ -10,8 +10,9 @@ import (
 type EventType string
 
 const (
-	EventLotCreated   EventType = "lot.created"
-	EventAccessDenied EventType = "security.access_denied"
+	EventLotCreated         EventType = "lot.created"
+	EventAccessDenied       EventType = "security.access_denied"
+	EventLotStageRegistered EventType = "lot.stage_registered"
 )
 
 type AggregateType string
