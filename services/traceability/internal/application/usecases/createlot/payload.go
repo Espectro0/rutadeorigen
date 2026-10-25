@@ -17,12 +17,6 @@ type LotCreatedPayload struct {
 	Status      string           `json:"status"`
 }
 
-type AccessDeniedPayload struct {
-	Action       string `json:"action"`
-	ResourceType string `json:"resource_type"`
-	ResourceID   string `json:"resource_id"`
-}
-
 type FarmSnapshot struct {
 	ID       uuid.UUID `json:"id"`
 	Name     string    `json:"name"`

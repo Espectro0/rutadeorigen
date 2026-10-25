@@ -8,6 +8,8 @@ import (
 
 	"rutadeorigen/lib/requestcontext"
 	"rutadeorigen/traceability/internal/application/output/ports"
+	"rutadeorigen/traceability/internal/application/usecases/access"
+	"rutadeorigen/traceability/internal/application/usecases/envelope"
 	"rutadeorigen/traceability/internal/application/usecases/validators"
 	"rutadeorigen/traceability/internal/domain/actor"
 	"rutadeorigen/traceability/internal/domain/farm"
@@ -53,7 +55,8 @@ func (uc *CreateLot) Execute(ctx context.Context, draft *lot.Lot) error {
 		return err
 	}
 
-	if err := uc.authorize(ctx, a, f); err != nil {
+	resource := ports.Resource{Type: ports.ResourceFarm, ID: f.ID(), OwnerID: f.ProducerID()}
+	if err := access.Require(ctx, uc.auth, uc.publisher, a, ports.ActionCreateLot, resource); err != nil {
 		return err
 	}
 
@@ -81,34 +84,6 @@ func (uc *CreateLot) Execute(ctx context.Context, draft *lot.Lot) error {
 	return nil
 }
 
-func (uc *CreateLot) authorize(ctx context.Context, a *actor.Actor, f *farm.Farm) error {
-	subject := ports.Subject{ActorID: a.ID(), Role: a.Type()}
-	resource := ports.Resource{
-		Type:    ports.ResourceFarm,
-		ID:      f.ID(),
-		OwnerID: f.ProducerID(),
-	}
-
-	allowed, err := uc.auth.IsAllowed(ctx, subject, ports.ActionCreateLot, resource)
-	if err != nil {
-		return exception.Wrap(err, "evaluate create lot policy")
-	}
-	if allowed {
-		return nil
-	}
-
-	denied := uc.newEvent(ctx, a, ports.EventAccessDenied, ports.AggregateLot, uuid.Nil, 0, AccessDeniedPayload{
-		Action:       string(ports.ActionCreateLot),
-		ResourceType: string(resource.Type),
-		ResourceID:   resource.ID.String(),
-	})
-	if err := uc.publisher.Publish(ctx, denied); err != nil {
-		return exception.Wrap(err, "publish access denied")
-	}
-
-	return exception.New(exception.CodeForbidden)
-}
-
 func (uc *CreateLot) ensureCodeAvailable(ctx context.Context, farmID uuid.UUID, code string) error {
 	exists, err := uc.lots.ExistsByCode(ctx, farmID, helper.ApplyTrim(code))
 	if err != nil {
@@ -126,7 +101,7 @@ func (uc *CreateLot) publishCreated(ctx context.Context, f *farm.Farm, a *actor.
 		return exception.Wrap(err, "get producer")
 	}
 
-	event := uc.newEvent(ctx, a, ports.EventLotCreated, ports.AggregateLot, l.ID(), l.Version(), LotCreatedPayload{
+	event := envelope.New(ctx, a, ports.EventLotCreated, ports.AggregateLot, l.ID(), l.Version(), LotCreatedPayload{
 		LotID: l.ID(),
 		Farm: FarmSnapshot{
 			ID:       f.ID(),
@@ -150,20 +125,4 @@ func (uc *CreateLot) publishCreated(ctx context.Context, f *farm.Farm, a *actor.
 		return exception.Wrap(err, "publish lot created")
 	}
 	return nil
-}
-
-func (uc *CreateLot) newEvent(ctx context.Context, a *actor.Actor, eventType ports.EventType,
-	aggregateType ports.AggregateType, aggregateID uuid.UUID, version int, payload any) ports.Event {
-	return ports.Event{
-		ID:            uuid.New(),
-		Type:          eventType,
-		AggregateType: aggregateType,
-		AggregateID:   aggregateID,
-		Version:       version,
-		OccurredAt:    time.Now().UTC(),
-		ActorID:       a.ID(),
-		ActorRole:     a.Type().String(),
-		CorrelationID: requestcontext.CorrelationID(ctx),
-		Payload:       payload,
-	}
 }
