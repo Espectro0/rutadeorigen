@@ -27,6 +27,12 @@ const (
 	CodeLotCodeAlreadyExists        Code = "TRACEABILITY_LOT_CODE_ALREADY_EXISTS"
 	CodeLotNotFound                 Code = "TRACEABILITY_LOT_NOT_FOUND"
 	CodeLotInvalidCustodianID       Code = "TRACEABILITY_LOT_INVALID_CUSTODIAN_ID"
+	CodeLotVersionConflict          Code = "TRACEABILITY_LOT_VERSION_CONFLICT"
+	CodeLotInvalidIfMatch           Code = "TRACEABILITY_LOT_INVALID_IF_MATCH"
+	CodeLotInvalidStage             Code = "TRACEABILITY_LOT_INVALID_STAGE"
+	CodeLotInvalidEventDate         Code = "TRACEABILITY_LOT_INVALID_EVENT_DATE"
+	CodeLotInvalidNote              Code = "TRACEABILITY_LOT_INVALID_NOTE"
+	CodeStageInvalidDetails         Code = "TRACEABILITY_STAGE_INVALID_DETAILS"
 
 	CodeActorInvalidUserID Code = "TRACEABILITY_ACTOR_INVALID_USER_ID"
 	CodeActorInvalidName   Code = "TRACEABILITY_ACTOR_INVALID_NAME"
@@ -37,6 +43,21 @@ const (
 	CodeFarmInvalidName     Code = "TRACEABILITY_FARM_INVALID_NAME"
 	CodeFarmInvalidAltitude Code = "TRACEABILITY_FARM_INVALID_ALTITUDE"
 	CodeFarmNotFound        Code = "TRACEABILITY_FARM_NOT_FOUND"
+
+	CodeStageInvalidDryingMethod    Code = "TRACEABILITY_STAGE_INVALID_DRYING_METHOD"
+	CodeStageInvalidDryingDays      Code = "TRACEABILITY_STAGE_INVALID_DRYING_DAYS"
+	CodeStageInvalidMoisture        Code = "TRACEABILITY_STAGE_INVALID_MOISTURE"
+	CodeStageInvalidParchmentWeight Code = "TRACEABILITY_STAGE_INVALID_PARCHMENT_WEIGHT"
+
+	CodeStageInvalidRoastLevel    Code = "TRACEABILITY_STAGE_INVALID_ROAST_LEVEL"
+	CodeStageInvalidRoastDuration Code = "TRACEABILITY_STAGE_INVALID_ROAST_DURATION"
+	CodeStageInvalidGreenWeight   Code = "TRACEABILITY_STAGE_INVALID_GREEN_WEIGHT"
+	CodeStageInvalidRoastedWeight Code = "TRACEABILITY_STAGE_INVALID_ROASTED_WEIGHT"
+
+	CodeStageInvalidGrind         Code = "TRACEABILITY_STAGE_INVALID_GRIND"
+	CodeStageInvalidPackageWeight Code = "TRACEABILITY_STAGE_INVALID_PACKAGE_WEIGHT"
+	CodeStageInvalidUnit          Code = "TRACEABILITY_STAGE_INVALID_UNIT"
+	CodeStageInvalidBestBefore    Code = "TRACEABILITY_STAGE_INVALID_BEST_BEFORE"
 )
 
 var kindByCode = map[Code]Kind{
@@ -62,6 +83,12 @@ var kindByCode = map[Code]Kind{
 	CodeLotCodeAlreadyExists:        KindConflict,
 	CodeLotNotFound:                 KindNotFound,
 	CodeLotInvalidCustodianID:       KindValidation,
+	CodeLotVersionConflict:          KindConflict,
+	CodeLotInvalidIfMatch:           KindValidation,
+	CodeLotInvalidStage:             KindValidation,
+	CodeLotInvalidEventDate:         KindValidation,
+	CodeLotInvalidNote:              KindValidation,
+	CodeStageInvalidDetails:         KindValidation,
 
 	CodeActorInvalidUserID: KindValidation,
 	CodeActorInvalidName:   KindValidation,
@@ -72,6 +99,21 @@ var kindByCode = map[Code]Kind{
 	CodeFarmInvalidName:     KindValidation,
 	CodeFarmInvalidAltitude: KindValidation,
 	CodeFarmNotFound:        KindNotFound,
+
+	CodeStageInvalidDryingMethod:    KindValidation,
+	CodeStageInvalidDryingDays:      KindValidation,
+	CodeStageInvalidMoisture:        KindValidation,
+	CodeStageInvalidParchmentWeight: KindValidation,
+
+	CodeStageInvalidRoastLevel:    KindValidation,
+	CodeStageInvalidRoastDuration: KindValidation,
+	CodeStageInvalidGreenWeight:   KindValidation,
+	CodeStageInvalidRoastedWeight: KindValidation,
+
+	CodeStageInvalidGrind:         KindValidation,
+	CodeStageInvalidPackageWeight: KindValidation,
+	CodeStageInvalidUnit:          KindValidation,
+	CodeStageInvalidBestBefore:    KindValidation,
 }
 
 func KindOf(c Code) (Kind, bool) {

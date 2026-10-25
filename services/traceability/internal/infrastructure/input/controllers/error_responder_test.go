@@ -280,7 +280,7 @@ func TestWriteWithTheRealCatalog(t *testing.T) {
 		responder.Write(rec, newRequest(""), ex)
 
 		body := decodeError(t, rec)
-		want := "The lot code must have between 3 and 30 characters."
+		want := "El código del lote debe tener entre 3 y 30 caracteres."
 		if rec.Code != http.StatusBadRequest || body.Error != want {
 			t.Errorf("got status %d and error %q, want 400 and %q", rec.Code, body.Error, want)
 		}
