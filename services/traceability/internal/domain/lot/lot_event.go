@@ -17,7 +17,7 @@ const (
 	firstSequence = 1
 )
 
-type LotEvent struct {
+type Event struct {
 	id           uuid.UUID
 	lotID        uuid.UUID
 	sequence     int
@@ -33,7 +33,7 @@ type LotEvent struct {
 	registeredAt time.Time
 }
 
-var defaultLotEvent = LotEvent{
+var defaultEvent = Event{
 	id:           helper.DefaultUUID(),
 	lotID:        helper.DefaultUUID(),
 	sequence:     helper.DefaultInt(),
@@ -49,15 +49,15 @@ var defaultLotEvent = LotEvent{
 	registeredAt: helper.DefaultDate(),
 }
 
-func DefaultLotEvent() *LotEvent {
-	e := defaultLotEvent
+func DefaultEvent() *Event {
+	e := defaultEvent
 	return &e
 }
 
 type StageEventParams struct {
 	LotID       uuid.UUID
 	HarvestDate time.Time
-	Previous    *LotEvent
+	Previous    *Event
 	Stage       Stage
 	EventDate   time.Time
 	Note        string
@@ -66,41 +66,41 @@ type StageEventParams struct {
 	Details     StageDetails
 }
 
-func NewStageEvent(p StageEventParams) (*LotEvent, error) {
+func NewStageEvent(p StageEventParams) (*Event, error) {
 	note := helper.ApplyTrim(p.Note)
 	role := helper.ApplyTrim(p.ActorRole)
 
 	if helper.IsDefaultUUID(p.LotID) || helper.IsDefaultUUID(p.ActorID) || helper.IsEmpty(role) {
-		return DefaultLotEvent(), exception.New(exception.CodeInternal).
+		return DefaultEvent(), exception.New(exception.CodeInternal).
 			WithTechnical("lot event requires a lot, an actor and an actor role")
 	}
 	if !p.Stage.IsValid() || p.Stage == StageNone {
-		return DefaultLotEvent(), exception.New(exception.CodeLotInvalidStage)
+		return DefaultEvent(), exception.New(exception.CodeLotInvalidStage)
 	}
 	if utf8.RuneCountInString(note) > noteMaxLength {
-		return DefaultLotEvent(), exception.New(exception.CodeLotInvalidNote).
+		return DefaultEvent(), exception.New(exception.CodeLotInvalidNote).
 			WithParams(map[string]any{"max": noteMaxLength})
 	}
 
 	eventDate := helper.DateUTC(p.EventDate)
 	if helper.IsDefaultDate(p.EventDate) || helper.IsFutureDate(p.EventDate) ||
 		eventDate.Before(helper.DateUTC(p.HarvestDate)) {
-		return DefaultLotEvent(), exception.New(exception.CodeLotInvalidEventDate)
+		return DefaultEvent(), exception.New(exception.CodeLotInvalidEventDate)
 	}
 
 	if p.Details == nil || p.Details.Stage() != p.Stage {
-		return DefaultLotEvent(), exception.New(exception.CodeStageInvalidDetails)
+		return DefaultEvent(), exception.New(exception.CodeStageInvalidDetails)
 	}
 	if err := p.Details.Validate(eventDate); err != nil {
-		return DefaultLotEvent(), err
+		return DefaultEvent(), err
 	}
 
 	sequence, previousHash, err := chainPosition(p.LotID, p.Previous)
 	if err != nil {
-		return DefaultLotEvent(), err
+		return DefaultEvent(), err
 	}
 
-	e := &LotEvent{
+	e := &Event{
 		id:           uuid.New(),
 		lotID:        p.LotID,
 		sequence:     sequence,
@@ -117,13 +117,13 @@ func NewStageEvent(p StageEventParams) (*LotEvent, error) {
 
 	e.hash = e.ComputeHash()
 	if helper.IsEmpty(e.hash) {
-		return DefaultLotEvent(), exception.New(exception.CodeInternal).
+		return DefaultEvent(), exception.New(exception.CodeInternal).
 			WithTechnical("compute lot event hash")
 	}
 	return e, nil
 }
 
-func chainPosition(lotID uuid.UUID, previous *LotEvent) (int, string, error) {
+func chainPosition(lotID uuid.UUID, previous *Event) (int, string, error) {
 	if previous.IsDefault() {
 		return firstSequence, GenesisHash, nil
 	}
@@ -150,8 +150,8 @@ type RestoreEventParams struct {
 	RegisteredAt time.Time
 }
 
-func RestoreEvent(p RestoreEventParams) *LotEvent {
-	return &LotEvent{
+func RestoreEvent(p RestoreEventParams) *Event {
+	return &Event{
 		id:           p.ID,
 		lotID:        p.LotID,
 		sequence:     p.Sequence,
@@ -182,7 +182,7 @@ type hashInput struct {
 	RegisteredAt string       `json:"registered_at"`
 }
 
-func (e *LotEvent) ComputeHash() string {
+func (e *Event) ComputeHash() string {
 	payload, err := json.Marshal(hashInput{
 		PreviousHash: e.previousHash,
 		LotID:        e.lotID.String(),
@@ -202,24 +202,24 @@ func (e *LotEvent) ComputeHash() string {
 	return helper.SHA256Hex(payload)
 }
 
-func (e *LotEvent) VerifyHash() bool {
+func (e *Event) VerifyHash() bool {
 	return !e.IsDefault() && e.hash == e.ComputeHash()
 }
 
-func (e *LotEvent) ID() uuid.UUID           { return e.id }
-func (e *LotEvent) LotID() uuid.UUID        { return e.lotID }
-func (e *LotEvent) Sequence() int           { return e.sequence }
-func (e *LotEvent) Type() EventType         { return e.eventType }
-func (e *LotEvent) Stage() Stage            { return e.stage }
-func (e *LotEvent) EventDate() time.Time    { return e.eventDate }
-func (e *LotEvent) Note() string            { return e.note }
-func (e *LotEvent) ActorID() uuid.UUID      { return e.actorID }
-func (e *LotEvent) ActorRole() string       { return e.actorRole }
-func (e *LotEvent) Details() StageDetails   { return e.details }
-func (e *LotEvent) PreviousHash() string    { return e.previousHash }
-func (e *LotEvent) Hash() string            { return e.hash }
-func (e *LotEvent) RegisteredAt() time.Time { return e.registeredAt }
+func (e *Event) ID() uuid.UUID           { return e.id }
+func (e *Event) LotID() uuid.UUID        { return e.lotID }
+func (e *Event) Sequence() int           { return e.sequence }
+func (e *Event) Type() EventType         { return e.eventType }
+func (e *Event) Stage() Stage            { return e.stage }
+func (e *Event) EventDate() time.Time    { return e.eventDate }
+func (e *Event) Note() string            { return e.note }
+func (e *Event) ActorID() uuid.UUID      { return e.actorID }
+func (e *Event) ActorRole() string       { return e.actorRole }
+func (e *Event) Details() StageDetails   { return e.details }
+func (e *Event) PreviousHash() string    { return e.previousHash }
+func (e *Event) Hash() string            { return e.hash }
+func (e *Event) RegisteredAt() time.Time { return e.registeredAt }
 
-func (e *LotEvent) IsDefault() bool {
+func (e *Event) IsDefault() bool {
 	return e == nil || helper.IsDefaultUUID(e.id)
 }

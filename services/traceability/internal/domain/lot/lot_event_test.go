@@ -28,7 +28,7 @@ func validStageEventParams() lot.StageEventParams {
 	}
 }
 
-func newValidStageEvent(t *testing.T) *lot.LotEvent {
+func newValidStageEvent(t *testing.T) *lot.Event {
 	t.Helper()
 	e, err := lot.NewStageEvent(validStageEventParams())
 	if err != nil {
@@ -37,7 +37,7 @@ func newValidStageEvent(t *testing.T) *lot.LotEvent {
 	return e
 }
 
-func restoreParamsOf(e *lot.LotEvent) lot.RestoreEventParams {
+func restoreParamsOf(e *lot.Event) lot.RestoreEventParams {
 	return lot.RestoreEventParams{
 		ID:           e.ID(),
 		LotID:        e.LotID(),
@@ -149,7 +149,7 @@ func TestNewStageEventChain(t *testing.T) {
 }
 
 func TestNewStageEventDefaultPreviousStartsTheChain(t *testing.T) {
-	for name, previous := range map[string]*lot.LotEvent{"nil": nil, "default": lot.DefaultLotEvent()} {
+	for name, previous := range map[string]*lot.Event{"nil": nil, "default": lot.DefaultEvent()} {
 		t.Run(name, func(t *testing.T) {
 			params := validStageEventParams()
 			params.Previous = previous
@@ -393,10 +393,11 @@ func TestVerifyHashIgnoresEventTimeOfDayAndLocation(t *testing.T) {
 func TestComputeHashIsDeterministic(t *testing.T) {
 	e := newValidStageEvent(t)
 
-	if e.ComputeHash() != e.ComputeHash() {
+	first, second := e.ComputeHash(), e.ComputeHash()
+	if first != second {
 		t.Error("expected the same hash on every call")
 	}
-	if e.ComputeHash() != e.Hash() {
+	if first != e.Hash() {
 		t.Error("expected the stored hash to match the computed one")
 	}
 }
@@ -421,9 +422,9 @@ func TestComputeHashDiffersBetweenEvents(t *testing.T) {
 }
 
 func TestVerifyHashOfDefaultEvents(t *testing.T) {
-	var nilEvent *lot.LotEvent
+	var nilEvent *lot.Event
 
-	if lot.DefaultLotEvent().VerifyHash() {
+	if lot.DefaultEvent().VerifyHash() {
 		t.Error("the default event must not verify")
 	}
 	if nilEvent.VerifyHash() {
@@ -431,8 +432,8 @@ func TestVerifyHashOfDefaultEvents(t *testing.T) {
 	}
 }
 
-func TestDefaultLotEvent(t *testing.T) {
-	e := lot.DefaultLotEvent()
+func TestDefaultEvent(t *testing.T) {
+	e := lot.DefaultEvent()
 
 	if !e.IsDefault() {
 		t.Error("expected the default event")
@@ -443,13 +444,13 @@ func TestDefaultLotEvent(t *testing.T) {
 	if e.Details() != nil || e.Note() != "" || e.Hash() != "" || e.PreviousHash() != "" {
 		t.Error("expected empty details, note and hashes")
 	}
-	if lot.DefaultLotEvent() == e {
+	if lot.DefaultEvent() == e {
 		t.Error("expected an independent instance on every call")
 	}
 }
 
 func TestLotEventIsDefaultNilSafe(t *testing.T) {
-	var e *lot.LotEvent
+	var e *lot.Event
 	if !e.IsDefault() {
 		t.Error("a nil event must be default")
 	}
