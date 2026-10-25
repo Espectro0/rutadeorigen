@@ -13,10 +13,13 @@ import (
 // paramsByCode lists the codes whose message uses parameters, and which ones.
 // Any code not listed here must resolve without parameters.
 var paramsByCode = map[exception.Code][]string{
-	exception.CodeLotInvalidCode:      {"min", "max"},
-	exception.CodeActorInvalidName:    {"min", "max"},
-	exception.CodeFarmInvalidName:     {"min", "max"},
-	exception.CodeFarmInvalidAltitude: {"min", "max"},
+	exception.CodeLotInvalidCode:            {"min", "max"},
+	exception.CodeActorInvalidName:          {"min", "max"},
+	exception.CodeFarmInvalidName:           {"min", "max"},
+	exception.CodeFarmInvalidAltitude:       {"min", "max"},
+	exception.CodeStageInvalidDryingDays:    {"min", "max"},
+	exception.CodeStageInvalidMoisture:      {"min", "max"},
+	exception.CodeStageInvalidRoastDuration: {"min", "max"},
 }
 
 func newCatalog(t *testing.T) *libcatalog.Catalog {
