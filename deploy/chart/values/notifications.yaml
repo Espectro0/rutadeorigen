@@ -1,4 +1,4 @@
 services:
   notifications:
-    tag: "9067b98c6885014ce06bd87ba07e9fd2388ce2ca"
+    tag: "2dcca58de420c5896beb97302a0d7e7b4f14288f"
     replicas: 1
