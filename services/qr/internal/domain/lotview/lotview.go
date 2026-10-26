@@ -117,6 +117,32 @@ func New(p NewParams) (*LotView, error) {
 	}, nil
 }
 
+func (v *LotView) ApplyStage(stage Stage, version int, at time.Time) (*LotView, error) {
+	if v.IsDefault() {
+		return Default(), exception.New(exception.CodeLotViewNotFound)
+	}
+	if !stage.IsValid() || stage == StageNone {
+		return Default(), exception.New(exception.CodeLotViewInvalidStage)
+	}
+	if !v.IsActive() {
+		return Default(), exception.New(exception.CodeLotViewVoided)
+	}
+	if version <= v.version {
+		return Default(), exception.New(exception.CodeLotViewInvalidVersion)
+	}
+
+	updatedAt := at.UTC()
+	if helper.IsDefaultDate(at) {
+		updatedAt = time.Now().UTC()
+	}
+
+	updated := *v
+	updated.currentStage = stage
+	updated.version = version
+	updated.updatedAt = updatedAt
+	return &updated, nil
+}
+
 func validateNewParams(p NewParams, code, variety, farmName, producerName string) error {
 	if helper.IsDefaultUUID(p.LotID) {
 		return exception.New(exception.CodeLotViewInvalidID)

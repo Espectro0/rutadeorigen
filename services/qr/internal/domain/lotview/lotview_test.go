@@ -286,3 +286,180 @@ func TestCanGenerateImage(t *testing.T) {
 		}
 	})
 }
+
+func applyStageView(t *testing.T, mutate func(p *lotview.NewParams)) *lotview.LotView {
+	t.Helper()
+
+	p := lotview.NewParams{
+		LotID:        uuid.New(),
+		Code:         "LT-001",
+		Variety:      "Castillo",
+		Process:      lotview.ProcessWashed,
+		HarvestDate:  time.Now().AddDate(0, -2, 0),
+		FarmID:       uuid.New(),
+		FarmName:     "La Esperanza",
+		FarmAltitude: 1800,
+		ProducerID:   uuid.New(),
+		ProducerName: "Maria Lopez",
+		CustodianID:  uuid.New(),
+		CurrentStage: lotview.StageFarm,
+		Status:       lotview.StatusActive,
+		Version:      2,
+		CreatedAt:    time.Now().Add(-time.Hour),
+	}
+	if mutate != nil {
+		mutate(&p)
+	}
+
+	view, err := lotview.New(p)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	return view
+}
+
+func TestApplyStage(t *testing.T) {
+	at := time.Date(2026, 9, 20, 14, 30, 0, 0, time.UTC)
+
+	t.Run("returns a copy with the new stage, version and update time", func(t *testing.T) {
+		view := applyStageView(t, nil)
+
+		got, err := view.ApplyStage(lotview.StageRoasting, 3, at)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.CurrentStage() != lotview.StageRoasting || got.Version() != 3 || !got.UpdatedAt().Equal(at) {
+			t.Errorf("got stage %q, version %d, updated at %v", got.CurrentStage(), got.Version(), got.UpdatedAt())
+		}
+	})
+
+	t.Run("keeps the rest of the lot view", func(t *testing.T) {
+		view := applyStageView(t, nil)
+
+		got, err := view.ApplyStage(lotview.StageRoasting, 3, at)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.LotID() != view.LotID() || got.Code() != view.Code() || got.Variety() != view.Variety() ||
+			got.Process() != view.Process() || got.FarmID() != view.FarmID() || got.FarmName() != view.FarmName() ||
+			got.ProducerID() != view.ProducerID() || got.CustodianID() != view.CustodianID() ||
+			got.Status() != view.Status() || !got.CreatedAt().Equal(view.CreatedAt()) ||
+			!got.HarvestDate().Equal(view.HarvestDate()) {
+			t.Errorf("unexpected changes: got %+v, original %+v", got, view)
+		}
+	})
+
+	t.Run("does not modify the original lot view", func(t *testing.T) {
+		view := applyStageView(t, nil)
+		updatedAt := view.UpdatedAt()
+
+		if _, err := view.ApplyStage(lotview.StageRoasting, 3, at); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if view.CurrentStage() != lotview.StageFarm || view.Version() != 2 || !view.UpdatedAt().Equal(updatedAt) {
+			t.Errorf("the original changed: stage %q, version %d, updated at %v", view.CurrentStage(), view.Version(), view.UpdatedAt())
+		}
+	})
+
+	t.Run("converts the update time to UTC", func(t *testing.T) {
+		view := applyStageView(t, nil)
+		bogota := time.FixedZone("UTC-5", -5*60*60)
+
+		got, err := view.ApplyStage(lotview.StagePackaging, 3, at.In(bogota))
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.UpdatedAt().Location() != time.UTC || !got.UpdatedAt().Equal(at) {
+			t.Errorf("got %v, want %v in UTC", got.UpdatedAt(), at)
+		}
+	})
+
+	t.Run("uses the current time when none is given", func(t *testing.T) {
+		view := applyStageView(t, nil)
+		before := time.Now().UTC()
+
+		got, err := view.ApplyStage(lotview.StageRoasting, 3, time.Time{})
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.UpdatedAt().Before(before) || got.UpdatedAt().After(time.Now().UTC()) {
+			t.Errorf("unexpected update time %v", got.UpdatedAt())
+		}
+	})
+
+	t.Run("accepts a version that skips numbers", func(t *testing.T) {
+		view := applyStageView(t, nil)
+
+		got, err := view.ApplyStage(lotview.StagePackaging, 7, at)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.Version() != 7 {
+			t.Errorf("got version %d, want 7", got.Version())
+		}
+	})
+}
+
+func TestApplyStageRejects(t *testing.T) {
+	at := time.Date(2026, 9, 20, 14, 30, 0, 0, time.UTC)
+
+	tests := []struct {
+		name     string
+		view     func(t *testing.T) *lotview.LotView
+		stage    lotview.Stage
+		version  int
+		wantCode exception.Code
+	}{
+		{"a default lot view", func(*testing.T) *lotview.LotView { return lotview.Default() }, lotview.StageRoasting, 3, exception.CodeLotViewNotFound},
+		{"an unknown stage", func(t *testing.T) *lotview.LotView { return applyStageView(t, nil) }, lotview.StageUnknown, 3, exception.CodeLotViewInvalidStage},
+		{"the none stage", func(t *testing.T) *lotview.LotView { return applyStageView(t, nil) }, lotview.StageNone, 3, exception.CodeLotViewInvalidStage},
+		{"an arbitrary stage", func(t *testing.T) *lotview.LotView { return applyStageView(t, nil) }, lotview.Stage("drying"), 3, exception.CodeLotViewInvalidStage},
+		{"a voided lot", func(t *testing.T) *lotview.LotView {
+			return applyStageView(t, func(p *lotview.NewParams) { p.Status = lotview.StatusVoided })
+		}, lotview.StageRoasting, 3, exception.CodeLotViewVoided},
+		{"the same version", func(t *testing.T) *lotview.LotView { return applyStageView(t, nil) }, lotview.StageRoasting, 2, exception.CodeLotViewInvalidVersion},
+		{"an older version", func(t *testing.T) *lotview.LotView { return applyStageView(t, nil) }, lotview.StageRoasting, 1, exception.CodeLotViewInvalidVersion},
+		{"a zero version", func(t *testing.T) *lotview.LotView { return applyStageView(t, nil) }, lotview.StageRoasting, 0, exception.CodeLotViewInvalidVersion},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			view := tt.view(t)
+
+			got, err := view.ApplyStage(tt.stage, tt.version, at)
+
+			if !exception.HasCode(err, tt.wantCode) {
+				t.Fatalf("got %v, want code %q", err, tt.wantCode)
+			}
+			if !got.IsDefault() {
+				t.Errorf("expected the default lot view on error, got %+v", got)
+			}
+		})
+	}
+}
+
+func TestApplyStageChecksTheStageBeforeTheStatus(t *testing.T) {
+	view := applyStageView(t, func(p *lotview.NewParams) { p.Status = lotview.StatusVoided })
+
+	_, err := view.ApplyStage(lotview.StageNone, 3, time.Now())
+
+	if !exception.HasCode(err, exception.CodeLotViewInvalidStage) {
+		t.Errorf("got %v, want code %q", err, exception.CodeLotViewInvalidStage)
+	}
+}
+
+func TestApplyStageChecksTheStatusBeforeTheVersion(t *testing.T) {
+	view := applyStageView(t, func(p *lotview.NewParams) { p.Status = lotview.StatusVoided })
+
+	_, err := view.ApplyStage(lotview.StageRoasting, 1, time.Now())
+
+	if !exception.HasCode(err, exception.CodeLotViewVoided) {
+		t.Errorf("got %v, want code %q", err, exception.CodeLotViewVoided)
+	}
+}

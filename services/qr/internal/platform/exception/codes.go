@@ -25,6 +25,7 @@ const (
 	CodeLotViewInvalidVersion    Code = "QR_LOT_VIEW_INVALID_VERSION"
 	CodeLotViewNotFound          Code = "QR_LOT_VIEW_NOT_FOUND"
 	CodeLotViewImageNotAvailable Code = "QR_LOT_VIEW_IMAGE_NOT_AVAILABLE"
+	CodeLotViewVoided            Code = "QR_LOT_VIEW_VOIDED"
 
 	CodeQRCodeInvalidContent         Code = "QR_CODE_INVALID_CONTENT"
 	CodeQRCodeInvalidSize            Code = "QR_CODE_INVALID_SIZE"
@@ -58,6 +59,7 @@ var kindByCode = map[Code]Kind{
 	CodeLotViewInvalidVersion:    KindValidation,
 	CodeLotViewNotFound:          KindNotFound,
 	CodeLotViewImageNotAvailable: KindConflict,
+	CodeLotViewVoided:            KindConflict,
 
 	CodeQRCodeInvalidContent:         KindValidation,
 	CodeQRCodeInvalidSize:            KindValidation,

@@ -22,7 +22,7 @@ import (
 
 type harness struct {
 	mux        *http.ServeMux
-	lotCreated *inmessaging.LotCreatedHandler
+	lotCreated *inmessaging.LotEventsHandler
 }
 
 func newHarness(t *testing.T) harness {
