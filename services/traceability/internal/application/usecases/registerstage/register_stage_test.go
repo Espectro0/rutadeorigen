@@ -762,3 +762,11 @@ func TestRegisterStageDoesNotOpenTransactionOnEarlyFailures(t *testing.T) {
 		t.Errorf("got %d transactions, want 0", s.tx.calls)
 	}
 }
+
+func (r fakeActors) FindByUserID(_ context.Context, _ string) (*actor.Actor, error) {
+	return actor.Default(), nil
+}
+
+func (r fakeActors) Save(_ context.Context, _ *actor.Actor) error {
+	return nil
+}

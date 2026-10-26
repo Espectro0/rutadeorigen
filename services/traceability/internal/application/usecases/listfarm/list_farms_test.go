@@ -266,3 +266,11 @@ func TestListFarmsRepositoryErrors(t *testing.T) {
 	got, err := s.useCase().Execute(s.ctx(), listfarm.Query{})
 	assertInternal(t, got, err)
 }
+
+func (r fakeActors) FindByUserID(_ context.Context, _ string) (*actor.Actor, error) {
+	return actor.Default(), nil
+}
+
+func (r fakeActors) Save(_ context.Context, _ *actor.Actor) error {
+	return nil
+}

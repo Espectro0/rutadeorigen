@@ -592,3 +592,11 @@ func TestCreateLotTransaction(t *testing.T) {
 		}
 	})
 }
+
+func (r fakeActors) FindByUserID(_ context.Context, _ string) (*actor.Actor, error) {
+	return actor.Default(), nil
+}
+
+func (r fakeActors) Save(_ context.Context, _ *actor.Actor) error {
+	return nil
+}

@@ -290,3 +290,11 @@ func TestCreateFarmNilDraft(t *testing.T) {
 	got, err := execute(s.ctx(), s.useCase(), nil)
 	assertFailed(t, got, err, exception.New(exception.CodeFarmInvalidName))
 }
+
+func (r fakeActors) FindByUserID(_ context.Context, _ string) (*actor.Actor, error) {
+	return actor.Default(), nil
+}
+
+func (r fakeActors) Save(_ context.Context, _ *actor.Actor) error {
+	return nil
+}

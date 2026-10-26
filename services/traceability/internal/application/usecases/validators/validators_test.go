@@ -270,3 +270,11 @@ func TestLotVersion(t *testing.T) {
 		}
 	})
 }
+
+func (r fakeActorRepository) FindByUserID(_ context.Context, _ string) (*actor.Actor, error) {
+	return actor.Default(), nil
+}
+
+func (r fakeActorRepository) Save(_ context.Context, _ *actor.Actor) error {
+	return nil
+}
