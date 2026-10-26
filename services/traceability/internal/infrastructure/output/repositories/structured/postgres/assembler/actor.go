@@ -10,7 +10,7 @@ var _ EntityAssembler[entity.Actor, *actor.Actor] = Actor{}
 type Actor struct{}
 
 func (Actor) ToDomain(e entity.Actor) *actor.Actor {
-	return actor.Restore(e.ID, e.UserID, actor.ParseType(e.Type), e.Name, actor.ParseStatus(e.Status), e.CreatedAt.UTC())
+	return actor.Restore(e.ID, e.UserID, actor.ParseType(e.Type), e.Name, e.Email, actor.ParseStatus(e.Status), e.CreatedAt.UTC())
 }
 
 func (Actor) ToEntity(a *actor.Actor) entity.Actor {
@@ -23,6 +23,7 @@ func (Actor) ToEntity(a *actor.Actor) entity.Actor {
 		UserID:    a.UserID(),
 		Type:      a.Type().String(),
 		Name:      a.Name(),
+		Email:     a.Email(),
 		Status:    a.Status().String(),
 		CreatedAt: a.CreatedAt().UTC(),
 	}

@@ -76,7 +76,7 @@ func (a *fakeAuthorizer) IsAllowed(_ context.Context, _ ports.Subject, act ports
 func activeActor(t *testing.T) *actor.Actor {
 	t.Helper()
 
-	a, err := actor.New("user_01", actor.TypeProducer, "Finca La Esperanza SAS")
+	a, err := actor.New("user_01", actor.TypeProducer, "Finca La Esperanza SAS", "user_01@example.com")
 	if err != nil {
 		t.Fatalf("cannot build actor: %v", err)
 	}

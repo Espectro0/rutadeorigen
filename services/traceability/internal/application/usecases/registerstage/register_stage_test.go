@@ -185,7 +185,7 @@ type scenario struct {
 func newScenario(t *testing.T) *scenario {
 	t.Helper()
 
-	producer, err := actor.New("user_01", actor.TypeProducer, "Finca La Esperanza SAS")
+	producer, err := actor.New("user_01", actor.TypeProducer, "Finca La Esperanza SAS", "user_01@example.com")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -591,7 +591,7 @@ func TestRegisterStageActorErrors(t *testing.T) {
 	t.Run("inactive actor", func(t *testing.T) {
 		s := newScenario(t)
 		s.actors.byID[s.producer.ID()] = actor.Restore(s.producer.ID(), "user_01", actor.TypeProducer,
-			"Finca La Esperanza SAS", actor.StatusInactive, time.Now())
+			"Finca La Esperanza SAS", "user_01@example.com", actor.StatusInactive, time.Now())
 
 		got, err := s.execute(s.farmCommand())
 		assertFailed(t, got, err, exception.CodeActorNotFound)

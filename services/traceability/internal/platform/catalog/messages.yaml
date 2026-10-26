@@ -22,7 +22,9 @@ TRACEABILITY_STAGE_INVALID_DETAILS: "Los detalles de la etapa no son válidos."
 
 TRACEABILITY_ACTOR_INVALID_USER_ID: "El actor debe estar vinculado a un usuario."
 TRACEABILITY_ACTOR_INVALID_NAME: "El nombre del actor debe tener entre {min} y {max} caracteres."
+TRACEABILITY_ACTOR_INVALID_EMAIL: "El correo electrónico no es válido."
 TRACEABILITY_ACTOR_INVALID_TYPE: "El tipo de actor debe ser organización, productor, tostador o marca."
+TRACEABILITY_ACTOR_ALREADY_EXISTS: "Este usuario ya existe."
 TRACEABILITY_ACTOR_NOT_FOUND: "No se encontró ningún actor."
 
 TRACEABILITY_FARM_INVALID_PRODUCER: "La finca debe pertenecer a un productor."

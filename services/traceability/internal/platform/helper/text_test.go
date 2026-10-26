@@ -67,6 +67,28 @@ func TestApplyTrim(t *testing.T) {
 	}
 }
 
+func TestApplyLower(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  string
+	}{
+		{"empty string", "", ""},
+		{"already lowercase", "user@example.com", "user@example.com"},
+		{"mixed case", "User@Example.COM", "user@example.com"},
+		{"accented uppercase", "CAFÉ", "café"},
+		{"spaces are kept", "  User ", "  user "},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := helper.ApplyLower(tt.value); got != tt.want {
+				t.Errorf("ApplyLower(%q) = %q, want %q", tt.value, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestIsEmpty(t *testing.T) {
 	tests := []struct {
 		name  string

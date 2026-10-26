@@ -12,12 +12,13 @@ import (
 var (
 	seedProducerID = uuid.MustParse("11111111-1111-1111-1111-111111111111")
 	seedFarmID     = uuid.MustParse("22222222-2222-2222-2222-222222222222")
+	seedEmail      = "seed@rutadeorigen.com"
 )
 
 func seedActors() []*actor.Actor {
 	return []*actor.Actor{
 		actor.Restore(seedProducerID, "seed-producer", actor.TypeProducer,
-			"Productor de prueba", actor.StatusActive, time.Now().UTC()),
+			"Productor de prueba", seedEmail, actor.StatusActive, time.Now().UTC()),
 	}
 }
 

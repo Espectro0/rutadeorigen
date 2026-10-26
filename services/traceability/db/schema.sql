@@ -3,6 +3,7 @@ ALTER TABLE lot_event ADD COLUMN IF NOT EXISTS details JSONB NOT NULL DEFAULT '{
 CREATE TABLE IF NOT EXISTS actor (
                                      id          UUID        PRIMARY KEY,
                                      user_id     TEXT        NOT NULL UNIQUE,
+                                     email TEXT NOT NULL,
                                      type        TEXT        NOT NULL CHECK (type IN ('organization', 'producer', 'roaster', 'brand')),
     name        TEXT        NOT NULL,
     status      TEXT        NOT NULL CHECK (status IN ('active', 'inactive')),

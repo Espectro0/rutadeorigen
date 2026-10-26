@@ -157,7 +157,7 @@ type scenario struct {
 func newScenario(t *testing.T) *scenario {
 	t.Helper()
 
-	producer, err := actor.New("user_01", actor.TypeProducer, "Finca La Esperanza SAS")
+	producer, err := actor.New("user_01", actor.TypeProducer, "Finca La Esperanza SAS", "user_01@example.com")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -323,7 +323,7 @@ func TestCreateLotSuccess(t *testing.T) {
 func TestCreateLotProducerSnapshot(t *testing.T) {
 	t.Run("the producer comes from the farm, not from the requester", func(t *testing.T) {
 		s := newScenario(t)
-		org, err := actor.New("user_02", actor.TypeOrganization, "Cooperativa de Caficultores")
+		org, err := actor.New("user_02", actor.TypeOrganization, "Cooperativa de Caficultores", "user_02@example.com")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -346,13 +346,13 @@ func TestCreateLotProducerSnapshot(t *testing.T) {
 
 	t.Run("the producer of the farm is inactive: nothing published", func(t *testing.T) {
 		s := newScenario(t)
-		org, err := actor.New("user_02", actor.TypeOrganization, "Cooperativa de Caficultores")
+		org, err := actor.New("user_02", actor.TypeOrganization, "Cooperativa de Caficultores", "user_02@example.com")
 		if err != nil {
 			t.Fatal(err)
 		}
 		s.actors.byID[org.ID()] = org
 		s.actors.byID[s.producer.ID()] = actor.Restore(s.producer.ID(), "user_01", actor.TypeProducer,
-			"Finca La Esperanza SAS", actor.StatusInactive, time.Now())
+			"Finca La Esperanza SAS", "user_01@example.com", actor.StatusInactive, time.Now())
 		ctx := requestcontext.WithActorID(context.Background(), org.ID())
 
 		got, err := execute(ctx, s.useCase(), s.draft())
@@ -364,7 +364,7 @@ func TestCreateLotProducerSnapshot(t *testing.T) {
 
 	t.Run("the producer of the farm does not exist: nothing published", func(t *testing.T) {
 		s := newScenario(t)
-		org, err := actor.New("user_02", actor.TypeOrganization, "Cooperativa de Caficultores")
+		org, err := actor.New("user_02", actor.TypeOrganization, "Cooperativa de Caficultores", "user_02@example.com")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -388,7 +388,7 @@ func TestCreateLotActorErrors(t *testing.T) {
 
 	t.Run("inactive actor", func(t *testing.T) {
 		s := newScenario(t)
-		inactive := actor.Restore(s.producer.ID(), "user_01", actor.TypeProducer, "Finca La Esperanza SAS",
+		inactive := actor.Restore(s.producer.ID(), "user_01", actor.TypeProducer, "Finca La Esperanza SAS", "user_01@example.com",
 			actor.StatusInactive, time.Now())
 		s.actors.byID[s.producer.ID()] = inactive
 

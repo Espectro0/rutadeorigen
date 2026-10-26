@@ -92,7 +92,7 @@ func newFarm(t *testing.T, producerID uuid.UUID, name string) *farm.Farm {
 func newScenario(t *testing.T) *scenario {
 	t.Helper()
 
-	producer, err := actor.New("user_01", actor.TypeProducer, "Finca La Esperanza SAS")
+	producer, err := actor.New("user_01", actor.TypeProducer, "Finca La Esperanza SAS", "user_01@example.com")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +185,7 @@ func TestListFarmsSuccess(t *testing.T) {
 func TestListFarmsEmpty(t *testing.T) {
 	t.Run("an actor without farms gets an empty list", func(t *testing.T) {
 		s := newScenario(t)
-		roaster, err := actor.New("user_02", actor.TypeRoaster, "Tostadora del Oriente")
+		roaster, err := actor.New("user_02", actor.TypeRoaster, "Tostadora del Oriente", "user_02@example.com")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -225,7 +225,7 @@ func TestListFarmsActorErrors(t *testing.T) {
 	t.Run("inactive actor", func(t *testing.T) {
 		s := newScenario(t)
 		s.actors.byID[s.producer.ID()] = actor.Restore(s.producer.ID(), "user_01", actor.TypeProducer,
-			"Finca La Esperanza SAS", actor.StatusInactive, time.Now())
+			"Finca La Esperanza SAS", "user_01@example.com", actor.StatusInactive, time.Now())
 
 		got, err := s.useCase().Execute(s.ctx(), listfarm.Query{})
 		assertFailed(t, got, err, exception.New(exception.CodeActorNotFound))

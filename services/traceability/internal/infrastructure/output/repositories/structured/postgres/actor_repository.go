@@ -17,7 +17,7 @@ import (
 var _ ports.ActorRepository = (*ActorRepository)(nil)
 
 const selectActorByID = `
-	SELECT id, user_id, type, name, status, created_at
+	SELECT id, user_id, type, name, email, status, created_at
 	FROM actor
 	WHERE id = $1`
 

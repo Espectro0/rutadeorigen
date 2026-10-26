@@ -79,7 +79,7 @@ type scenario struct {
 func newScenario(t *testing.T) *scenario {
 	t.Helper()
 
-	producer, err := actor.New("user_01", actor.TypeProducer, "Finca La Esperanza SAS")
+	producer, err := actor.New("user_01", actor.TypeProducer, "Finca La Esperanza SAS", "user_01@example.com")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +185,7 @@ func TestCreateFarmActorErrors(t *testing.T) {
 	t.Run("inactive actor", func(t *testing.T) {
 		s := newScenario(t)
 		s.actors.byID[s.producer.ID()] = actor.Restore(s.producer.ID(), "user_01", actor.TypeProducer,
-			"Finca La Esperanza SAS", actor.StatusInactive, time.Now())
+			"Finca La Esperanza SAS", "user_01@example.com", actor.StatusInactive, time.Now())
 
 		got, err := execute(s.ctx(), s.useCase(), farm.Draft("La Esperanza", 1650))
 		assertFailed(t, got, err, exception.New(exception.CodeActorNotFound))
@@ -200,7 +200,7 @@ func TestCreateFarmActorErrors(t *testing.T) {
 
 	t.Run("the actor is not a producer: nothing saved and ABAC not asked", func(t *testing.T) {
 		s := newScenario(t)
-		roaster, err := actor.New("user_02", actor.TypeRoaster, "Tostadora del Oriente")
+		roaster, err := actor.New("user_02", actor.TypeRoaster, "Tostadora del Oriente", "user_02@example.com")
 		if err != nil {
 			t.Fatal(err)
 		}

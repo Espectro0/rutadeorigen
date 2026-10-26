@@ -36,7 +36,9 @@ const (
 
 	CodeActorInvalidUserID Code = "TRACEABILITY_ACTOR_INVALID_USER_ID"
 	CodeActorInvalidName   Code = "TRACEABILITY_ACTOR_INVALID_NAME"
+	CodeActorInvalidEmail  Code = "TRACEABILITY_ACTOR_INVALID_EMAIL"
 	CodeActorInvalidType   Code = "TRACEABILITY_ACTOR_INVALID_TYPE"
+	CodeActorAlreadyExists Code = "TRACEABILITY_ACTOR_ALREADY_EXISTS"
 	CodeActorNotFound      Code = "TRACEABILITY_ACTOR_NOT_FOUND"
 
 	CodeFarmInvalidProducer Code = "TRACEABILITY_FARM_INVALID_PRODUCER"
@@ -92,7 +94,9 @@ var kindByCode = map[Code]Kind{
 
 	CodeActorInvalidUserID: KindValidation,
 	CodeActorInvalidName:   KindValidation,
+	CodeActorInvalidEmail:  KindValidation,
 	CodeActorInvalidType:   KindValidation,
+	CodeActorAlreadyExists: KindConflict,
 	CodeActorNotFound:      KindNotFound,
 
 	CodeFarmInvalidProducer: KindValidation,
