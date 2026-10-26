@@ -1,5 +1,5 @@
 services:
   qr:
-    tag: "9067b98c6885014ce06bd87ba07e9fd2388ce2ca"
+    tag: "78fb06695a9f1f42ef503b19df683cb263595699"
     replicas: 1
     envFromSecret: qr-db
