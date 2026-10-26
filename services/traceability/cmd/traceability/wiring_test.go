@@ -534,3 +534,231 @@ func TestCreateLotOnACreatedFarmEndToEnd(t *testing.T) {
 		t.Errorf("lot.created must carry the created farm snapshot, logs: %s", logs.String())
 	}
 }
+
+const (
+	farmStageBody      = `{"stage":"farm","event_date":"2026-02-01","note":"Dried on raised beds","details":{"drying_method":"sun_patio","drying_days":15,"moisture_percent":11.5,"parchment_weight_kg":120.5}}`
+	roastingStageBody  = `{"stage":"roasting","event_date":"2026-02-10","details":{"roast_level":"medium","duration_minutes":14,"green_weight_kg":100,"roasted_weight_kg":84}}`
+	packagingStageBody = `{"stage":"packaging","event_date":"2026-02-20","details":{"grind":"whole_bean","package_weight_g":250,"units":40,"best_before":"2027-02-20"}}`
+	genesisHash        = "0000000000000000000000000000000000000000000000000000000000000000"
+)
+
+type stageView struct {
+	Event struct {
+		ID           string          `json:"id"`
+		LotID        string          `json:"lot_id"`
+		Sequence     int             `json:"sequence"`
+		Type         string          `json:"type"`
+		Stage        string          `json:"stage"`
+		EventDate    string          `json:"event_date"`
+		Note         string          `json:"note"`
+		ActorID      string          `json:"actor_id"`
+		ActorRole    string          `json:"actor_role"`
+		Details      json.RawMessage `json:"details"`
+		PreviousHash string          `json:"previous_hash"`
+		Hash         string          `json:"hash"`
+		RegisteredAt string          `json:"registered_at"`
+	} `json:"event"`
+	LotVersion int `json:"lot_version"`
+}
+
+func postStage(mux http.Handler, actorID, lotID, ifMatch, body string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodPost, "/lots/"+lotID+"/events", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	if actorID != "" {
+		req.Header.Set("X-Actor-ID", actorID)
+	}
+	if ifMatch != "" {
+		req.Header.Set("If-Match", ifMatch)
+	}
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	return rec
+}
+
+func mustRegisterStage(t *testing.T, mux http.Handler, lotID, ifMatch, body string) (stageView, string) {
+	t.Helper()
+
+	rec := postStage(mux, producerHeader, lotID, ifMatch, body)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("register stage: status %d (%s)", rec.Code, rec.Body.String())
+	}
+
+	var view stageView
+	if err := json.NewDecoder(rec.Body).Decode(&view); err != nil {
+		t.Fatalf("body is not JSON: %v", err)
+	}
+	return view, rec.Header().Get("ETag")
+}
+
+func TestRegisterStageEndToEnd(t *testing.T) {
+	mux, logs := newTestServer(t)
+	created := mustCreateLot(t, mux, "LOT-001")
+
+	farm, farmETag := mustRegisterStage(t, mux, created.ID, `"1"`, farmStageBody)
+	roasting, roastingETag := mustRegisterStage(t, mux, created.ID, farmETag, roastingStageBody)
+	packaging, packagingETag := mustRegisterStage(t, mux, created.ID, roastingETag, packagingStageBody)
+
+	t.Run("each registration bumps the lot version and returns it as ETag", func(t *testing.T) {
+		if farmETag != `"2"` || roastingETag != `"3"` || packagingETag != `"4"` {
+			t.Errorf("ETags: got %s, %s, %s", farmETag, roastingETag, packagingETag)
+		}
+		if farm.LotVersion != 2 || roasting.LotVersion != 3 || packaging.LotVersion != 4 {
+			t.Errorf("lot versions: got %d, %d, %d", farm.LotVersion, roasting.LotVersion, packaging.LotVersion)
+		}
+	})
+
+	t.Run("the events are chained from the genesis hash", func(t *testing.T) {
+		if farm.Event.Sequence != 1 || roasting.Event.Sequence != 2 || packaging.Event.Sequence != 3 {
+			t.Errorf("sequences: got %d, %d, %d", farm.Event.Sequence, roasting.Event.Sequence, packaging.Event.Sequence)
+		}
+		if farm.Event.PreviousHash != genesisHash {
+			t.Errorf("first previous hash: got %q", farm.Event.PreviousHash)
+		}
+		if roasting.Event.PreviousHash != farm.Event.Hash || packaging.Event.PreviousHash != roasting.Event.Hash {
+			t.Error("each event must point to the hash of the previous one")
+		}
+		for _, e := range []string{farm.Event.Hash, roasting.Event.Hash, packaging.Event.Hash} {
+			if len(e) != 64 {
+				t.Errorf("hash must have 64 hex characters, got %q", e)
+			}
+		}
+	})
+
+	t.Run("the event carries the request data and the actor", func(t *testing.T) {
+		if _, err := uuid.Parse(farm.Event.ID); err != nil {
+			t.Errorf("id must be a UUID, got %q", farm.Event.ID)
+		}
+		if farm.Event.LotID != created.ID || farm.Event.Type != "stage" || farm.Event.Stage != "farm" {
+			t.Errorf("unexpected event: %+v", farm.Event)
+		}
+		if farm.Event.EventDate != "2026-02-01" || farm.Event.Note != "Dried on raised beds" {
+			t.Errorf("date/note: got %q/%q", farm.Event.EventDate, farm.Event.Note)
+		}
+		if farm.Event.ActorID != producerHeader || farm.Event.ActorRole != "producer" {
+			t.Errorf("actor: got %q/%q", farm.Event.ActorID, farm.Event.ActorRole)
+		}
+		if farm.Event.RegisteredAt == "" {
+			t.Error("registered_at must not be empty")
+		}
+
+		var details map[string]any
+		if err := json.Unmarshal(farm.Event.Details, &details); err != nil {
+			t.Fatalf("details are not JSON: %v", err)
+		}
+		if details["drying_method"] != "sun_patio" || details["drying_days"] != float64(15) {
+			t.Errorf("details: got %v", details)
+		}
+	})
+
+	t.Run("the lot reflects the last stage and version", func(t *testing.T) {
+		rec := get(mux, producerHeader, "/lots/"+created.ID)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status: got %d (%s)", rec.Code, rec.Body.String())
+		}
+		if rec.Header().Get("ETag") != `"4"` {
+			t.Errorf("ETag: got %q, want \"4\"", rec.Header().Get("ETag"))
+		}
+		var body struct {
+			Stage   string `json:"stage"`
+			Version int    `json:"version"`
+		}
+		if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+			t.Fatalf("body is not JSON: %v", err)
+		}
+		if body.Stage != "packaging" || body.Version != 4 {
+			t.Errorf("got stage %q and version %d, want packaging and 4", body.Stage, body.Version)
+		}
+	})
+
+	t.Run("a stage_registered event is published per registration", func(t *testing.T) {
+		if got := strings.Count(logs.String(), `"event_type":"lot.stage_registered"`); got != 3 {
+			t.Errorf("got %d lot.stage_registered events, want 3, logs: %s", got, logs.String())
+		}
+	})
+}
+
+func TestRegisterStageEndToEndAcceptsWeakAndUnquotedIfMatch(t *testing.T) {
+	mux, _ := newTestServer(t)
+	created := mustCreateLot(t, mux, "LOT-001")
+
+	_, etag := mustRegisterStage(t, mux, created.ID, `W/"1"`, farmStageBody)
+	_, _ = mustRegisterStage(t, mux, created.ID, strings.Trim(etag, `"`), roastingStageBody)
+}
+
+func TestRegisterStageEndToEndErrors(t *testing.T) {
+	tests := []struct {
+		name     string
+		actorID  string
+		lotID    func(created lotView) string
+		ifMatch  string
+		body     string
+		want     int
+		wantCode string
+	}{
+		{"missing actor", "", sameLot, `"1"`, farmStageBody, http.StatusUnauthorized, "UNAUTHORIZED"},
+		{"unknown actor", uuid.NewString(), sameLot, `"1"`, farmStageBody, http.StatusNotFound, string(exception.CodeActorNotFound)},
+		{"unknown lot", producerHeader, otherLot, `"1"`, farmStageBody, http.StatusNotFound, string(exception.CodeLotNotFound)},
+		{"malformed lot id", producerHeader, malformedLot, `"1"`, farmStageBody, http.StatusNotFound, string(exception.CodeLotNotFound)},
+		{"missing if-match", producerHeader, sameLot, "", farmStageBody, http.StatusBadRequest, string(exception.CodeLotInvalidIfMatch)},
+		{"malformed if-match", producerHeader, sameLot, `"abc"`, farmStageBody, http.StatusBadRequest, string(exception.CodeLotInvalidIfMatch)},
+		{"stale if-match", producerHeader, sameLot, `"2"`, farmStageBody, http.StatusConflict, string(exception.CodeLotVersionConflict)},
+		{"skipped stage", producerHeader, sameLot, `"1"`, roastingStageBody, http.StatusConflict, string(exception.CodeLotStageOutOfOrder)},
+		{"unknown stage", producerHeader, sameLot, `"1"`, `{"stage":"drying","event_date":"2026-02-01","details":{}}`, http.StatusBadRequest, string(exception.CodeLotInvalidStage)},
+		{"stage none", producerHeader, sameLot, `"1"`, `{"stage":"none","event_date":"2026-02-01","details":{}}`, http.StatusBadRequest, string(exception.CodeLotInvalidStage)},
+		{"invalid event date", producerHeader, sameLot, `"1"`, strings.Replace(farmStageBody, "2026-02-01", "01/02/2026", 1), http.StatusBadRequest, string(exception.CodeLotInvalidEventDate)},
+		{"event date before harvest", producerHeader, sameLot, `"1"`, strings.Replace(farmStageBody, "2026-02-01", "2026-01-01", 1), http.StatusBadRequest, string(exception.CodeLotInvalidEventDate)},
+		{"future event date", producerHeader, sameLot, `"1"`, strings.Replace(farmStageBody, "2026-02-01", "2999-01-01", 1), http.StatusBadRequest, string(exception.CodeLotInvalidEventDate)},
+		{"missing details", producerHeader, sameLot, `"1"`, `{"stage":"farm","event_date":"2026-02-01"}`, http.StatusBadRequest, string(exception.CodeStageInvalidDetails)},
+		{"unknown detail field", producerHeader, sameLot, `"1"`, strings.Replace(farmStageBody, `"drying_days":15`, `"drying_days":15,"altitude":1`, 1), http.StatusBadRequest, string(exception.CodeStageInvalidDetails)},
+		{"details of another stage", producerHeader, sameLot, `"1"`, `{"stage":"farm","event_date":"2026-02-01","details":{"roast_level":"medium"}}`, http.StatusBadRequest, string(exception.CodeStageInvalidDetails)},
+		{"moisture out of range", producerHeader, sameLot, `"1"`, strings.Replace(farmStageBody, "11.5", "30", 1), http.StatusBadRequest, string(exception.CodeStageInvalidMoisture)},
+		{"unknown json field", producerHeader, sameLot, `"1"`, `{"stage":"farm","lot_id":"x"}`, http.StatusBadRequest, "INVALID_REQUEST_BODY"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mux, logs := newTestServer(t)
+			created := mustCreateLot(t, mux, "LOT-001")
+
+			rec := postStage(mux, tt.actorID, tt.lotID(created), tt.ifMatch, tt.body)
+
+			assertErrorCode(t, rec, tt.want, tt.wantCode)
+			if rec.Header().Get("ETag") != "" {
+				t.Error("a failed request must not set an ETag")
+			}
+			if strings.Contains(logs.String(), `"event_type":"lot.stage_registered"`) {
+				t.Error("a failed request must not publish an event")
+			}
+
+			after := get(mux, producerHeader, "/lots/"+created.ID)
+			if after.Header().Get("ETag") != `"1"` {
+				t.Errorf("the lot must stay untouched, ETag %q", after.Header().Get("ETag"))
+			}
+		})
+	}
+}
+
+func sameLot(created lotView) string { return created.ID }
+func otherLot(lotView) string        { return uuid.NewString() }
+func malformedLot(lotView) string    { return "not-a-uuid" }
+
+func TestRegisterStageEndToEndRejectsAStaleVersionAfterAnotherRegistration(t *testing.T) {
+	mux, _ := newTestServer(t)
+	created := mustCreateLot(t, mux, "LOT-001")
+	mustRegisterStage(t, mux, created.ID, `"1"`, farmStageBody)
+
+	rec := postStage(mux, producerHeader, created.ID, `"1"`, roastingStageBody)
+
+	assertErrorCode(t, rec, http.StatusConflict, string(exception.CodeLotVersionConflict))
+}
+
+func TestRegisterStageEndToEndDoesNotAdvanceTheSameStageTwice(t *testing.T) {
+	mux, _ := newTestServer(t)
+	created := mustCreateLot(t, mux, "LOT-001")
+	_, etag := mustRegisterStage(t, mux, created.ID, `"1"`, farmStageBody)
+
+	rec := postStage(mux, producerHeader, created.ID, etag, farmStageBody)
+
+	assertErrorCode(t, rec, http.StatusConflict, string(exception.CodeLotStageOutOfOrder))
+}

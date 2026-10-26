@@ -10,12 +10,14 @@ import (
 	getlotadapter "rutadeorigen/traceability/internal/application/input/adapters/getlot"
 	listfarmadapter "rutadeorigen/traceability/internal/application/input/adapters/listfarm"
 	listlotsadapter "rutadeorigen/traceability/internal/application/input/adapters/listlots"
+	registerstageadapter "rutadeorigen/traceability/internal/application/input/adapters/registerstage"
 	"rutadeorigen/traceability/internal/application/output/ports"
 	createfarmuc "rutadeorigen/traceability/internal/application/usecases/createfarm"
 	createlotuc "rutadeorigen/traceability/internal/application/usecases/createlot"
 	getlotuc "rutadeorigen/traceability/internal/application/usecases/getlot"
 	listfarmuc "rutadeorigen/traceability/internal/application/usecases/listfarm"
 	listlotsuc "rutadeorigen/traceability/internal/application/usecases/listlots"
+	registerstageuc "rutadeorigen/traceability/internal/application/usecases/registerstage"
 	"rutadeorigen/traceability/internal/infrastructure/input/controllers"
 	"rutadeorigen/traceability/internal/infrastructure/output/external/authorizer"
 	"rutadeorigen/traceability/internal/infrastructure/output/messaging"
@@ -26,7 +28,7 @@ import (
 )
 
 func registerRoutes(mux *http.ServeMux, log *slog.Logger, pool *pgxpool.Pool, catalog *catalog.Catalog) {
-	actors, farms, lots := repositories(pool)
+	actors, farms, lots, events := repositories(pool)
 	auth := authorizer.NewAllowAll()
 	tx, publisher := outputs(pool, log)
 	errs := controllers.NewErrorResponder(log, catalog)
@@ -37,6 +39,7 @@ func registerRoutes(mux *http.ServeMux, log *slog.Logger, pool *pgxpool.Pool, ca
 	listLotsAdapter := listlotsadapter.New(listlotsuc.New(actors, lots, auth))
 	createFarmAdapter := createfarmadapter.New(createfarmuc.New(actors, farms, auth))
 	listFarmsAdapter := listfarmadapter.New(listfarmuc.New(actors, farms, auth))
+	registerStageAdapter := registerstageadapter.New(registerstageuc.New(actors, lots, events, auth, publisher, tx))
 
 	requireActor := func(next http.Handler) http.Handler {
 		return controllers.RequireActor(errs, next)
@@ -44,18 +47,21 @@ func registerRoutes(mux *http.ServeMux, log *slog.Logger, pool *pgxpool.Pool, ca
 
 	controllers.NewLotController(createLotAdapter, getLotAdapter, listLotsAdapter, errs, log).Register(mux, requireActor)
 	controllers.NewFarmController(createFarmAdapter, listFarmsAdapter, errs, log).Register(mux, requireActor)
+	controllers.NewLotEventController(registerStageAdapter, errs, log).Register(mux, requireActor)
 }
 
-func repositories(pool *pgxpool.Pool) (ports.ActorRepository, ports.FarmRepository, ports.LotRepository) {
+func repositories(pool *pgxpool.Pool) (ports.ActorRepository, ports.FarmRepository, ports.LotRepository, ports.LotEventRepository) {
 	if pool == nil {
 		return memory.NewActorRepository(seedActors()...),
 			memory.NewFarmRepository(seedFarms()...),
-			memory.NewLotRepository()
+			memory.NewLotRepository(),
+			memory.NewLotEventRepository()
 	}
 
 	return postgres.NewActorRepository(pool),
 		postgres.NewFarmRepository(pool),
-		postgres.NewLotRepository(pool)
+		postgres.NewLotRepository(pool),
+		postgres.NewLotEventRepository(pool)
 }
 
 func outputs(pool *pgxpool.Pool, log *slog.Logger) (ports.TxManager, ports.EventPublisher) {
