@@ -11,6 +11,7 @@ type key int
 const (
 	actorIDKey key = iota
 	correlationIDKey
+	userIDKey
 )
 
 func WithActorID(ctx context.Context, id uuid.UUID) context.Context {
@@ -30,6 +31,17 @@ func WithCorrelationID(ctx context.Context, id string) context.Context {
 
 func CorrelationID(ctx context.Context) string {
 	if id, ok := ctx.Value(correlationIDKey).(string); ok {
+		return id
+	}
+	return ""
+}
+
+func WithUserID(ctx context.Context, id string) context.Context {
+	return context.WithValue(ctx, userIDKey, id)
+}
+
+func UserID(ctx context.Context) string {
+	if id, ok := ctx.Value(userIDKey).(string); ok {
 		return id
 	}
 	return ""

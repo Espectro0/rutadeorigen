@@ -55,15 +55,19 @@ func TestCorrelationID(t *testing.T) {
 }
 
 func TestValuesDoNotOverlap(t *testing.T) {
-	id := uuid.New()
-	ctx := requestcontext.WithActorID(context.Background(), id)
-	ctx = requestcontext.WithCorrelationID(ctx, "req-123")
+	actor := uuid.New()
+	ctx := requestcontext.WithActorID(context.Background(), actor)
+	ctx = requestcontext.WithCorrelationID(ctx, "corr-1")
+	ctx = requestcontext.WithUserID(ctx, "user_01H")
 
-	if got := requestcontext.ActorID(ctx); got != id {
-		t.Errorf("ActorID: got %s, want %s", got, id)
+	if got := requestcontext.ActorID(ctx); got != actor {
+		t.Fatalf("ActorID = %v, want %v", got, actor)
 	}
-	if got := requestcontext.CorrelationID(ctx); got != "req-123" {
-		t.Errorf("CorrelationID: got %q, want %q", got, "req-123")
+	if got := requestcontext.CorrelationID(ctx); got != "corr-1" {
+		t.Fatalf("CorrelationID = %q, want %q", got, "corr-1")
+	}
+	if got := requestcontext.UserID(ctx); got != "user_01H" {
+		t.Fatalf("UserID = %q, want %q", got, "user_01H")
 	}
 
 	onlyCorrelation := requestcontext.WithCorrelationID(context.Background(), "req-456")
@@ -83,5 +87,19 @@ func TestOtherPackagesCannotOverrideKeys(t *testing.T) {
 	}
 	if got := requestcontext.CorrelationID(ctx); got != "" {
 		t.Errorf("CorrelationID: got %q, want empty string", got)
+	}
+}
+
+func TestUserIDRoundTrip(t *testing.T) {
+	ctx := requestcontext.WithUserID(context.Background(), "user_01H")
+
+	if got := requestcontext.UserID(ctx); got != "user_01H" {
+		t.Fatalf("UserID = %q, want %q", got, "user_01H")
+	}
+}
+
+func TestUserIDMissingReturnsEmpty(t *testing.T) {
+	if got := requestcontext.UserID(context.Background()); got != "" {
+		t.Fatalf("UserID = %q, want empty", got)
 	}
 }
