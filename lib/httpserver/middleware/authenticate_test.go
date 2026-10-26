@@ -15,14 +15,14 @@ type authenticatorFake struct {
 	calls  int
 }
 
-func (a *authenticatorFake) Authenticate(w http.ResponseWriter, r *http.Request) (string, error) {
+func (a *authenticatorFake) Authenticate(_ http.ResponseWriter, _ *http.Request) (string, error) {
 	a.calls++
 	return a.userID, a.err
 }
 
 type authenticatorWriterFake struct{}
 
-func (authenticatorWriterFake) Authenticate(w http.ResponseWriter, r *http.Request) (string, error) {
+func (authenticatorWriterFake) Authenticate(w http.ResponseWriter, _ *http.Request) (string, error) {
 	http.SetCookie(w, &http.Cookie{Name: "session", Value: "refreshed"})
 	return "user_01H", nil
 }
@@ -33,7 +33,7 @@ func TestAuthenticateSetsUserIDAndCallsNext(t *testing.T) {
 	nextCalled := false
 	rejectCalled := false
 
-	handler := Authenticate(fake, func(w http.ResponseWriter, r *http.Request, err error) {
+	handler := Authenticate(fake, func(_ http.ResponseWriter, _ *http.Request, _ error) {
 		rejectCalled = true
 	})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		nextCalled = true
@@ -81,10 +81,10 @@ func TestAuthenticateRejectsAndSkipsNextOnError(t *testing.T) {
 			nextCalled := false
 			var gotErr error
 
-			handler := Authenticate(fake, func(w http.ResponseWriter, r *http.Request, err error) {
+			handler := Authenticate(fake, func(w http.ResponseWriter, _ *http.Request, err error) {
 				gotErr = err
 				w.WriteHeader(http.StatusUnauthorized)
-			})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			})(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 				nextCalled = true
 			}))
 
@@ -108,9 +108,9 @@ func TestAuthenticateDoesNotSetUserIDOnError(t *testing.T) {
 	fake := &authenticatorFake{userID: "user_01H", err: errors.New("boom")}
 	var gotUserID string
 
-	handler := Authenticate(fake, func(w http.ResponseWriter, r *http.Request, err error) {
+	handler := Authenticate(fake, func(_ http.ResponseWriter, r *http.Request, _ error) {
 		gotUserID = requestcontext.UserID(r.Context())
-	})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	})(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {}))
 
 	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil))
 
@@ -120,8 +120,8 @@ func TestAuthenticateDoesNotSetUserIDOnError(t *testing.T) {
 }
 
 func TestAuthenticatePassesResponseWriterToAuthenticator(t *testing.T) {
-	handler := Authenticate(authenticatorWriterFake{}, func(w http.ResponseWriter, r *http.Request, err error) {})(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := Authenticate(authenticatorWriterFake{}, func(_ http.ResponseWriter, _ *http.Request, _ error) {})(
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
 		}),
 	)
@@ -139,8 +139,8 @@ func TestAuthenticatePreservesOriginalContextValues(t *testing.T) {
 	fake := &authenticatorFake{userID: "user_01H"}
 	var gotCorrelation string
 
-	handler := Authenticate(fake, func(w http.ResponseWriter, r *http.Request, err error) {})(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := Authenticate(fake, func(_ http.ResponseWriter, _ *http.Request, _ error) {})(
+		http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 			gotCorrelation = requestcontext.CorrelationID(r.Context())
 		}),
 	)

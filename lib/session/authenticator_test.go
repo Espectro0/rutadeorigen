@@ -23,7 +23,7 @@ func (s *sessionFake) Authenticate() (string, error) {
 	return s.authUserID, s.authErr
 }
 
-func (s *sessionFake) Refresh(ctx context.Context) (string, string, error) {
+func (s *sessionFake) Refresh(_ context.Context) (string, string, error) {
 	s.refreshCalls++
 	return s.refSealed, s.refUserID, s.refErr
 }

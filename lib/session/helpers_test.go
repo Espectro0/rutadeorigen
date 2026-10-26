@@ -119,7 +119,7 @@ func newWorkOSServer(t *testing.T) *workosServer {
 	ws := &workosServer{jwksStatus: http.StatusOK, authStatus: http.StatusOK}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/sso/jwks/"+testClientID, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/sso/jwks/"+testClientID, func(w http.ResponseWriter, _ *http.Request) {
 		ws.mu.Lock()
 		status := ws.jwksStatus
 		ws.mu.Unlock()
@@ -127,7 +127,7 @@ func newWorkOSServer(t *testing.T) *workosServer {
 			w.WriteHeader(status)
 			return
 		}
-		e := big.NewInt(int64(key.PublicKey.E)).Bytes()
+		e := big.NewInt(int64(key.E)).Bytes()
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"keys": []map[string]string{{
@@ -135,7 +135,7 @@ func newWorkOSServer(t *testing.T) *workosServer {
 				"kid": testKeyID,
 				"alg": "RS256",
 				"use": "sig",
-				"n":   b64(key.PublicKey.N.Bytes()),
+				"n":   b64(key.N.Bytes()),
 				"e":   b64(e),
 			}},
 		})

@@ -7,6 +7,7 @@ bin/
 *.dylib
 
 # Tests
+.golangci.yml
 *.test
 *.out
 coverage.*

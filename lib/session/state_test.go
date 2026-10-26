@@ -1,6 +1,7 @@
 package session
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -87,7 +88,7 @@ func TestStateVerify(t *testing.T) {
 
 			err := NewState(StateConfig{}).Verify(rec, requestWithState(tt.cookie), tt.received)
 
-			if err != tt.wantErr {
+			if !errors.Is(err, tt.wantErr) {
 				t.Errorf("Verify() error = %v, want %v", err, tt.wantErr)
 			}
 			c := findCookie(t, rec, stateCookieName)

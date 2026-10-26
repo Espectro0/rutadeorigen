@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
+	"fmt"
 	"net/http"
 	"time"
 )
@@ -31,7 +32,7 @@ func NewState(cfg StateConfig) State {
 func (s State) Issue(w http.ResponseWriter) (string, error) {
 	buf := make([]byte, stateRandomBytes)
 	if _, err := rand.Read(buf); err != nil {
-		return "", err
+		return "", fmt.Errorf("generate oauth state: %w", err)
 	}
 	value := base64.RawURLEncoding.EncodeToString(buf)
 
@@ -55,7 +56,7 @@ func (s State) Verify(w http.ResponseWriter, r *http.Request, received string) e
 }
 
 func (s State) cookie(value string, maxAge int) *http.Cookie {
-	return &http.Cookie{
+	return &http.Cookie{ //nolint:gosec // Secure is configurable and only disabled for local HTTP development
 		Name:     stateCookieName,
 		Value:    value,
 		Path:     stateCookiePath,

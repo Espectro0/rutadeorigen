@@ -1,6 +1,7 @@
 package session
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -88,7 +89,7 @@ func TestCookieSetRejectsOversizedValue(t *testing.T) {
 
 	err := NewCookie(CookieConfig{}).Set(rec, strings.Repeat("a", maxCookieValueBytes+1))
 
-	if err != ErrCookieTooLarge {
+	if !errors.Is(err, ErrCookieTooLarge) {
 		t.Fatalf("Set() error = %v, want %v", err, ErrCookieTooLarge)
 	}
 	if got := rec.Header().Get("Set-Cookie"); got != "" {

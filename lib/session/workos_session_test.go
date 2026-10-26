@@ -36,7 +36,7 @@ func TestWorkOSSessionAuthenticate(t *testing.T) {
 		},
 		{
 			name:    "garbage cookie",
-			sealed:  func(t *testing.T) string { return "not-a-sealed-session" },
+			sealed:  func(_ *testing.T) string { return "not-a-sealed-session" },
 			wantErr: ErrUnauthenticated,
 		},
 		{
@@ -158,7 +158,7 @@ func TestWorkOSSessionRefreshFailures(t *testing.T) {
 		},
 		{
 			name:    "garbage cookie",
-			sealed:  func(t *testing.T) string { return "not-a-sealed-session" },
+			sealed:  func(_ *testing.T) string { return "not-a-sealed-session" },
 			status:  http.StatusOK,
 			wantErr: ErrUnauthenticated,
 		},

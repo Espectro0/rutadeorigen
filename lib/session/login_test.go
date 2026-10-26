@@ -202,8 +202,8 @@ func TestLoginLogoutURLFailures(t *testing.T) {
 		jwks    int
 		wantErr error
 	}{
-		{name: "empty cookie", sealed: func(t *testing.T) string { return "" }, wantErr: ErrUnauthenticated},
-		{name: "garbage cookie", sealed: func(t *testing.T) string { return "not-a-sealed-session" }, wantErr: ErrUnauthenticated},
+		{name: "empty cookie", sealed: func(_ *testing.T) string { return "" }, wantErr: ErrUnauthenticated},
+		{name: "garbage cookie", sealed: func(_ *testing.T) string { return "not-a-sealed-session" }, wantErr: ErrUnauthenticated},
 		{
 			name:    "signing keys unavailable",
 			sealed:  func(t *testing.T) string { return validSession(t, "user_1") },
