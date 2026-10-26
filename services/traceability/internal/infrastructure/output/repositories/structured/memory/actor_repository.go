@@ -2,13 +2,13 @@ package memory
 
 import (
 	"context"
-	"rutadeorigen/traceability/internal/platform/exception"
 	"sync"
 
 	"github.com/google/uuid"
 
 	"rutadeorigen/traceability/internal/application/output/ports"
 	"rutadeorigen/traceability/internal/domain/actor"
+	"rutadeorigen/traceability/internal/platform/exception"
 )
 
 var _ ports.ActorRepository = (*ActorRepository)(nil)
