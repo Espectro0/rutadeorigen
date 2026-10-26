@@ -70,11 +70,11 @@ func main() {
 	mux := http.NewServeMux()
 	h.Register(mux)
 
-	lotCreated := registerRoutes(mux, log, messages, rt.deps)
+	lotEvents := registerRoutes(mux, log, messages, rt.deps)
 
 	var brokerLost atomic.Bool
 	if rt.consumer != nil {
-		watchConsumer(ctx, log, rt.consumer, lotCreated.Handle, &brokerLost, stop)
+		watchConsumer(ctx, log, rt.consumer, lotEvents.Handle, &brokerLost, stop)
 	}
 
 	params := app.Params{Config: cfg, Logger: log, Handler: mux, Health: h, Closers: rt.closers}
