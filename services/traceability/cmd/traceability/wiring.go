@@ -15,6 +15,7 @@ import (
 	listlotsadapter "rutadeorigen/traceability/internal/application/input/adapters/listlots"
 	registeractoradapter "rutadeorigen/traceability/internal/application/input/adapters/registeractor"
 	registerstageadapter "rutadeorigen/traceability/internal/application/input/adapters/registerstage"
+	resolveactoradapter "rutadeorigen/traceability/internal/application/input/adapters/resolveactor"
 	"rutadeorigen/traceability/internal/application/output/ports"
 	createfarmuc "rutadeorigen/traceability/internal/application/usecases/createfarm"
 	createlotuc "rutadeorigen/traceability/internal/application/usecases/createlot"
@@ -46,7 +47,7 @@ func registerRoutes(mux *http.ServeMux, log *slog.Logger, pool *pgxpool.Pool, ca
 	registerStageAdapter := registerstageadapter.New(registerstageuc.New(actors, lots, events, auth, publisher, tx))
 
 	resolver := resolveactoruc.New(actors)
-	requireActor, authenticated := authn.middlewares(errs, resolver)
+	requireActor, authenticated := authn.middlewares(errs, resolveactoradapter.New(resolver))
 
 	controllers.NewLotController(createLotAdapter, getLotAdapter, listLotsAdapter, errs, log).Register(mux, requireActor)
 	controllers.NewFarmController(createFarmAdapter, listFarmsAdapter, errs, log).Register(mux, requireActor)

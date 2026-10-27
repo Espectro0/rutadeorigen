@@ -10,12 +10,12 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 
 	"rutadeorigen/lib/requestcontext"
-	"rutadeorigen/traceability/internal/domain/actor"
+	"rutadeorigen/traceability/internal/application/input/dto/request"
+	"rutadeorigen/traceability/internal/application/input/dto/response"
 	"rutadeorigen/traceability/internal/infrastructure/input/controllers"
 	"rutadeorigen/traceability/internal/platform/catalog"
 	"rutadeorigen/traceability/internal/platform/exception"
@@ -36,24 +36,24 @@ func newResponder(t *testing.T) *controllers.ErrorResponder {
 }
 
 type fakeResolver struct {
-	result *actor.Actor
+	result response.ResolvedActor
 	err    error
 
 	calls    int
 	received string
 }
 
-func (f *fakeResolver) Execute(_ context.Context, userID string) (*actor.Actor, error) {
+func (f *fakeResolver) Execute(ctx context.Context, _ request.ResolveActor) (response.ResolvedActor, error) {
 	f.calls++
-	f.received = userID
+	f.received = requestcontext.UserID(ctx)
 	if f.err != nil {
-		return actor.Default(), f.err
+		return response.ResolvedActor{}, f.err
 	}
 	return f.result, nil
 }
 
-func registeredActor() *actor.Actor {
-	return actor.Restore(uuid.New(), "user_01", actor.TypeProducer, "Finca La Esperanza SAS", "producer@example.com", actor.StatusActive, time.Now().UTC())
+func resolvedActor() response.ResolvedActor {
+	return response.ResolvedActor{ID: uuid.New()}
 }
 
 func sessionRequest(userID string) *http.Request {
@@ -133,7 +133,7 @@ func TestRequireActorHeaderRejectsMissingOrInvalidActor(t *testing.T) {
 }
 
 func TestRequireActorStoresTheResolvedActorInTheContext(t *testing.T) {
-	resolved := registeredActor()
+	resolved := resolvedActor()
 	resolver := &fakeResolver{result: resolved}
 	var seenActor uuid.UUID
 	var seenUser string
@@ -152,8 +152,8 @@ func TestRequireActorStoresTheResolvedActorInTheContext(t *testing.T) {
 	if resolver.calls != 1 || resolver.received != "user_01" {
 		t.Errorf("resolver got %d calls with %q, want 1 call with user_01", resolver.calls, resolver.received)
 	}
-	if seenActor != resolved.ID() {
-		t.Errorf("actor in context: got %s, want %s", seenActor, resolved.ID())
+	if seenActor != resolved.ID {
+		t.Errorf("actor in context: got %s, want %s", seenActor, resolved.ID)
 	}
 	if seenUser != "user_01" {
 		t.Errorf("user in context: got %q, want user_01", seenUser)
@@ -161,7 +161,7 @@ func TestRequireActorStoresTheResolvedActorInTheContext(t *testing.T) {
 }
 
 func TestRequireActorIgnoresTheActorHeader(t *testing.T) {
-	resolved := registeredActor()
+	resolved := resolvedActor()
 	resolver := &fakeResolver{result: resolved}
 	var seen uuid.UUID
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -174,8 +174,8 @@ func TestRequireActorIgnoresTheActorHeader(t *testing.T) {
 
 	controllers.RequireActor(resolver, newResponder(t), next).ServeHTTP(rec, req)
 
-	if seen != resolved.ID() {
-		t.Errorf("actor in context: got %s, want the resolved actor %s", seen, resolved.ID())
+	if seen != resolved.ID {
+		t.Errorf("actor in context: got %s, want the resolved actor %s", seen, resolved.ID)
 	}
 }
 

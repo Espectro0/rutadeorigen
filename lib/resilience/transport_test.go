@@ -214,7 +214,7 @@ func TestTransportIgnoresCanceledRequests(t *testing.T) {
 	client := clientWith(breaker, base)
 
 	for i := 0; i < 20; i++ {
-		_, _ = get(t, client, "http://dependency.invalid/")
+		_ = getErr(t, client, "http://dependency.invalid/")
 	}
 
 	if breaker.State() != gobreaker.StateClosed {
@@ -230,7 +230,7 @@ func TestTransportCountsTimeouts(t *testing.T) {
 	client := clientWith(breaker, base)
 
 	for i := 0; i < 5; i++ {
-		_, _ = get(t, client, "http://dependency.invalid/")
+		_ = getErr(t, client, "http://dependency.invalid/")
 	}
 
 	if breaker.State() != gobreaker.StateOpen {
@@ -360,7 +360,7 @@ func TestTransportSharesOneBreakerAcrossClients(t *testing.T) {
 		drain(t, resp)
 	}
 
-	if _, err := get(t, second, srv.URL); !errors.Is(err, gobreaker.ErrOpenState) {
+	if err := getErr(t, second, srv.URL); !errors.Is(err, gobreaker.ErrOpenState) {
 		t.Errorf("error = %v, want %v", err, gobreaker.ErrOpenState)
 	}
 }

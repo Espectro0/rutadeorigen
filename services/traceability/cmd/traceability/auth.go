@@ -13,6 +13,7 @@ import (
 	libmiddleware "rutadeorigen/lib/httpserver/middleware"
 	"rutadeorigen/lib/resilience"
 	"rutadeorigen/lib/session"
+	"rutadeorigen/traceability/internal/application/input/ports"
 	"rutadeorigen/traceability/internal/infrastructure/input/controllers"
 )
 
@@ -99,7 +100,7 @@ func loadOIDC(log *slog.Logger) (authn, error) {
 	return authn{mode: authModeOIDC, authenticator: authenticator, routes: routes}, nil
 }
 
-func (a authn) middlewares(errs *controllers.ErrorResponder, resolver controllers.ActorResolver) (requireActor, authenticated controllers.Middleware) {
+func (a authn) middlewares(errs *controllers.ErrorResponder, resolver ports.ResolveActorPort) (requireActor, authenticated controllers.Middleware) {
 	if a.mode == authModeDevHeader {
 		return func(next http.Handler) http.Handler {
 			return controllers.RequireActorHeader(errs, next)
