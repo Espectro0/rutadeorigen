@@ -22,7 +22,7 @@ probes:
 
 resources:
   requests:
-    cpu: 10m
+    cpu: 100m
     memory: 32Mi
   limits:
     memory: 128Mi
@@ -31,5 +31,16 @@ ingress:
   enabled: true
   host: test.rutadeorigen.co
   entryPoint: web
+  rateLimit:
+    enabled: true
+    sourceHeader: Cf-Connecting-Ip
+    average: 20
+    burst: 40
+    auth:
+      enabled: true
+      service: traceability
+      path: /auth/
+      average: 5
+      burst: 10
 
 services: {}

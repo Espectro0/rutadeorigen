@@ -1,0 +1,33 @@
+{{- if and .Values.ingress.enabled .Values.ingress.rateLimit.enabled }}
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: rate-limit
+  labels:
+    app.kubernetes.io/name: rutadeorigen
+    app.kubernetes.io/part-of: rutadeorigen
+spec:
+  rateLimit:
+    average: {{ .Values.ingress.rateLimit.average }}
+    burst: {{ .Values.ingress.rateLimit.burst }}
+    period: 1s
+    sourceCriterion:
+      requestHeaderName: {{ .Values.ingress.rateLimit.sourceHeader }}
+{{- if .Values.ingress.rateLimit.auth.enabled }}
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: rate-limit-auth
+  labels:
+    app.kubernetes.io/name: rutadeorigen
+    app.kubernetes.io/part-of: rutadeorigen
+spec:
+  rateLimit:
+    average: {{ .Values.ingress.rateLimit.auth.average }}
+    burst: {{ .Values.ingress.rateLimit.auth.burst }}
+    period: 1s
+    sourceCriterion:
+      requestHeaderName: {{ .Values.ingress.rateLimit.sourceHeader }}
+{{- end }}
+{{- end }}
