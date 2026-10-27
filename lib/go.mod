@@ -5,6 +5,7 @@ go 1.27
 require (
 	github.com/google/uuid v1.6.0
 	github.com/rabbitmq/amqp091-go v1.16.0
+	github.com/sony/gobreaker v1.0.0
 	github.com/workos/workos-go/v10 v10.6.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.72.0
 	go.opentelemetry.io/otel v1.47.0
