@@ -8,7 +8,9 @@ metadata:
     app.kubernetes.io/name: {{ $name }}
     app.kubernetes.io/part-of: rutadeorigen
 spec:
+{{- if not (and $svc.autoscaling $svc.autoscaling.enabled) }}
   replicas: {{ $svc.replicas | default 1 }}
+{{- end }}
   revisionHistoryLimit: 2
   selector:
     matchLabels:
