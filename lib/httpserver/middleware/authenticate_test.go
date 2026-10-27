@@ -10,26 +10,26 @@ import (
 )
 
 type authenticatorFake struct {
-	userID string
-	err    error
-	calls  int
+	identity requestcontext.Identity
+	err      error
+	calls    int
 }
 
-func (a *authenticatorFake) Authenticate(_ http.ResponseWriter, _ *http.Request) (string, error) {
+func (a *authenticatorFake) Authenticate(_ http.ResponseWriter, _ *http.Request) (requestcontext.Identity, error) {
 	a.calls++
-	return a.userID, a.err
+	return a.identity, a.err
 }
 
 type authenticatorWriterFake struct{}
 
-func (authenticatorWriterFake) Authenticate(w http.ResponseWriter, _ *http.Request) (string, error) {
+func (authenticatorWriterFake) Authenticate(w http.ResponseWriter, _ *http.Request) (requestcontext.Identity, error) {
 	http.SetCookie(w, &http.Cookie{Name: "session", Value: "refreshed"})
-	return "user_01H", nil
+	return requestcontext.Identity{UserID: "user_01H"}, nil
 }
 
-func TestAuthenticateSetsUserIDAndCallsNext(t *testing.T) {
-	fake := &authenticatorFake{userID: "user_01H"}
-	var gotUserID string
+func TestAuthenticateSetsUserIDAndEmailAndCallsNext(t *testing.T) {
+	fake := &authenticatorFake{identity: requestcontext.Identity{UserID: "user_01H", Email: "producer@example.com"}}
+	var gotUserID, gotEmail string
 	nextCalled := false
 	rejectCalled := false
 
@@ -38,6 +38,7 @@ func TestAuthenticateSetsUserIDAndCallsNext(t *testing.T) {
 	})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		nextCalled = true
 		gotUserID = requestcontext.UserID(r.Context())
+		gotEmail = requestcontext.Email(r.Context())
 		w.WriteHeader(http.StatusNoContent)
 	}))
 
@@ -52,6 +53,9 @@ func TestAuthenticateSetsUserIDAndCallsNext(t *testing.T) {
 	}
 	if gotUserID != "user_01H" {
 		t.Fatalf("UserID = %q, want %q", gotUserID, "user_01H")
+	}
+	if gotEmail != "producer@example.com" {
+		t.Fatalf("Email = %q, want %q", gotEmail, "producer@example.com")
 	}
 	if rec.Code != http.StatusNoContent {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusNoContent)
@@ -104,18 +108,40 @@ func TestAuthenticateRejectsAndSkipsNextOnError(t *testing.T) {
 	}
 }
 
-func TestAuthenticateDoesNotSetUserIDOnError(t *testing.T) {
-	fake := &authenticatorFake{userID: "user_01H", err: errors.New("boom")}
-	var gotUserID string
+func TestAuthenticateDoesNotSetIdentityOnError(t *testing.T) {
+	fake := &authenticatorFake{identity: requestcontext.Identity{UserID: "user_01H", Email: "producer@example.com"}, err: errors.New("boom")}
+	var gotUserID, gotEmail string
 
 	handler := Authenticate(fake, func(_ http.ResponseWriter, r *http.Request, _ error) {
 		gotUserID = requestcontext.UserID(r.Context())
+		gotEmail = requestcontext.Email(r.Context())
 	})(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {}))
 
 	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil))
 
 	if gotUserID != "" {
 		t.Fatalf("UserID = %q, want empty", gotUserID)
+	}
+	if gotEmail != "" {
+		t.Fatalf("Email = %q, want empty", gotEmail)
+	}
+}
+
+func TestAuthenticateAcceptsAnIdentityWithoutEmail(t *testing.T) {
+	fake := &authenticatorFake{identity: requestcontext.Identity{UserID: "user_01H"}}
+	var gotUserID, gotEmail string
+
+	handler := Authenticate(fake, func(_ http.ResponseWriter, _ *http.Request, _ error) {})(
+		http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+			gotUserID = requestcontext.UserID(r.Context())
+			gotEmail = requestcontext.Email(r.Context())
+		}),
+	)
+
+	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil))
+
+	if gotUserID != "user_01H" || gotEmail != "" {
+		t.Fatalf("got (%q, %q), want (user_01H, empty)", gotUserID, gotEmail)
 	}
 }
 
@@ -136,7 +162,7 @@ func TestAuthenticatePassesResponseWriterToAuthenticator(t *testing.T) {
 }
 
 func TestAuthenticatePreservesOriginalContextValues(t *testing.T) {
-	fake := &authenticatorFake{userID: "user_01H"}
+	fake := &authenticatorFake{identity: requestcontext.Identity{UserID: "user_01H", Email: "producer@example.com"}}
 	var gotCorrelation string
 
 	handler := Authenticate(fake, func(_ http.ResponseWriter, _ *http.Request, _ error) {})(

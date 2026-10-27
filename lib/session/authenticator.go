@@ -3,6 +3,7 @@ package session
 import (
 	"errors"
 	"net/http"
+	"rutadeorigen/lib/requestcontext"
 )
 
 type Authenticator struct {
@@ -17,33 +18,33 @@ func NewAuthenticator(factory Factory, cookie Cookie) *Authenticator {
 	}
 }
 
-func (a *Authenticator) Authenticate(w http.ResponseWriter, r *http.Request) (string, error) {
+func (a *Authenticator) Authenticate(w http.ResponseWriter, r *http.Request) (requestcontext.Identity, error) {
 	sealed, ok := a.cookie.Read(r)
 	if !ok {
-		return "", ErrUnauthenticated
+		return requestcontext.Identity{}, ErrUnauthenticated
 	}
 
 	current := a.factory(sealed)
 
-	userID, err := current.Authenticate()
+	identity, err := current.Authenticate()
 	if err == nil {
-		return userID, nil
+		return identity, nil
 	}
 	if errors.Is(err, ErrAuthUnavailable) {
-		return "", err
+		return requestcontext.Identity{}, err
 	}
 
-	refreshed, userID, err := current.Refresh(r.Context())
+	refreshed, identity, err := current.Refresh(r.Context())
 	if err != nil {
 		if errors.Is(err, ErrUnauthenticated) {
 			a.cookie.Clear(w)
 		}
-		return "", err
+		return requestcontext.Identity{}, err
 	}
 
 	if err := a.cookie.Set(w, refreshed); err != nil {
-		return "", err
+		return requestcontext.Identity{}, err
 	}
 
-	return userID, nil
+	return identity, nil
 }

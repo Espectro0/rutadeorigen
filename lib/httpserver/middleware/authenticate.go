@@ -7,7 +7,7 @@ import (
 )
 
 type Authenticator interface {
-	Authenticate(w http.ResponseWriter, r *http.Request) (string, error)
+	Authenticate(w http.ResponseWriter, r *http.Request) (requestcontext.Identity, error)
 }
 
 type RejectFunc func(w http.ResponseWriter, r *http.Request, err error)
@@ -15,12 +15,14 @@ type RejectFunc func(w http.ResponseWriter, r *http.Request, err error)
 func Authenticate(auth Authenticator, reject RejectFunc) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			userID, err := auth.Authenticate(w, r)
+			identity, err := auth.Authenticate(w, r)
 			if err != nil {
 				reject(w, r, err)
 				return
 			}
-			next.ServeHTTP(w, r.WithContext(requestcontext.WithUserID(r.Context(), userID)))
+			ctx := requestcontext.WithUserID(r.Context(), identity.UserID)
+			ctx = requestcontext.WithEmail(ctx, identity.Email)
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }

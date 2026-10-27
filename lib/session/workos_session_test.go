@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/workos/workos-go/v10"
+
+	"rutadeorigen/lib/requestcontext"
 )
 
 func newFactory(ws *workosServer) Factory {
@@ -21,13 +23,23 @@ func TestWorkOSSessionAuthenticate(t *testing.T) {
 		name    string
 		sealed  func(t *testing.T) string
 		jwks    int
-		want    string
+		want    requestcontext.Identity
 		wantErr error
 	}{
 		{
 			name:   "valid session",
 			sealed: func(t *testing.T) string { return validSession(t, "user_1") },
-			want:   "user_1",
+			want:   requestcontext.Identity{UserID: "user_1", Email: "user_1@example.com"},
+		},
+		{
+			name: "user without email",
+			sealed: func(t *testing.T) string {
+				return seal(t, &workos.SessionData{
+					AccessToken: signToken(t, key, "session_1", 5*time.Minute),
+					User:        &workos.User{ID: "user_1"},
+				})
+			},
+			want: requestcontext.Identity{UserID: "user_1"},
 		},
 		{
 			name:    "expired access token",
@@ -93,7 +105,7 @@ func TestWorkOSSessionAuthenticate(t *testing.T) {
 				t.Fatalf("Authenticate() error = %v, want %v", err, tt.wantErr)
 			}
 			if got != tt.want {
-				t.Errorf("Authenticate() = %q, want %q", got, tt.want)
+				t.Errorf("Authenticate() = %+v, want %+v", got, tt.want)
 			}
 		})
 	}
@@ -103,20 +115,23 @@ func TestWorkOSSessionRefreshSucceeds(t *testing.T) {
 	key, _ := keys(t)
 	ws := newWorkOSServer(t)
 	newAccess := signToken(t, key, "session_1", 5*time.Minute)
-	ws.setAuthResponse(http.StatusOK, authResponse(newAccess, "refresh_2", "user_1"))
+	body := authResponse(newAccess, "refresh_2", "user_1")
+	body["user"].(map[string]any)["email"] = "renewed@example.com"
+	ws.setAuthResponse(http.StatusOK, body)
 	factory := newFactory(ws)
 
-	sealed, userID, err := factory(expiredSession(t, "user_1")).Refresh(context.Background())
+	sealed, identity, err := factory(expiredSession(t, "user_1")).Refresh(context.Background())
 
+	want := requestcontext.Identity{UserID: "user_1", Email: "renewed@example.com"}
 	if err != nil {
 		t.Fatalf("Refresh() error = %v", err)
 	}
-	if userID != "user_1" {
-		t.Errorf("userID = %q, want %q", userID, "user_1")
+	if identity != want {
+		t.Errorf("identity = %+v, want %+v", identity, want)
 	}
 	got, err := factory(sealed).Authenticate()
-	if err != nil || got != "user_1" {
-		t.Errorf("Authenticate() on refreshed session = (%q, %v), want (%q, nil)", got, err, "user_1")
+	if err != nil || got != want {
+		t.Errorf("Authenticate() on refreshed session = (%+v, %v), want (%+v, nil)", got, err, want)
 	}
 	requests := ws.requests()
 	if len(requests) != 1 {
@@ -181,13 +196,13 @@ func TestWorkOSSessionRefreshFailures(t *testing.T) {
 			ws := newWorkOSServer(t)
 			ws.setAuthResponse(tt.status, tt.body)
 
-			sealed, userID, err := newFactory(ws)(tt.sealed(t)).Refresh(context.Background())
+			sealed, identity, err := newFactory(ws)(tt.sealed(t)).Refresh(context.Background())
 
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("Refresh() error = %v, want %v", err, tt.wantErr)
 			}
-			if sealed != "" || userID != "" {
-				t.Errorf("Refresh() = (%q, %q), want empty values", sealed, userID)
+			if sealed != "" || identity != (requestcontext.Identity{}) {
+				t.Errorf("Refresh() = (%q, %+v), want empty values", sealed, identity)
 			}
 		})
 	}

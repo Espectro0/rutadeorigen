@@ -1,10 +1,13 @@
 package session
 
-import "context"
+import (
+	"context"
+	"rutadeorigen/lib/requestcontext"
+)
 
 type Session interface {
-	Authenticate() (userID string, err error)
-	Refresh(ctx context.Context) (sealed string, userID string, err error)
+	Authenticate() (requestcontext.Identity, error)
+	Refresh(ctx context.Context) (sealed string, identity requestcontext.Identity, err error)
 }
 
 type Factory func(sealed string) Session

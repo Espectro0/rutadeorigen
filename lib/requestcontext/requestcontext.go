@@ -8,6 +8,11 @@ import (
 
 type key int
 
+type Identity struct {
+	UserID string
+	Email  string
+}
+
 const (
 	actorIDKey key = iota
 	correlationIDKey

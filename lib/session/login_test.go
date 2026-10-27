@@ -62,8 +62,8 @@ func TestLoginExchangeSucceeds(t *testing.T) {
 		t.Fatal("Sealed is empty")
 	}
 	got, err := newFactory(ws)(result.Sealed).Authenticate()
-	if err != nil || got != "user_1" {
-		t.Errorf("Authenticate() on sealed session = (%q, %v), want (%q, nil)", got, err, "user_1")
+	if err != nil || got.UserID != "user_1" || got.Email != "user_1@example.com" {
+		t.Errorf("Authenticate() on sealed session = (%+v, %v), want user_1 with its email", got, err)
 	}
 	requests := ws.requests()
 	if len(requests) != 1 {
