@@ -11,7 +11,7 @@ import (
 
 const internalOnly = `INTERNAL: "Something went wrong"`
 
-var genericCodes = []string{"INTERNAL", "INVALID_REQUEST_BODY", "UNAUTHORIZED", "FORBIDDEN"}
+var genericCodes = []string{"INTERNAL", "INVALID_REQUEST_BODY", "UNAUTHORIZED", "FORBIDDEN", "AUTH_UNAVAILABLE"}
 
 func toBytes(sources []string) [][]byte {
 	out := make([][]byte, len(sources))
