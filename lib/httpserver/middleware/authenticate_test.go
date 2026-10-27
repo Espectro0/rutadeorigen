@@ -27,6 +27,8 @@ func (authenticatorWriterFake) Authenticate(w http.ResponseWriter, _ *http.Reque
 	return requestcontext.Identity{UserID: "user_01H"}, nil
 }
 
+func namePtr(s string) *string { return &s }
+
 func TestAuthenticateSetsUserIDAndEmailAndCallsNext(t *testing.T) {
 	fake := &authenticatorFake{identity: requestcontext.Identity{UserID: "user_01H", Email: "producer@example.com"}}
 	var gotUserID, gotEmail string
@@ -109,12 +111,17 @@ func TestAuthenticateRejectsAndSkipsNextOnError(t *testing.T) {
 }
 
 func TestAuthenticateDoesNotSetIdentityOnError(t *testing.T) {
-	fake := &authenticatorFake{identity: requestcontext.Identity{UserID: "user_01H", Email: "producer@example.com"}, err: errors.New("boom")}
-	var gotUserID, gotEmail string
+	fake := &authenticatorFake{
+		identity: requestcontext.Identity{UserID: "user_01H", Email: "producer@example.com", FirstName: namePtr("Juan"), LastName: namePtr("Ramírez")},
+		err:      errors.New("boom"),
+	}
+	var gotUserID, gotEmail, gotFirstName, gotLastName string
 
 	handler := Authenticate(fake, func(_ http.ResponseWriter, r *http.Request, _ error) {
 		gotUserID = requestcontext.UserID(r.Context())
 		gotEmail = requestcontext.Email(r.Context())
+		gotFirstName = requestcontext.FirstName(r.Context())
+		gotLastName = requestcontext.LastName(r.Context())
 	})(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {}))
 
 	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil))
@@ -124,6 +131,12 @@ func TestAuthenticateDoesNotSetIdentityOnError(t *testing.T) {
 	}
 	if gotEmail != "" {
 		t.Fatalf("Email = %q, want empty", gotEmail)
+	}
+	if gotFirstName != "" {
+		t.Fatalf("FirstName = %q, want empty", gotFirstName)
+	}
+	if gotLastName != "" {
+		t.Fatalf("LastName = %q, want empty", gotLastName)
 	}
 }
 
@@ -177,5 +190,70 @@ func TestAuthenticatePreservesOriginalContextValues(t *testing.T) {
 
 	if gotCorrelation != "corr-1" {
 		t.Fatalf("CorrelationID = %q, want %q", gotCorrelation, "corr-1")
+	}
+}
+
+func TestAuthenticateSetsFirstAndLastName(t *testing.T) {
+	fake := &authenticatorFake{identity: requestcontext.Identity{
+		UserID:    "user_01H",
+		Email:     "producer@example.com",
+		FirstName: namePtr("Juan"),
+		LastName:  namePtr("Ramírez"),
+	}}
+	var gotFirstName, gotLastName string
+
+	handler := Authenticate(fake, func(_ http.ResponseWriter, _ *http.Request, _ error) {})(
+		http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+			gotFirstName = requestcontext.FirstName(r.Context())
+			gotLastName = requestcontext.LastName(r.Context())
+		}),
+	)
+
+	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil))
+
+	if gotFirstName != "Juan" || gotLastName != "Ramírez" {
+		t.Fatalf("got (%q, %q), want (Juan, Ramírez)", gotFirstName, gotLastName)
+	}
+}
+
+func TestAuthenticateAcceptsAnIdentityWithoutNames(t *testing.T) {
+	fake := &authenticatorFake{identity: requestcontext.Identity{UserID: "user_01H", Email: "producer@example.com"}}
+	var gotUserID, gotFirstName, gotLastName string
+	nextCalled := false
+
+	handler := Authenticate(fake, func(_ http.ResponseWriter, _ *http.Request, _ error) {})(
+		http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+			nextCalled = true
+			gotUserID = requestcontext.UserID(r.Context())
+			gotFirstName = requestcontext.FirstName(r.Context())
+			gotLastName = requestcontext.LastName(r.Context())
+		}),
+	)
+
+	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil))
+
+	if !nextCalled {
+		t.Fatal("next handler was not called")
+	}
+	if gotUserID != "user_01H" || gotFirstName != "" || gotLastName != "" {
+		t.Fatalf("got (%q, %q, %q), want (user_01H, empty, empty)", gotUserID, gotFirstName, gotLastName)
+	}
+}
+
+func TestAuthenticateAcceptsAnIdentityWithOnlyOneName(t *testing.T) {
+	fake := &authenticatorFake{identity: requestcontext.Identity{UserID: "user_01H", FirstName: namePtr("Juan")}}
+	var gotFirstName, gotLastName string
+
+	handler := Authenticate(fake, func(_ http.ResponseWriter, _ *http.Request, _ error) {})(
+		http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+			gotFirstName = requestcontext.FirstName(r.Context())
+			gotLastName = requestcontext.LastName(r.Context())
+		}),
+	)
+
+	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil))
+
+	if gotFirstName != "Juan" || gotLastName != "" {
+		t.Fatalf("got (%q, %q), want (Juan, empty)", gotFirstName, gotLastName)
 	}
 }

@@ -20,8 +20,15 @@ func Authenticate(auth Authenticator, reject RejectFunc) func(http.Handler) http
 				reject(w, r, err)
 				return
 			}
+
 			ctx := requestcontext.WithUserID(r.Context(), identity.UserID)
 			ctx = requestcontext.WithEmail(ctx, identity.Email)
+			if identity.FirstName != nil {
+				ctx = requestcontext.WithFirstName(ctx, *identity.FirstName)
+			}
+			if identity.LastName != nil {
+				ctx = requestcontext.WithLastName(ctx, *identity.LastName)
+			}
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

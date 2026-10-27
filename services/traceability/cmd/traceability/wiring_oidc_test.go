@@ -32,8 +32,10 @@ const (
 var oidcIdentities = map[string]requestcontext.Identity{
 	"sealed-new":   {UserID: "user_new", Email: "  New.Producer@Example.com "},
 	"sealed-other": {UserID: "user_other", Email: "other@example.com"},
-	"sealed-seed":  {UserID: "seed-producer", Email: "seed@rutadeorigen.com"},
+	"sealed-seed":  {UserID: "seed-producer", Email: "seed@rutadeorigen.com", FirstName: namePtr("Juan"), LastName: namePtr("Ramírez")},
 }
+
+func namePtr(s string) *string { return &s }
 
 type oidcFlow struct{}
 
@@ -139,6 +141,8 @@ type actorView struct {
 	Email     string `json:"email"`
 	Status    string `json:"status"`
 	CreatedAt string `json:"created_at"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
 }
 
 func decodeActor(t *testing.T, rec *httptest.ResponseRecorder) actorView {
@@ -320,8 +324,12 @@ func TestOIDCUserWithAnExistingActor(t *testing.T) {
 	if me.Code != http.StatusOK {
 		t.Fatalf("me: status %d (%s)", me.Code, me.Body.String())
 	}
-	if got := decodeActor(t, me); got.ID != producerHeader || got.Type != "producer" {
+	got := decodeActor(t, me)
+	if got.ID != producerHeader || got.Type != "producer" {
 		t.Errorf("the seed user must resolve to the seed producer, got %+v", got)
+	}
+	if got.FirstName != "Juan" || got.LastName != "Ramírez" {
+		t.Errorf("me must return the names of the session, got (%q, %q)", got.FirstName, got.LastName)
 	}
 
 	farm := oidcRequest(mux, http.MethodPost, "/farms", farmBody("La Esperanza", 1650), sessionOf("sealed-seed"))
@@ -462,5 +470,32 @@ func TestDevHeaderModeDoesNotExposeTheAuthRoutes(t *testing.T) {
 				t.Errorf("status: got %d, want %d", rec.Code, http.StatusNotFound)
 			}
 		})
+	}
+}
+
+func TestOIDCMeReturnsEmptyNamesWhenTheSessionHasNone(t *testing.T) {
+	mux := newOIDCServer(t)
+	mustRegister(t, mux, "sealed-new")
+
+	me := oidcRequest(mux, http.MethodGet, "/me", "", sessionOf("sealed-new"))
+
+	if me.Code != http.StatusOK {
+		t.Fatalf("me: status %d (%s)", me.Code, me.Body.String())
+	}
+	if got := decodeActor(t, me); got.FirstName != "" || got.LastName != "" {
+		t.Errorf("got names (%q, %q), want empty", got.FirstName, got.LastName)
+	}
+}
+
+func TestOIDCRegisterDoesNotReturnTheNames(t *testing.T) {
+	mux := newOIDCServer(t)
+
+	rec := oidcRequest(mux, http.MethodPost, "/me", registerBody, sessionOf("sealed-seed"))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("register: status %d (%s)", rec.Code, rec.Body.String())
+	}
+	if got := decodeActor(t, rec); got.FirstName != "" || got.LastName != "" {
+		t.Errorf("register must not return names, got (%q, %q)", got.FirstName, got.LastName)
 	}
 }

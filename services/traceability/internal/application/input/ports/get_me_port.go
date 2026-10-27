@@ -6,5 +6,5 @@ import (
 )
 
 type GetMePort interface {
-	InputPort[request.GetMe, response.Actor]
+	InputPort[request.GetMe, response.Me]
 }

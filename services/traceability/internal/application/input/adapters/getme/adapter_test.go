@@ -46,22 +46,75 @@ func TestAdapterExecute(t *testing.T) {
 		stored := restoredActor()
 		uc := &fakeUseCase{result: stored}
 		ctx := requestcontext.WithUserID(context.Background(), "user_01")
+		ctx = requestcontext.WithFirstName(ctx, "Juan")
+		ctx = requestcontext.WithLastName(ctx, "Ramírez")
 
 		got, err := getme.New(uc).Execute(ctx, request.GetMe{})
 
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		want := response.Actor{
-			ID:        stored.ID().String(),
-			Type:      "producer",
-			Name:      "Finca La Esperanza SAS",
-			Email:     "producer@example.com",
-			Status:    "active",
-			CreatedAt: "2026-09-20T14:30:00Z",
+		want := response.Me{
+			Actor: response.Actor{
+				ID:        stored.ID().String(),
+				Type:      "producer",
+				Name:      "Finca La Esperanza SAS",
+				Email:     "producer@example.com",
+				Status:    "active",
+				CreatedAt: "2026-09-20T14:30:00Z",
+			},
+			FirstName: "Juan",
+			LastName:  "Ramírez",
 		}
 		if got != want {
 			t.Errorf("got %+v, want %+v", got, want)
+		}
+	})
+
+	t.Run("returns empty names when the context has none", func(t *testing.T) {
+		stored := restoredActor()
+		uc := &fakeUseCase{result: stored}
+		ctx := requestcontext.WithUserID(context.Background(), "user_01")
+
+		got, err := getme.New(uc).Execute(ctx, request.GetMe{})
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.FirstName != "" || got.LastName != "" {
+			t.Errorf("got names (%q, %q), want empty", got.FirstName, got.LastName)
+		}
+		if got.ID != stored.ID().String() {
+			t.Errorf("got actor id %q, want %q", got.ID, stored.ID().String())
+		}
+	})
+
+	t.Run("returns only the names that the context has", func(t *testing.T) {
+		uc := &fakeUseCase{result: restoredActor()}
+		ctx := requestcontext.WithUserID(context.Background(), "user_01")
+		ctx = requestcontext.WithFirstName(ctx, "Juan")
+
+		got, err := getme.New(uc).Execute(ctx, request.GetMe{})
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.FirstName != "Juan" || got.LastName != "" {
+			t.Errorf("got names (%q, %q), want (Juan, empty)", got.FirstName, got.LastName)
+		}
+	})
+
+	t.Run("names do not change what the use case receives", func(t *testing.T) {
+		uc := &fakeUseCase{result: restoredActor()}
+		ctx := requestcontext.WithUserID(context.Background(), "user_01")
+		ctx = requestcontext.WithFirstName(ctx, "Juan")
+		ctx = requestcontext.WithLastName(ctx, "Ramírez")
+
+		if _, err := getme.New(uc).Execute(ctx, request.GetMe{}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if uc.received != "user_01" {
+			t.Errorf("received %q, want user_01", uc.received)
 		}
 	})
 
@@ -122,7 +175,7 @@ func TestAdapterExecute(t *testing.T) {
 			if !errors.Is(err, tt.err) {
 				t.Errorf("got error %v, want %v", err, tt.err)
 			}
-			if got != (response.Actor{}) {
+			if got != (response.Me{}) {
 				t.Errorf("got %+v, want empty response", got)
 			}
 		})

@@ -37,18 +37,18 @@ func (f *fakeRegisterActorPort) Execute(ctx context.Context, input request.Regis
 }
 
 type fakeGetMePort struct {
-	result response.Actor
+	result response.Me
 	err    error
 
 	calls int
 	ctx   context.Context
 }
 
-func (f *fakeGetMePort) Execute(ctx context.Context, _ request.GetMe) (response.Actor, error) {
+func (f *fakeGetMePort) Execute(ctx context.Context, _ request.GetMe) (response.Me, error) {
 	f.calls++
 	f.ctx = ctx
 	if f.err != nil {
-		return response.Actor{}, f.err
+		return response.Me{}, f.err
 	}
 	return f.result, nil
 }
@@ -97,6 +97,10 @@ func sampleActorResponse() response.Actor {
 		Status:    "active",
 		CreatedAt: "2026-09-20T14:30:00Z",
 	}
+}
+
+func sampleMeResponse() response.Me {
+	return response.Me{Actor: sampleActorResponse(), FirstName: "Juan", LastName: "Ramírez"}
 }
 
 func mePortErrors() []struct {
@@ -256,7 +260,7 @@ func TestRegisterMeMapsPortErrors(t *testing.T) {
 }
 
 func TestGetMeReturnsTheActor(t *testing.T) {
-	port := &fakeGetMePort{result: sampleActorResponse()}
+	port := &fakeGetMePort{result: sampleMeResponse()}
 
 	rec := getMe(newMeMux(t, &fakeRegisterActorPort{}, port, passThrough))
 
@@ -267,7 +271,7 @@ func TestGetMeReturnsTheActor(t *testing.T) {
 		t.Errorf("Content-Type: got %q, want application/json", got)
 	}
 
-	var body response.Actor
+	var body response.Me
 	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
 		t.Fatalf("body is not JSON: %v", err)
 	}
@@ -332,5 +336,65 @@ func TestMeRoutesOnlyAcceptTheirMethods(t *testing.T) {
 				t.Errorf("status: got %d, want %d", rec.Code, http.StatusMethodNotAllowed)
 			}
 		})
+	}
+}
+
+func TestGetMeBodyIsFlatAndIncludesTheNames(t *testing.T) {
+	port := &fakeGetMePort{result: sampleMeResponse()}
+
+	rec := getMe(newMeMux(t, &fakeRegisterActorPort{}, port, passThrough))
+
+	var body map[string]any
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("body is not JSON: %v", err)
+	}
+	want := map[string]any{
+		"id":         "actor-1",
+		"type":       "producer",
+		"name":       "Finca La Esperanza SAS",
+		"email":      "producer@example.com",
+		"status":     "active",
+		"created_at": "2026-09-20T14:30:00Z",
+		"first_name": "Juan",
+		"last_name":  "Ramírez",
+	}
+	if len(body) != len(want) {
+		t.Errorf("body has %d fields, want %d: %v", len(body), len(want), body)
+	}
+	for key, value := range want {
+		if body[key] != value {
+			t.Errorf("%s: got %v, want %v", key, body[key], value)
+		}
+	}
+}
+
+func TestGetMeReturnsEmptyNamesWhenThePortHasNone(t *testing.T) {
+	port := &fakeGetMePort{result: response.Me{Actor: sampleActorResponse()}}
+
+	rec := getMe(newMeMux(t, &fakeRegisterActorPort{}, port, passThrough))
+
+	var body map[string]any
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("body is not JSON: %v", err)
+	}
+	if body["first_name"] != "" || body["last_name"] != "" {
+		t.Errorf("names: got (%v, %v), want empty strings", body["first_name"], body["last_name"])
+	}
+}
+
+func TestRegisterMeDoesNotReturnNames(t *testing.T) {
+	port := &fakeRegisterActorPort{result: response.ActorRegistration{Actor: sampleActorResponse(), Created: true}}
+
+	rec := postMe(newMeMux(t, port, &fakeGetMePort{}, passThrough), validRegisterBody)
+
+	var body map[string]any
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("body is not JSON: %v", err)
+	}
+	if _, ok := body["first_name"]; ok {
+		t.Error("registering an actor must not return first_name")
+	}
+	if _, ok := body["last_name"]; ok {
+		t.Error("registering an actor must not return last_name")
 	}
 }

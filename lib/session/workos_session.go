@@ -31,7 +31,7 @@ func (s *workosSession) Authenticate() (requestcontext.Identity, error) {
 	if result.User == nil || result.User.ID == "" {
 		return requestcontext.Identity{}, ErrUnauthenticated
 	}
-	return requestcontext.Identity{UserID: result.User.ID, Email: result.User.Email}, nil
+	return identityFrom(result.User), nil
 }
 
 func (s *workosSession) Refresh(ctx context.Context) (string, requestcontext.Identity, error) {
@@ -48,7 +48,14 @@ func (s *workosSession) Refresh(ctx context.Context) (string, requestcontext.Ide
 	if result.Session.User == nil || result.Session.User.ID == "" {
 		return "", requestcontext.Identity{}, ErrUnauthenticated
 	}
+	return result.SealedSession, identityFrom(result.Session.User), nil
+}
 
-	identity := requestcontext.Identity{UserID: result.Session.User.ID, Email: result.Session.User.Email}
-	return result.SealedSession, identity, nil
+func identityFrom(user *workos.User) requestcontext.Identity {
+	return requestcontext.Identity{
+		UserID:    user.ID,
+		Email:     user.Email,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+	}
 }

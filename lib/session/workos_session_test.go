@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"reflect"
 	"testing"
 	"time"
 
@@ -11,6 +12,8 @@ import (
 
 	"rutadeorigen/lib/requestcontext"
 )
+
+func namePtr(s string) *string { return &s }
 
 func newFactory(ws *workosServer) Factory {
 	return NewWorkOSFactory(ws.client(), testCookiePassword)
@@ -40,6 +43,26 @@ func TestWorkOSSessionAuthenticate(t *testing.T) {
 				})
 			},
 			want: requestcontext.Identity{UserID: "user_1"},
+		},
+		{
+			name: "user with first and last name",
+			sealed: func(t *testing.T) string {
+				return seal(t, &workos.SessionData{
+					AccessToken: signToken(t, key, "session_1", 5*time.Minute),
+					User:        &workos.User{ID: "user_1", Email: "user_1@example.com", FirstName: namePtr("Juan"), LastName: namePtr("Ramírez")},
+				})
+			},
+			want: requestcontext.Identity{UserID: "user_1", Email: "user_1@example.com", FirstName: namePtr("Juan"), LastName: namePtr("Ramírez")},
+		},
+		{
+			name: "user with only a first name",
+			sealed: func(t *testing.T) string {
+				return seal(t, &workos.SessionData{
+					AccessToken: signToken(t, key, "session_1", 5*time.Minute),
+					User:        &workos.User{ID: "user_1", FirstName: namePtr("Juan")},
+				})
+			},
+			want: requestcontext.Identity{UserID: "user_1", FirstName: namePtr("Juan")},
 		},
 		{
 			name:    "expired access token",
@@ -104,7 +127,7 @@ func TestWorkOSSessionAuthenticate(t *testing.T) {
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("Authenticate() error = %v, want %v", err, tt.wantErr)
 			}
-			if got != tt.want {
+			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Authenticate() = %+v, want %+v", got, tt.want)
 			}
 		})
@@ -117,20 +140,22 @@ func TestWorkOSSessionRefreshSucceeds(t *testing.T) {
 	newAccess := signToken(t, key, "session_1", 5*time.Minute)
 	body := authResponse(newAccess, "refresh_2", "user_1")
 	body["user"].(map[string]any)["email"] = "renewed@example.com"
+	body["user"].(map[string]any)["first_name"] = "Juan"
+	body["user"].(map[string]any)["last_name"] = "Ramírez"
 	ws.setAuthResponse(http.StatusOK, body)
 	factory := newFactory(ws)
 
 	sealed, identity, err := factory(expiredSession(t, "user_1")).Refresh(context.Background())
 
-	want := requestcontext.Identity{UserID: "user_1", Email: "renewed@example.com"}
+	want := requestcontext.Identity{UserID: "user_1", Email: "renewed@example.com", FirstName: namePtr("Juan"), LastName: namePtr("Ramírez")}
 	if err != nil {
 		t.Fatalf("Refresh() error = %v", err)
 	}
-	if identity != want {
+	if !reflect.DeepEqual(identity, want) {
 		t.Errorf("identity = %+v, want %+v", identity, want)
 	}
 	got, err := factory(sealed).Authenticate()
-	if err != nil || got != want {
+	if err != nil || !reflect.DeepEqual(got, want) {
 		t.Errorf("Authenticate() on refreshed session = (%+v, %v), want (%+v, nil)", got, err, want)
 	}
 	requests := ws.requests()

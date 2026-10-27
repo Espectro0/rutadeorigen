@@ -17,10 +17,14 @@ type Adapter struct{ useCase resolveactoruc.UseCase }
 
 func New(useCase resolveactoruc.UseCase) *Adapter { return &Adapter{useCase: useCase} }
 
-func (a *Adapter) Execute(ctx context.Context, _ request.GetMe) (response.Actor, error) {
+func (a *Adapter) Execute(ctx context.Context, _ request.GetMe) (response.Me, error) {
 	found, err := a.useCase.Execute(ctx, requestcontext.UserID(ctx))
 	if err != nil {
-		return response.Actor{}, err
+		return response.Me{}, err
 	}
-	return actormapper.ToResponse(found), nil
+	return response.Me{
+		Actor:     actormapper.ToResponse(found),
+		FirstName: requestcontext.FirstName(ctx),
+		LastName:  requestcontext.LastName(ctx),
+	}, nil
 }
