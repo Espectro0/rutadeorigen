@@ -42,7 +42,7 @@ func registerRoutes(mux *http.ServeMux, log *slog.Logger, pool *pgxpool.Pool, ca
 	registerStageAdapter := registerstageadapter.New(registerstageuc.New(actors, lots, events, auth, publisher, tx))
 
 	requireActor := func(next http.Handler) http.Handler {
-		return controllers.RequireActor(errs, next)
+		return controllers.RequireActorHeader(errs, next)
 	}
 
 	controllers.NewLotController(createLotAdapter, getLotAdapter, listLotsAdapter, errs, log).Register(mux, requireActor)
