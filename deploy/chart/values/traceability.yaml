@@ -10,6 +10,6 @@ services:
       - /lots
     autoscaling:
       enabled: true
-      min: 1
-      max: 5
+      min: 2
+      max: 8
       cpu: 70
