@@ -9,6 +9,7 @@ const (
 	CodeForbidden          Code = "FORBIDDEN"
 	CodeInvalidCursor      Code = "INVALID_CURSOR"
 	CodeInvalidLimit       Code = "INVALID_LIMIT"
+	CodeAuthUnavailable    Code = "AUTH_UNAVAILABLE"
 )
 
 const (
@@ -69,6 +70,7 @@ var kindByCode = map[Code]Kind{
 	CodeForbidden:          KindForbidden,
 	CodeInvalidCursor:      KindValidation,
 	CodeInvalidLimit:       KindValidation,
+	CodeAuthUnavailable:    KindUnavailable,
 
 	CodeLotInvalidCode:              KindValidation,
 	CodeLotInvalidVariety:           KindValidation,

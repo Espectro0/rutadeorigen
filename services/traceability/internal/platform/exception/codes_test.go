@@ -17,6 +17,7 @@ var genericCodes = map[exception.Code]bool{
 	exception.CodeForbidden:          true,
 	exception.CodeInvalidCursor:      true,
 	exception.CodeInvalidLimit:       true,
+	exception.CodeAuthUnavailable:    true,
 }
 
 var codeFormat = regexp.MustCompile(`^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$`)
