@@ -103,3 +103,30 @@ func TestUserIDMissingReturnsEmpty(t *testing.T) {
 		t.Fatalf("UserID = %q, want empty", got)
 	}
 }
+
+func TestEmailRoundTrip(t *testing.T) {
+	ctx := requestcontext.WithEmail(context.Background(), "producer@example.com")
+
+	if got := requestcontext.Email(ctx); got != "producer@example.com" {
+		t.Fatalf("Email = %q, want %q", got, "producer@example.com")
+	}
+}
+
+func TestEmailMissingReturnsEmpty(t *testing.T) {
+	if got := requestcontext.Email(context.Background()); got != "" {
+		t.Fatalf("Email = %q, want empty", got)
+	}
+}
+
+func TestEmailAndUserIDAreIndependent(t *testing.T) {
+	ctx := requestcontext.WithUserID(context.Background(), "user_01H")
+
+	if got := requestcontext.Email(ctx); got != "" {
+		t.Errorf("Email = %q, want empty", got)
+	}
+
+	ctx = requestcontext.WithEmail(ctx, "producer@example.com")
+	if got := requestcontext.UserID(ctx); got != "user_01H" {
+		t.Errorf("UserID = %q, want %q", got, "user_01H")
+	}
+}
