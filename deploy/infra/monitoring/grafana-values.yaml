@@ -28,7 +28,7 @@ livenessProbe:
   httpGet:
     path: /api/health
     port: 3000
-  initialDelaySeconds: 600
+  initialDelaySeconds: 120
   timeoutSeconds: 30
   failureThreshold: 10
 
@@ -36,12 +36,12 @@ readinessProbe:
   httpGet:
     path: /api/health
     port: 3000
-  initialDelaySeconds: 60
+  initialDelaySeconds: 30
   timeoutSeconds: 30
 
 resources:
-  requests: { cpu: 100m, memory: 256Mi }
-  limits: { memory: 512Mi }
+  requests: { cpu: 100m, memory: 512Mi }
+  limits: { memory: 2Gi }
 
 datasources:
   datasources.yaml:
