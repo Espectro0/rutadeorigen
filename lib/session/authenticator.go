@@ -7,16 +7,24 @@ import (
 	"rutadeorigen/lib/requestcontext"
 )
 
+type Option func(*Authenticator)
+
+func WithoutRefresh() Option {
+	return func(a *Authenticator) { a.refresh = false }
+}
+
 type Authenticator struct {
 	factory Factory
 	cookie  Cookie
+	refresh bool
 }
 
-func NewAuthenticator(factory Factory, cookie Cookie) *Authenticator {
-	return &Authenticator{
-		factory: factory,
-		cookie:  cookie,
+func NewAuthenticator(factory Factory, cookie Cookie, opts ...Option) *Authenticator {
+	a := &Authenticator{factory: factory, cookie: cookie, refresh: true}
+	for _, opt := range opts {
+		opt(a)
 	}
+	return a
 }
 
 func (a *Authenticator) Authenticate(w http.ResponseWriter, r *http.Request) (requestcontext.Identity, error) {
@@ -33,6 +41,10 @@ func (a *Authenticator) Authenticate(w http.ResponseWriter, r *http.Request) (re
 	}
 	if errors.Is(err, ErrAuthUnavailable) {
 		return requestcontext.Identity{}, err
+	}
+
+	if !a.refresh {
+		return requestcontext.Identity{}, ErrUnauthenticated
 	}
 
 	refreshed, identity, err := current.Refresh(r.Context())

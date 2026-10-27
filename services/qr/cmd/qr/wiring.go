@@ -48,7 +48,7 @@ type outputs struct {
 	tx        ports.TxManager
 }
 
-func registerRoutes(mux *http.ServeMux, log *slog.Logger, catalog *catalog.Catalog, deps dependencies) *inmessaging.LotEventsHandler {
+func registerRoutes(mux *http.ServeMux, log *slog.Logger, catalog *catalog.Catalog, deps dependencies, authn authn) *inmessaging.LotEventsHandler {
 	out := newOutputs(deps)
 	auth := authorizer.NewAllowAll()
 	errs := controllers.NewErrorResponder(log, catalog)
@@ -59,9 +59,7 @@ func registerRoutes(mux *http.ServeMux, log *slog.Logger, catalog *catalog.Catal
 	resolveScan := resolvescanadapter.New(resolvescanuc.New(out.rules, out.views, out.cache, out.scans))
 	getQRImage := getqrimageadapter.New(getqrimageuc.New(out.views, out.cache, out.codes, renderer.NewGoQRCodeRenderer(), auth, deps.publicBaseURL))
 
-	requireActor := func(next http.Handler) http.Handler {
-		return controllers.RequireActor(errs, next)
-	}
+	requireActor := authn.requireActor(errs)
 
 	controllers.NewLotController(getPublicLot, errs, log).Register(mux)
 	controllers.NewScanController(resolveScan, errs).Register(mux)

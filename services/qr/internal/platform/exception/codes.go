@@ -9,6 +9,7 @@ const (
 	CodeForbidden          Code = "FORBIDDEN"
 	CodeInvalidCursor      Code = "INVALID_CURSOR"
 	CodeInvalidLimit       Code = "INVALID_LIMIT"
+	CodeAuthUnavailable    Code = "AUTH_UNAVAILABLE"
 )
 
 const (
@@ -70,6 +71,8 @@ var kindByCode = map[Code]Kind{
 	CodeRedirectNotFound:    KindNotFound,
 
 	CodeEventInvalidPayload: KindValidation,
+
+	CodeAuthUnavailable: KindUnavailable,
 }
 
 func KindOf(c Code) (Kind, bool) {

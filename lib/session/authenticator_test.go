@@ -265,3 +265,104 @@ func TestAuthenticatorReturnsEmptyIdentityWhenRefreshIsUnavailable(t *testing.T)
 		t.Errorf("identity = %+v, want empty", identity)
 	}
 }
+
+func newTestAuthenticatorWithoutRefresh(s *sessionFake) (*Authenticator, *factoryFake) {
+	factory := &factoryFake{session: s}
+	return NewAuthenticator(factory.build, NewCookie(CookieConfig{}), WithoutRefresh()), factory
+}
+
+func TestAuthenticatorWithoutRefreshAcceptsAValidSession(t *testing.T) {
+	s := &sessionFake{authIdentity: requestcontext.Identity{UserID: "user_1", Email: "user_1@example.com"}}
+	a, factory := newTestAuthenticatorWithoutRefresh(s)
+	rec := httptest.NewRecorder()
+
+	identity, err := a.Authenticate(rec, authRequest("sealed-1"))
+
+	if err != nil {
+		t.Fatalf("error = %v, want nil", err)
+	}
+	if identity != s.authIdentity {
+		t.Errorf("identity = %+v, want %+v", identity, s.authIdentity)
+	}
+	if factory.gotSeal != "sealed-1" {
+		t.Errorf("sealed session = %q, want %q", factory.gotSeal, "sealed-1")
+	}
+	if s.refreshCalls != 0 {
+		t.Errorf("refresh calls = %d, want 0", s.refreshCalls)
+	}
+	if len(rec.Result().Cookies()) != 0 {
+		t.Errorf("cookies = %v, want none", rec.Result().Cookies())
+	}
+}
+
+func TestAuthenticatorWithoutRefreshRejectsAnInvalidSessionWithoutTouchingTheCookie(t *testing.T) {
+	s := &sessionFake{
+		authErr:     ErrUnauthenticated,
+		refSealed:   "sealed-2",
+		refIdentity: requestcontext.Identity{UserID: "user_1", Email: "user_1@example.com"},
+	}
+	a, _ := newTestAuthenticatorWithoutRefresh(s)
+	rec := httptest.NewRecorder()
+
+	identity, err := a.Authenticate(rec, authRequest("sealed-1"))
+
+	if !errors.Is(err, ErrUnauthenticated) {
+		t.Fatalf("error = %v, want %v", err, ErrUnauthenticated)
+	}
+	if identity != (requestcontext.Identity{}) {
+		t.Errorf("identity = %+v, want empty", identity)
+	}
+	if s.refreshCalls != 0 {
+		t.Errorf("refresh calls = %d, want 0", s.refreshCalls)
+	}
+	if len(rec.Result().Cookies()) != 0 {
+		t.Errorf("cookies = %v, want none because another service owns the cookie", rec.Result().Cookies())
+	}
+}
+
+func TestAuthenticatorWithoutRefreshReportsUnavailableValidation(t *testing.T) {
+	s := &sessionFake{authErr: fmt.Errorf("%w: jwks down", ErrAuthUnavailable)}
+	a, _ := newTestAuthenticatorWithoutRefresh(s)
+	rec := httptest.NewRecorder()
+
+	_, err := a.Authenticate(rec, authRequest("sealed-1"))
+
+	if !errors.Is(err, ErrAuthUnavailable) {
+		t.Fatalf("error = %v, want %v", err, ErrAuthUnavailable)
+	}
+	if s.refreshCalls != 0 {
+		t.Errorf("refresh calls = %d, want 0", s.refreshCalls)
+	}
+	if len(rec.Result().Cookies()) != 0 {
+		t.Errorf("cookies = %v, want none", rec.Result().Cookies())
+	}
+}
+
+func TestAuthenticatorWithoutRefreshWithoutCookie(t *testing.T) {
+	a, factory := newTestAuthenticatorWithoutRefresh(&sessionFake{})
+
+	_, err := a.Authenticate(httptest.NewRecorder(), authRequest(""))
+
+	if !errors.Is(err, ErrUnauthenticated) {
+		t.Fatalf("error = %v, want %v", err, ErrUnauthenticated)
+	}
+	if factory.calls != 0 {
+		t.Errorf("factory calls = %d, want 0", factory.calls)
+	}
+}
+
+func TestAuthenticatorRefreshesWhenNoOptionIsGiven(t *testing.T) {
+	s := &sessionFake{
+		authErr:     ErrUnauthenticated,
+		refSealed:   "sealed-2",
+		refIdentity: requestcontext.Identity{UserID: "user_1"},
+	}
+	a, _ := newTestAuthenticator(s)
+
+	if _, err := a.Authenticate(httptest.NewRecorder(), authRequest("sealed-1")); err != nil {
+		t.Fatalf("error = %v, want nil", err)
+	}
+	if s.refreshCalls != 1 {
+		t.Errorf("refresh calls = %d, want 1", s.refreshCalls)
+	}
+}
