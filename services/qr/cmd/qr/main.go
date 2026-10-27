@@ -70,7 +70,13 @@ func main() {
 	mux := http.NewServeMux()
 	h.Register(mux)
 
-	lotEvents := registerRoutes(mux, log, messages, rt.deps)
+	authn, err := loadAuth(log, config.String("STORAGE", "postgres"))
+	if err != nil {
+		log.Error("invalid configuration", "err", err)
+		os.Exit(1)
+	}
+
+	lotEvents := registerRoutes(mux, log, messages, rt.deps, authn)
 
 	var brokerLost atomic.Bool
 	if rt.consumer != nil {

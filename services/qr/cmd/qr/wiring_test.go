@@ -28,6 +28,12 @@ type harness struct {
 func newHarness(t *testing.T) harness {
 	t.Helper()
 
+	return newHarnessWith(t, authn{mode: authModeDevHeader})
+}
+
+func newHarnessWith(t *testing.T, auth authn) harness {
+	t.Helper()
+
 	messages, err := catalog.New()
 	if err != nil {
 		t.Fatalf("catalog: %v", err)
@@ -37,7 +43,7 @@ func newHarness(t *testing.T) harness {
 	handler := registerRoutes(mux, slog.New(slog.NewTextHandler(io.Discard, nil)), messages, dependencies{
 		publicBaseURL: "https://rutadeorigen.co",
 		cacheTTL:      time.Minute,
-	})
+	}, auth)
 	return harness{mux: mux, lotCreated: handler}
 }
 
