@@ -27,6 +27,7 @@ var statusByKind = map[exception.Kind]int{
 	exception.KindConflict:     http.StatusConflict,
 	exception.KindInternal:     http.StatusInternalServerError,
 	exception.KindUnauthorized: http.StatusUnauthorized,
+	exception.KindUnavailable:  http.StatusServiceUnavailable,
 }
 
 type ErrorResponder struct {
