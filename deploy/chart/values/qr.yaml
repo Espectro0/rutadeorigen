@@ -3,3 +3,6 @@ services:
     tag: "3f22cf1116f59c86914a94539cbe3d2b57db4a46"
     replicas: 1
     envFromSecret: qr-db
+    paths:
+      - /public/
+      - /l/
