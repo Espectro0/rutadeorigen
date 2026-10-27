@@ -80,8 +80,8 @@ func assertKind(t *testing.T, err error, want exception.Kind) {
 }
 
 func TestActorActive(t *testing.T) {
-	active, _ := actor.New("user_01", actor.TypeProducer, "Finca La Esperanza")
-	inactive := actor.Restore(uuid.New(), "user_02", actor.TypeRoaster, "Tostadora Andina",
+	active, _ := actor.New("user_01", actor.TypeProducer, "Finca La Esperanza", "user_01@example.com")
+	inactive := actor.Restore(uuid.New(), "user_02", actor.TypeRoaster, "Tostadora Andina", "user_02@example.com",
 		actor.StatusInactive, time.Now())
 
 	t.Run("returns the actor when it exists and is active", func(t *testing.T) {
@@ -269,4 +269,12 @@ func TestLotVersion(t *testing.T) {
 			t.Errorf("got %v, want code %q", err, exception.CodeLotNotFound)
 		}
 	})
+}
+
+func (r fakeActorRepository) FindByUserID(_ context.Context, _ string) (*actor.Actor, error) {
+	return actor.Default(), nil
+}
+
+func (r fakeActorRepository) Save(_ context.Context, _ *actor.Actor) error {
+	return nil
 }

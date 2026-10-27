@@ -9,6 +9,7 @@ const (
 	CodeForbidden          Code = "FORBIDDEN"
 	CodeInvalidCursor      Code = "INVALID_CURSOR"
 	CodeInvalidLimit       Code = "INVALID_LIMIT"
+	CodeAuthUnavailable    Code = "AUTH_UNAVAILABLE"
 )
 
 const (
@@ -36,7 +37,9 @@ const (
 
 	CodeActorInvalidUserID Code = "TRACEABILITY_ACTOR_INVALID_USER_ID"
 	CodeActorInvalidName   Code = "TRACEABILITY_ACTOR_INVALID_NAME"
+	CodeActorInvalidEmail  Code = "TRACEABILITY_ACTOR_INVALID_EMAIL"
 	CodeActorInvalidType   Code = "TRACEABILITY_ACTOR_INVALID_TYPE"
+	CodeActorAlreadyExists Code = "TRACEABILITY_ACTOR_ALREADY_EXISTS"
 	CodeActorNotFound      Code = "TRACEABILITY_ACTOR_NOT_FOUND"
 
 	CodeFarmInvalidProducer Code = "TRACEABILITY_FARM_INVALID_PRODUCER"
@@ -67,6 +70,7 @@ var kindByCode = map[Code]Kind{
 	CodeForbidden:          KindForbidden,
 	CodeInvalidCursor:      KindValidation,
 	CodeInvalidLimit:       KindValidation,
+	CodeAuthUnavailable:    KindUnavailable,
 
 	CodeLotInvalidCode:              KindValidation,
 	CodeLotInvalidVariety:           KindValidation,
@@ -92,7 +96,9 @@ var kindByCode = map[Code]Kind{
 
 	CodeActorInvalidUserID: KindValidation,
 	CodeActorInvalidName:   KindValidation,
+	CodeActorInvalidEmail:  KindValidation,
 	CodeActorInvalidType:   KindValidation,
+	CodeActorAlreadyExists: KindConflict,
 	CodeActorNotFound:      KindNotFound,
 
 	CodeFarmInvalidProducer: KindValidation,

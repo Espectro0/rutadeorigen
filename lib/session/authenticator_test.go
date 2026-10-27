@@ -8,24 +8,26 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"rutadeorigen/lib/requestcontext"
 )
 
 type sessionFake struct {
-	authUserID   string
+	authIdentity requestcontext.Identity
 	authErr      error
 	refSealed    string
-	refUserID    string
+	refIdentity  requestcontext.Identity
 	refErr       error
 	refreshCalls int
 }
 
-func (s *sessionFake) Authenticate() (string, error) {
-	return s.authUserID, s.authErr
+func (s *sessionFake) Authenticate() (requestcontext.Identity, error) {
+	return s.authIdentity, s.authErr
 }
 
-func (s *sessionFake) Refresh(_ context.Context) (string, string, error) {
+func (s *sessionFake) Refresh(_ context.Context) (string, requestcontext.Identity, error) {
 	s.refreshCalls++
-	return s.refSealed, s.refUserID, s.refErr
+	return s.refSealed, s.refIdentity, s.refErr
 }
 
 type factoryFake struct {
@@ -57,13 +59,13 @@ func TestAuthenticatorWithoutCookie(t *testing.T) {
 	a, factory := newTestAuthenticator(&sessionFake{})
 	rec := httptest.NewRecorder()
 
-	userID, err := a.Authenticate(rec, authRequest(""))
+	identity, err := a.Authenticate(rec, authRequest(""))
 
 	if !errors.Is(err, ErrUnauthenticated) {
 		t.Fatalf("error = %v, want %v", err, ErrUnauthenticated)
 	}
-	if userID != "" {
-		t.Errorf("userID = %q, want empty", userID)
+	if identity != (requestcontext.Identity{}) {
+		t.Errorf("identity = %+v, want empty", identity)
 	}
 	if factory.calls != 0 {
 		t.Errorf("factory calls = %d, want 0", factory.calls)
@@ -74,17 +76,17 @@ func TestAuthenticatorWithoutCookie(t *testing.T) {
 }
 
 func TestAuthenticatorValidSession(t *testing.T) {
-	s := &sessionFake{authUserID: "user_1"}
+	s := &sessionFake{authIdentity: requestcontext.Identity{UserID: "user_1", Email: "user_1@example.com"}}
 	a, factory := newTestAuthenticator(s)
 	rec := httptest.NewRecorder()
 
-	userID, err := a.Authenticate(rec, authRequest("sealed-1"))
+	identity, err := a.Authenticate(rec, authRequest("sealed-1"))
 
 	if err != nil {
 		t.Fatalf("error = %v, want nil", err)
 	}
-	if userID != "user_1" {
-		t.Errorf("userID = %q, want %q", userID, "user_1")
+	if want := (requestcontext.Identity{UserID: "user_1", Email: "user_1@example.com"}); identity != want {
+		t.Errorf("identity = %+v, want %+v", identity, want)
 	}
 	if factory.gotSeal != "sealed-1" {
 		t.Errorf("factory received %q, want %q", factory.gotSeal, "sealed-1")
@@ -99,20 +101,20 @@ func TestAuthenticatorValidSession(t *testing.T) {
 
 func TestAuthenticatorRefreshesExpiredSession(t *testing.T) {
 	s := &sessionFake{
-		authErr:   ErrUnauthenticated,
-		refSealed: "sealed-2",
-		refUserID: "user_1",
+		authErr:     ErrUnauthenticated,
+		refSealed:   "sealed-2",
+		refIdentity: requestcontext.Identity{UserID: "user_1", Email: "renewed@example.com"},
 	}
 	a, _ := newTestAuthenticator(s)
 	rec := httptest.NewRecorder()
 
-	userID, err := a.Authenticate(rec, authRequest("sealed-1"))
+	identity, err := a.Authenticate(rec, authRequest("sealed-1"))
 
 	if err != nil {
 		t.Fatalf("error = %v, want nil", err)
 	}
-	if userID != "user_1" {
-		t.Errorf("userID = %q, want %q", userID, "user_1")
+	if want := (requestcontext.Identity{UserID: "user_1", Email: "renewed@example.com"}); identity != want {
+		t.Errorf("identity = %+v, want %+v", identity, want)
 	}
 	if s.refreshCalls != 1 {
 		t.Errorf("refresh calls = %d, want 1", s.refreshCalls)
@@ -131,13 +133,13 @@ func TestAuthenticatorClearsCookieWhenRefreshIsRejected(t *testing.T) {
 	a, _ := newTestAuthenticator(s)
 	rec := httptest.NewRecorder()
 
-	userID, err := a.Authenticate(rec, authRequest("sealed-1"))
+	identity, err := a.Authenticate(rec, authRequest("sealed-1"))
 
 	if !errors.Is(err, ErrUnauthenticated) {
 		t.Fatalf("error = %v, want %v", err, ErrUnauthenticated)
 	}
-	if userID != "" {
-		t.Errorf("userID = %q, want empty", userID)
+	if identity != (requestcontext.Identity{}) {
+		t.Errorf("identity = %+v, want empty", identity)
 	}
 	c := findCookie(t, rec, defaultCookieName)
 	if c.MaxAge >= 0 || c.Value != "" {
@@ -181,20 +183,20 @@ func TestAuthenticatorDoesNotRefreshWhenValidationIsUnavailable(t *testing.T) {
 
 func TestAuthenticatorFailsWhenRefreshedCookieIsTooLarge(t *testing.T) {
 	s := &sessionFake{
-		authErr:   ErrUnauthenticated,
-		refSealed: strings.Repeat("a", maxCookieValueBytes+1),
-		refUserID: "user_1",
+		authErr:     ErrUnauthenticated,
+		refSealed:   strings.Repeat("a", maxCookieValueBytes+1),
+		refIdentity: requestcontext.Identity{UserID: "user_1", Email: "user_1@example.com"},
 	}
 	a, _ := newTestAuthenticator(s)
 	rec := httptest.NewRecorder()
 
-	userID, err := a.Authenticate(rec, authRequest("sealed-1"))
+	identity, err := a.Authenticate(rec, authRequest("sealed-1"))
 
 	if !errors.Is(err, ErrCookieTooLarge) {
 		t.Fatalf("error = %v, want %v", err, ErrCookieTooLarge)
 	}
-	if userID != "" {
-		t.Errorf("userID = %q, want empty", userID)
+	if identity != (requestcontext.Identity{}) {
+		t.Errorf("identity = %+v, want empty", identity)
 	}
 	if len(rec.Result().Cookies()) != 0 {
 		t.Errorf("cookies = %v, want none", rec.Result().Cookies())
@@ -220,11 +222,46 @@ type ctxSessionFake struct {
 	onRefresh func(ctx context.Context)
 }
 
-func (s *ctxSessionFake) Authenticate() (string, error) {
-	return "", ErrUnauthenticated
+func (s *ctxSessionFake) Authenticate() (requestcontext.Identity, error) {
+	return requestcontext.Identity{}, ErrUnauthenticated
 }
 
-func (s *ctxSessionFake) Refresh(ctx context.Context) (string, string, error) {
+func (s *ctxSessionFake) Refresh(ctx context.Context) (string, requestcontext.Identity, error) {
 	s.onRefresh(ctx)
-	return "sealed-2", "user_1", nil
+	return "sealed-2", requestcontext.Identity{UserID: "user_1"}, nil
+}
+
+func TestAuthenticatorKeepsTheEmailOfAValidSession(t *testing.T) {
+	s := &sessionFake{
+		authIdentity: requestcontext.Identity{UserID: "user_1", Email: "user_1@example.com"},
+		refIdentity:  requestcontext.Identity{UserID: "user_1", Email: "other@example.com"},
+	}
+	a, _ := newTestAuthenticator(s)
+
+	identity, err := a.Authenticate(httptest.NewRecorder(), authRequest("sealed-1"))
+
+	if err != nil {
+		t.Fatalf("error = %v, want nil", err)
+	}
+	if identity.Email != "user_1@example.com" {
+		t.Errorf("email = %q, want the email of the current session", identity.Email)
+	}
+}
+
+func TestAuthenticatorReturnsEmptyIdentityWhenRefreshIsUnavailable(t *testing.T) {
+	s := &sessionFake{
+		authErr:     ErrUnauthenticated,
+		refErr:      ErrAuthUnavailable,
+		refIdentity: requestcontext.Identity{UserID: "user_1", Email: "user_1@example.com"},
+	}
+	a, _ := newTestAuthenticator(s)
+
+	identity, err := a.Authenticate(httptest.NewRecorder(), authRequest("sealed-1"))
+
+	if !errors.Is(err, ErrAuthUnavailable) {
+		t.Fatalf("error = %v, want %v", err, ErrAuthUnavailable)
+	}
+	if identity != (requestcontext.Identity{}) {
+		t.Errorf("identity = %+v, want empty", identity)
+	}
 }

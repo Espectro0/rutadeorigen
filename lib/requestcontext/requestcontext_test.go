@@ -103,3 +103,95 @@ func TestUserIDMissingReturnsEmpty(t *testing.T) {
 		t.Fatalf("UserID = %q, want empty", got)
 	}
 }
+
+func TestEmailRoundTrip(t *testing.T) {
+	ctx := requestcontext.WithEmail(context.Background(), "producer@example.com")
+
+	if got := requestcontext.Email(ctx); got != "producer@example.com" {
+		t.Fatalf("Email = %q, want %q", got, "producer@example.com")
+	}
+}
+
+func TestEmailMissingReturnsEmpty(t *testing.T) {
+	if got := requestcontext.Email(context.Background()); got != "" {
+		t.Fatalf("Email = %q, want empty", got)
+	}
+}
+
+func TestEmailAndUserIDAreIndependent(t *testing.T) {
+	ctx := requestcontext.WithUserID(context.Background(), "user_01H")
+
+	if got := requestcontext.Email(ctx); got != "" {
+		t.Errorf("Email = %q, want empty", got)
+	}
+
+	ctx = requestcontext.WithEmail(ctx, "producer@example.com")
+	if got := requestcontext.UserID(ctx); got != "user_01H" {
+		t.Errorf("UserID = %q, want %q", got, "user_01H")
+	}
+}
+
+func TestFirstNameRoundTrip(t *testing.T) {
+	ctx := requestcontext.WithFirstName(context.Background(), "Juan")
+
+	if got := requestcontext.FirstName(ctx); got != "Juan" {
+		t.Fatalf("FirstName = %q, want %q", got, "Juan")
+	}
+}
+
+func TestFirstNameMissingReturnsEmpty(t *testing.T) {
+	if got := requestcontext.FirstName(context.Background()); got != "" {
+		t.Fatalf("FirstName = %q, want empty", got)
+	}
+}
+
+func TestLastNameRoundTrip(t *testing.T) {
+	ctx := requestcontext.WithLastName(context.Background(), "Ramírez")
+
+	if got := requestcontext.LastName(ctx); got != "Ramírez" {
+		t.Fatalf("LastName = %q, want %q", got, "Ramírez")
+	}
+}
+
+func TestLastNameMissingReturnsEmpty(t *testing.T) {
+	if got := requestcontext.LastName(context.Background()); got != "" {
+		t.Fatalf("LastName = %q, want empty", got)
+	}
+}
+
+func TestNamesAreIndependentFromEachOtherAndFromOtherValues(t *testing.T) {
+	ctx := requestcontext.WithFirstName(context.Background(), "Juan")
+
+	if got := requestcontext.LastName(ctx); got != "" {
+		t.Errorf("LastName = %q, want empty", got)
+	}
+	if got := requestcontext.Email(ctx); got != "" {
+		t.Errorf("Email = %q, want empty", got)
+	}
+
+	ctx = requestcontext.WithLastName(ctx, "Ramírez")
+	ctx = requestcontext.WithEmail(ctx, "producer@example.com")
+	ctx = requestcontext.WithUserID(ctx, "user_01H")
+
+	if got := requestcontext.FirstName(ctx); got != "Juan" {
+		t.Errorf("FirstName = %q, want %q", got, "Juan")
+	}
+	if got := requestcontext.LastName(ctx); got != "Ramírez" {
+		t.Errorf("LastName = %q, want %q", got, "Ramírez")
+	}
+	if got := requestcontext.Email(ctx); got != "producer@example.com" {
+		t.Errorf("Email = %q, want %q", got, "producer@example.com")
+	}
+	if got := requestcontext.UserID(ctx); got != "user_01H" {
+		t.Errorf("UserID = %q, want %q", got, "user_01H")
+	}
+}
+
+func TestLastStoredNameWins(t *testing.T) {
+	ctx := requestcontext.WithFirstName(context.Background(), "Juan")
+	ctx = requestcontext.WithFirstName(ctx, "Ana")
+
+	if got := requestcontext.FirstName(ctx); got != "Ana" {
+		t.Errorf("FirstName = %q, want %q", got, "Ana")
+	}
+}

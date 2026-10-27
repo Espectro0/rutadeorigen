@@ -69,7 +69,7 @@ func (a *fakeAuthorizer) IsAllowed(_ context.Context, s ports.Subject, act ports
 func activeActor(t *testing.T) *actor.Actor {
 	t.Helper()
 
-	a, err := actor.New("user_01", actor.TypeProducer, "Finca La Esperanza SAS")
+	a, err := actor.New("user_01", actor.TypeProducer, "Finca La Esperanza SAS", "user_01@example.com")
 	if err != nil {
 		t.Fatalf("cannot build actor: %v", err)
 	}
@@ -195,4 +195,12 @@ func TestGetLotExecute(t *testing.T) {
 			t.Errorf("the cause must be preserved, got %v", err)
 		}
 	})
+}
+
+func (f fakeActors) FindByUserID(_ context.Context, _ string) (*actor.Actor, error) {
+	return actor.Default(), nil
+}
+
+func (f fakeActors) Save(_ context.Context, _ *actor.Actor) error {
+	return nil
 }

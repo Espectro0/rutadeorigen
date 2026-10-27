@@ -26,6 +26,10 @@ func ApplyTrim(value string) string {
 	return strings.TrimSpace(value)
 }
 
+func ApplyLower(value string) string {
+	return strings.ToLower(value)
+}
+
 func IsEmpty(value string) bool {
 	return ApplyTrim(value) == EmptyString
 }

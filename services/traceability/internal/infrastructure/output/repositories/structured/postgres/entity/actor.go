@@ -11,6 +11,7 @@ type Actor struct {
 	UserID    string    `db:"user_id"`
 	Type      string    `db:"type"`
 	Name      string    `db:"name"`
+	Email     string    `db:"email"`
 	Status    string    `db:"status"`
 	CreatedAt time.Time `db:"created_at"`
 }

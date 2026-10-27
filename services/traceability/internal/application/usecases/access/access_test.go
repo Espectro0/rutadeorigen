@@ -46,7 +46,7 @@ func (p *fakePublisher) Publish(_ context.Context, e ports.Event) error {
 
 func newActor(t *testing.T) *actor.Actor {
 	t.Helper()
-	a, err := actor.New("user_01", actor.TypeProducer, "Finca La Esperanza SAS")
+	a, err := actor.New("user_01", actor.TypeProducer, "Finca La Esperanza SAS", "user_01@example.com")
 	if err != nil {
 		t.Fatal(err)
 	}

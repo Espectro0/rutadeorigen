@@ -70,6 +70,18 @@ func Required(key string) (string, error) {
 	return v, nil
 }
 
+func Bool(key string, def bool) (bool, error) {
+	v := String(key, "")
+	if v == "" {
+		return def, nil
+	}
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		return def, fmt.Errorf("%s: %w", key, err)
+	}
+	return b, nil
+}
+
 func String(key, def string) string {
 	if v, ok := os.LookupEnv(key); ok && v != "" {
 		return v

@@ -14,7 +14,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sony/gobreaker"
 	"github.com/workos/workos-go/v10"
+
+	"rutadeorigen/lib/resilience"
 )
 
 const (
@@ -111,6 +114,7 @@ type workosServer struct {
 	authStatus   int
 	authBody     any
 	authRequests []map[string]any
+	jwksHits     int
 }
 
 func newWorkOSServer(t *testing.T) *workosServer {
@@ -121,6 +125,7 @@ func newWorkOSServer(t *testing.T) *workosServer {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/sso/jwks/"+testClientID, func(w http.ResponseWriter, _ *http.Request) {
 		ws.mu.Lock()
+		ws.jwksHits++
 		status := ws.jwksStatus
 		ws.mu.Unlock()
 		if status != http.StatusOK {
@@ -171,6 +176,12 @@ func (ws *workosServer) setAuthResponse(status int, body any) {
 	ws.authBody = body
 }
 
+func (ws *workosServer) jwksRequests() int {
+	ws.mu.Lock()
+	defer ws.mu.Unlock()
+	return ws.jwksHits
+}
+
 func (ws *workosServer) requests() []map[string]any {
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
@@ -183,6 +194,16 @@ func (ws *workosServer) client() *workos.Client {
 		workos.WithBaseURL(ws.URL),
 		workos.WithClientID(testClientID),
 		workos.WithMaxRetries(0),
+	)
+}
+
+func (ws *workosServer) protectedClient(breaker *gobreaker.CircuitBreaker) *workos.Client {
+	return workos.NewClient(
+		"sk_test",
+		workos.WithBaseURL(ws.URL),
+		workos.WithClientID(testClientID),
+		workos.WithMaxRetries(0),
+		workos.WithHTTPClient(&http.Client{Transport: resilience.NewTransport(breaker, nil)}),
 	)
 }
 

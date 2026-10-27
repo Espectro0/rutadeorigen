@@ -9,4 +9,5 @@ const (
 	KindInternal     Kind = "internal"
 	KindForbidden    Kind = "forbidden"
 	KindUnauthorized Kind = "unauthorized"
+	KindUnavailable  Kind = "unavailable"
 )

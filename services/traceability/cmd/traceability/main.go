@@ -46,7 +46,8 @@ func main() {
 	var pool *pgxpool.Pool
 	var brokerLost atomic.Bool
 
-	switch storage := config.String("STORAGE", "postgres"); storage {
+	storage := config.String("STORAGE", "postgres")
+	switch storage {
 	case "postgres":
 		dsn, err := config.Required("DATABASE_URL")
 		if err != nil {
@@ -96,11 +97,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	authn, err := loadAuth(log, storage)
+	if err != nil {
+		log.Error("invalid configuration", "err", err)
+		os.Exit(1)
+	}
+
 	h := health.New(log, 2*time.Second, checkers...)
 	mux := http.NewServeMux()
 	h.Register(mux)
 
-	registerRoutes(mux, log, pool, messages)
+	registerRoutes(mux, log, pool, messages, authn)
 
 	if err := app.Run(ctx, app.Params{Config: cfg, Logger: log, Handler: mux, Health: h, Closers: closers}); err != nil || brokerLost.Load() {
 		log.Error("service stopped with error", "err", err)

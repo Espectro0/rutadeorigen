@@ -6,6 +6,8 @@ import (
 	"fmt"
 
 	"github.com/workos/workos-go/v10"
+
+	"rutadeorigen/lib/requestcontext"
 )
 
 type workosSession struct {
@@ -18,33 +20,42 @@ func NewWorkOSFactory(client *workos.Client, cookiePassword string) Factory {
 	}
 }
 
-func (s *workosSession) Authenticate() (string, error) {
+func (s *workosSession) Authenticate() (requestcontext.Identity, error) {
 	result, err := s.inner.Authenticate()
 	if errors.Is(err, workos.ErrSigningKeyUnavailable) {
-		return "", fmt.Errorf("%w: %w", ErrAuthUnavailable, err)
+		return requestcontext.Identity{}, fmt.Errorf("%w: %w", ErrAuthUnavailable, err)
 	}
 	if err != nil || result == nil || !result.Authenticated {
-		return "", ErrUnauthenticated
+		return requestcontext.Identity{}, ErrUnauthenticated
 	}
 	if result.User == nil || result.User.ID == "" {
-		return "", ErrUnauthenticated
+		return requestcontext.Identity{}, ErrUnauthenticated
 	}
-	return result.User.ID, nil
+	return identityFrom(result.User), nil
 }
 
-func (s *workosSession) Refresh(ctx context.Context) (string, string, error) {
+func (s *workosSession) Refresh(ctx context.Context) (string, requestcontext.Identity, error) {
 	result, err := s.inner.Refresh(ctx)
 	if err != nil {
 		if result != nil && result.Reason == reasonRefreshTokenRevoked {
-			return "", "", ErrUnauthenticated
+			return "", requestcontext.Identity{}, ErrUnauthenticated
 		}
-		return "", "", fmt.Errorf("%w: %w", ErrAuthUnavailable, err)
+		return "", requestcontext.Identity{}, fmt.Errorf("%w: %w", ErrAuthUnavailable, err)
 	}
 	if result == nil || !result.Authenticated || result.Session == nil {
-		return "", "", ErrUnauthenticated
+		return "", requestcontext.Identity{}, ErrUnauthenticated
 	}
 	if result.Session.User == nil || result.Session.User.ID == "" {
-		return "", "", ErrUnauthenticated
+		return "", requestcontext.Identity{}, ErrUnauthenticated
 	}
-	return result.SealedSession, result.Session.User.ID, nil
+	return result.SealedSession, identityFrom(result.Session.User), nil
+}
+
+func identityFrom(user *workos.User) requestcontext.Identity {
+	return requestcontext.Identity{
+		UserID:    user.ID,
+		Email:     user.Email,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+	}
 }

@@ -28,7 +28,7 @@ func newTestServer(t *testing.T) (*http.ServeMux, *bytes.Buffer) {
 
 	var logs bytes.Buffer
 	mux := http.NewServeMux()
-	registerRoutes(mux, slog.New(slog.NewJSONHandler(&logs, nil)), nil, messages)
+	registerRoutes(mux, slog.New(slog.NewJSONHandler(&logs, nil)), nil, messages, authn{mode: authModeDevHeader})
 	return mux, &logs
 }
 
