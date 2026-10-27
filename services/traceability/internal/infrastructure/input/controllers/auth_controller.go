@@ -133,7 +133,7 @@ func (c *AuthController) redirectFailure(w http.ResponseWriter, r *http.Request,
 
 func redirect(w http.ResponseWriter, r *http.Request, target string) {
 	w.Header().Set("Cache-Control", "no-store")
-	http.Redirect(w, r, target, http.StatusFound)
+	http.Redirect(w, r, target, http.StatusFound) //nolint:gosec // target is a configured url or the provider logout url, never request input
 }
 
 func failureReason(err error) string {
@@ -152,7 +152,7 @@ func failureReason(err error) string {
 func validateRedirect(raw string) error {
 	parsed, err := url.Parse(raw)
 	if err != nil {
-		return err
+		return fmt.Errorf("parse redirect url: %w", err)
 	}
 	if (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
 		return fmt.Errorf("%q must be an absolute http(s) url", raw)

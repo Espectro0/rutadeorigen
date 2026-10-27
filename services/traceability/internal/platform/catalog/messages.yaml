@@ -46,3 +46,5 @@ TRACEABILITY_STAGE_INVALID_GRIND: "El tipo de molienda no es válido."
 TRACEABILITY_STAGE_INVALID_PACKAGE_WEIGHT: "El peso del paquete no es válido."
 TRACEABILITY_STAGE_INVALID_UNIT: "La unidad de medida no es válida."
 TRACEABILITY_STAGE_INVALID_BEST_BEFORE: "La fecha de consumo preferente no es válida."
+
+AUTH_UNAVAILABLE: "No pudimos verificar tu sesión en este momento. Inténtalo de nuevo en unos minutos."

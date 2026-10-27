@@ -53,7 +53,7 @@ func (c Cookie) Set(w http.ResponseWriter, sealed string) error {
 	if len(sealed) > maxCookieValueBytes {
 		return ErrCookieTooLarge
 	}
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ //nolint:gosec // Secure and SameSite come from configuration
 		Name:     c.cfg.Name,
 		Value:    sealed,
 		Path:     c.cfg.Path,
@@ -67,7 +67,7 @@ func (c Cookie) Set(w http.ResponseWriter, sealed string) error {
 }
 
 func (c Cookie) Clear(w http.ResponseWriter) {
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ //nolint:gosec // Secure and SameSite come from configuration
 		Name:     c.cfg.Name,
 		Value:    "",
 		Path:     c.cfg.Path,

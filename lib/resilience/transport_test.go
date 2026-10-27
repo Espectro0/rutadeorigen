@@ -51,6 +51,17 @@ func get(t *testing.T, client *http.Client, target string) (*http.Response, erro
 	return client.Do(req)
 }
 
+func getErr(t *testing.T, client *http.Client, target string) error {
+	t.Helper()
+
+	resp, err := get(t, client, target)
+	if err != nil {
+		return err
+	}
+	drain(t, resp)
+	return nil
+}
+
 func drain(t *testing.T, resp *http.Response) string {
 	t.Helper()
 
@@ -134,7 +145,7 @@ func TestTransportOpensAfterConsecutiveServerErrors(t *testing.T) {
 				t.Fatalf("State = %v, want open", breaker.State())
 			}
 
-			_, err := get(t, client, srv.URL)
+			err := getErr(t, client, srv.URL)
 
 			if !errors.Is(err, gobreaker.ErrOpenState) {
 				t.Errorf("error = %v, want %v", err, gobreaker.ErrOpenState)
@@ -180,12 +191,12 @@ func TestTransportOpensAfterTransportErrors(t *testing.T) {
 	client := clientWith(breaker, base)
 
 	for i := 0; i < 5; i++ {
-		_, err := get(t, client, "http://dependency.invalid/")
+		err := getErr(t, client, "http://dependency.invalid/")
 		if !errors.Is(err, errBoom) {
 			t.Fatalf("request %d: error = %v, want %v", i+1, err, errBoom)
 		}
 	}
-	_, err := get(t, client, "http://dependency.invalid/")
+	err := getErr(t, client, "http://dependency.invalid/")
 
 	if !errors.Is(err, gobreaker.ErrOpenState) {
 		t.Errorf("error = %v, want %v", err, gobreaker.ErrOpenState)
@@ -310,7 +321,7 @@ func TestTransportReopensWhenTheProbeFails(t *testing.T) {
 	}
 	hits := srv.hits.Load()
 
-	_, err = get(t, client, srv.URL)
+	err = getErr(t, client, srv.URL)
 
 	if !errors.Is(err, gobreaker.ErrOpenState) {
 		t.Errorf("error = %v, want %v", err, gobreaker.ErrOpenState)

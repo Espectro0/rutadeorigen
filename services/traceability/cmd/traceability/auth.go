@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"rutadeorigen/lib/resilience"
 	"time"
 
 	"github.com/workos/workos-go/v10"
 
 	"rutadeorigen/lib/config"
 	libmiddleware "rutadeorigen/lib/httpserver/middleware"
+	"rutadeorigen/lib/resilience"
 	"rutadeorigen/lib/session"
 	"rutadeorigen/traceability/internal/infrastructure/input/controllers"
 )

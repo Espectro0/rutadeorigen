@@ -3,7 +3,6 @@ package main
 import (
 	"log/slog"
 	"net/http"
-	registeractoruc "rutadeorigen/traceability/internal/application/usecases/registeractor"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -22,6 +21,7 @@ import (
 	getlotuc "rutadeorigen/traceability/internal/application/usecases/getlot"
 	listfarmuc "rutadeorigen/traceability/internal/application/usecases/listfarm"
 	listlotsuc "rutadeorigen/traceability/internal/application/usecases/listlots"
+	registeractoruc "rutadeorigen/traceability/internal/application/usecases/registeractor"
 	registerstageuc "rutadeorigen/traceability/internal/application/usecases/registerstage"
 	resolveactoruc "rutadeorigen/traceability/internal/application/usecases/resolveactor"
 	"rutadeorigen/traceability/internal/infrastructure/input/controllers"
