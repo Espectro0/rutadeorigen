@@ -1,6 +1,6 @@
 services:
   web:
-    tag: "pending"
+    tag: "2bea015685c84d77793c346b87d459edb3c50661"
     replicas: 1
     rateLimit: false
     paths:
