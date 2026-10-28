@@ -6,6 +6,7 @@
   "Home": {
     "title": "Ruta de Origen",
     "subtitle": "From the farm to your cup, without losing the trace.",
+    "info": "Currently you are on a test origin path page, this is a test site to demonstrate the functionality of the application, it is open source and protected under license.",
     "login": "Log in"
   },
   "Errors": {
@@ -28,11 +29,6 @@
     "loading": "Loading…",
     "retry": "Retry",
     "reference": "Reference"
-  },
-  "Login": {
-    "title": "Log in",
-    "subtitle": "Log in to register and track your coffee's traceability.",
-    "submit": "Submit"
   },
   "Onboarding": {
     "title": "Tell us who you are",
