@@ -44,6 +44,10 @@ spec:
               value: {{ $.Values.port | quote }}
             - name: LOG_LEVEL
               value: {{ $svc.logLevel | default $.Values.logLevel | quote }}
+            {{- range $key, $value := $svc.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
           {{- with $svc.envFromSecret }}
           envFrom:
             - secretRef:
@@ -74,5 +78,19 @@ spec:
             capabilities:
               drop: ["ALL"]
           resources:
-            {{- toYaml $.Values.resources | nindent 12 }}
+            {{- toYaml ($svc.resources | default $.Values.resources) | nindent 12 }}
+          {{- with $svc.writablePaths }}
+          volumeMounts:
+            {{- range $i, $path := . }}
+            - name: writable-{{ $i }}
+              mountPath: {{ $path }}
+            {{- end }}
+          {{- end }}
+      {{- with $svc.writablePaths }}
+      volumes:
+        {{- range $i, $path := . }}
+        - name: writable-{{ $i }}
+          emptyDir: {}
+        {{- end }}
+      {{- end }}
 {{- end }}

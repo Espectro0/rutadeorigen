@@ -33,5 +33,17 @@ spec:
         - name: {{ $name }}
           port: 80
     {{- end }}
+    {{- if $svc.apiPaths }}
+    - kind: Rule
+      match: Host(`{{ $.Values.ingress.host }}`) && ({{ range $i, $path := $svc.apiPaths }}{{ if $i }} || {{ end }}PathPrefix(`{{ $path }}`){{ end }})
+      middlewares:
+        - name: strip-api
+        {{- if $rl.enabled }}
+        - name: rate-limit
+        {{- end }}
+      services:
+        - name: {{ $name }}
+          port: 80
+    {{- end }}
     {{- end }}
 {{- end }}

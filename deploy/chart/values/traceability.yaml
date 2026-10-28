@@ -5,9 +5,10 @@ services:
     envFromSecret: traceability-db
     paths:
       - /auth/
-      - /me
-      - /farms
-      - /lots
+    apiPaths:
+      - /api/me
+      - /api/farms
+      - /api/lots
     autoscaling:
       enabled: true
       min: 2

@@ -17,6 +17,7 @@ spec:
         - values/traceability.yaml
         - values/processor.yaml
         - values/notifications.yaml
+        - values/web.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: rutadeorigen
