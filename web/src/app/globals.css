@@ -1,26 +1,87 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --ground: #eae3d5;
+  --ground-raised: #e2d8c5;
+  --ground-deep: #ffffff;
+  --ink: #241c14;
+  --ink-dim: #5b4f3f;
+  --hairline: #cdbe9e;
+  --terracotta: #b84b29;
+  --terracotta-deep: #8f3a1f;
+  --ochre: #8a5f14;
+  --verified: #1b5648;
+  --on-accent: #17110a;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --ground: #15110d;
+    --ground-raised: #1e1710;
+    --ground-deep: #0d0a07;
+    --ink: #f3eadc;
+    --ink-dim: #b9ac98;
+    --hairline: #372c1f;
+    --terracotta: #d9673d;
+    --terracotta-deep: #b84b29;
+    --ochre: #d9a22c;
+    --verified: #3d9a83;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@theme inline {
+  --color-ground: var(--ground);
+  --color-ground-raised: var(--ground-raised);
+  --color-ground-deep: var(--ground-deep);
+  --color-ink: var(--ink);
+  --color-ink-dim: var(--ink-dim);
+  --color-hairline: var(--hairline);
+  --color-terracotta: var(--terracotta);
+  --color-terracotta-deep: var(--terracotta-deep);
+  --color-ochre: var(--ochre);
+  --color-verified: var(--verified);
+  --color-on-accent: var(--on-accent);
+
+  --font-sans: var(--font-dm-sans), system-ui, sans-serif;
+  --font-display: var(--font-space-grotesk), "Arial Narrow", sans-serif;
+  --font-mono: var(--font-space-mono), "Courier New", monospace;
+}
+
+@layer base {
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font-sans);
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+  }
+
+  input,
+  select,
+  textarea {
+    background-color: var(--ground-deep);
+    color: var(--ink);
+    border-color: var(--hairline);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--terracotta);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded px-6 py-3 font-semibold;
+    @apply bg-terracotta text-on-accent transition-colors hover:bg-terracotta-deep;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded border border-hairline px-4 py-2 text-ink;
+    @apply transition-colors hover:bg-ground-raised;
+  }
 }
