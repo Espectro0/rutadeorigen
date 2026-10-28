@@ -2,6 +2,7 @@ services:
   web:
     tag: "pending"
     replicas: 1
+    rateLimit: false
     paths:
       - /
     env:

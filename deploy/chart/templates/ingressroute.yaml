@@ -22,10 +22,12 @@ spec:
           port: 80
     {{- end }}
     {{- range $name, $svc := .Values.services }}
+    {{- $limited := true }}
+    {{- if hasKey $svc "rateLimit" }}{{- $limited = $svc.rateLimit }}{{- end }}
     {{- if $svc.paths }}
     - kind: Rule
       match: Host(`{{ $.Values.ingress.host }}`) && ({{ range $i, $path := $svc.paths }}{{ if $i }} || {{ end }}PathPrefix(`{{ $path }}`){{ end }})
-      {{- if $rl.enabled }}
+      {{- if and $rl.enabled $limited }}
       middlewares:
         - name: rate-limit
       {{- end }}
@@ -38,7 +40,7 @@ spec:
       match: Host(`{{ $.Values.ingress.host }}`) && ({{ range $i, $path := $svc.apiPaths }}{{ if $i }} || {{ end }}PathPrefix(`{{ $path }}`){{ end }})
       middlewares:
         - name: strip-api
-        {{- if $rl.enabled }}
+        {{- if and $rl.enabled $limited }}
         - name: rate-limit
         {{- end }}
       services:
