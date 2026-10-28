@@ -1,0 +1,156 @@
+name: web
+
+on:
+  pull_request:
+    paths:
+      - "web/**"
+      - ".github/workflows/web.yml"
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - ".github/workflows/web.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: CI · Calidad (web)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v7.0.1
+
+      - name: Instalar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Activar pnpm
+        run: corepack enable
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Tipos
+        run: |
+          pnpm exec next typegen
+          pnpm exec tsc --noEmit
+
+      - name: Compilar
+        run: pnpm build
+
+  image:
+    name: CI · Imagen (web)
+    needs: quality
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      image: ${{ steps.nombre.outputs.image }}
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v7.0.1
+
+      - name: Definir nombre de la imagen
+        id: nombre
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/rutadeorigen/web"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Construir imagen
+        run: docker build -f web/Dockerfile -t "$IMAGE:${{ github.sha }}" web
+
+      - name: Escanear imagen
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE }}:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Guardar imagen
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: docker save -o /tmp/imagen.tar "$IMAGE:${{ github.sha }}"
+
+      - name: Subir imagen como artifact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v7
+        with:
+          name: imagen-web
+          path: /tmp/imagen.tar
+          retention-days: 1
+
+  publish:
+    name: CD · Publicar (web)
+    needs: image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ${{ needs.image.outputs.image }}
+    steps:
+      - name: Descargar imagen
+        uses: actions/download-artifact@v8
+        with:
+          name: imagen-web
+          path: /tmp
+
+      - name: Cargar imagen
+        run: docker load -i /tmp/imagen.tar
+
+      - name: Login en GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publicar imagen
+        run: docker push "$IMAGE:${{ github.sha }}"
+
+  deploy:
+    name: CD · Desplegar (web)
+    needs: publish
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    concurrency:
+      group: deploy-main-web
+      cancel-in-progress: false
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: main
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
+
+      - name: Actualizar etiqueta
+        run: yq -i '.services.web.tag = "${{ github.sha }}"' deploy/chart/values/web.yaml
+
+      - name: Commit y push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add deploy/chart/values/web.yaml
+          if git diff --cached --quiet; then
+            echo "Tag is already up to date."
+            exit 0
+          fi
+          git commit -m "chore(deploy): deploy web ${GITHUB_SHA::7}"
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep $((RANDOM % 10 + 3))
+          done
+          exit 1

@@ -1,0 +1,18 @@
+services:
+  web:
+    tag: "pending"
+    replicas: 1
+    rateLimit: false
+    paths:
+      - /
+    env:
+      HOSTNAME: "0.0.0.0"
+    writablePaths:
+      - /tmp
+      - /app/.next/cache
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        memory: 512Mi

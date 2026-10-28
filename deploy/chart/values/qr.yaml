@@ -4,8 +4,9 @@ services:
     replicas: 1
     envFromSecret: qr-db
     paths:
-      - /public/
       - /l/
+    apiPaths:
+      - /api/public/
     autoscaling:
       enabled: true
       min: 2

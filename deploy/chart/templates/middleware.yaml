@@ -31,3 +31,17 @@ spec:
       requestHeaderName: {{ .Values.ingress.rateLimit.sourceHeader }}
 {{- end }}
 {{- end }}
+{{- if .Values.ingress.enabled }}
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-api
+  labels:
+    app.kubernetes.io/name: rutadeorigen
+    app.kubernetes.io/part-of: rutadeorigen
+spec:
+  stripPrefix:
+    prefixes:
+      - /api
+{{- end }}
