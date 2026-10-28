@@ -40,7 +40,9 @@ jobs:
         run: pnpm lint
 
       - name: Tipos
-        run: pnpm exec tsc --noEmit
+        run: |
+          pnpm exec next typegen
+          pnpm exec tsc --noEmit
 
       - name: Compilar
         run: pnpm build
