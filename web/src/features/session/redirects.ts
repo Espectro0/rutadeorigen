@@ -3,6 +3,7 @@ import type { SessionState } from "./types";
 export type ExpectedStatus = SessionState["status"];
 
 export const APP_HOME = "/dashboard";
+export const LOGIN_PAGE = "/";
 
 export function redirectTarget(expected: ExpectedStatus, actual: ExpectedStatus): string {
     if (actual === expected) {
@@ -10,7 +11,7 @@ export function redirectTarget(expected: ExpectedStatus, actual: ExpectedStatus)
     }
     switch (actual) {
         case "unauthenticated":
-            return "/login";
+            return LOGIN_PAGE;
         case "unregistered":
             return "/onboarding";
         case "authenticated":

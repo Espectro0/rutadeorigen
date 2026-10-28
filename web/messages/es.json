@@ -6,6 +6,7 @@
   "Home": {
     "title": "Ruta de Origen",
     "subtitle": "Del campo a tu taza, sin perder el rastro.",
+    "info": "Actualmente estás en una página de prueba de ruta de origen, este es un sitio de prueba para demostrar la funcionalidad de la aplicación, es de código abierto y está protegia bajo licencia.",
     "login": "Iniciar sesión"
   },
   "Errors": {
@@ -28,11 +29,6 @@
     "loading": "Cargando…",
     "retry": "Reintentar",
     "reference": "Referencia"
-  },
-  "Login": {
-    "title": "Inicia sesión",
-    "subtitle": "Accede para registrar y consultar la trazabilidad de tu café.",
-    "submit": "Continuar"
   },
   "Onboarding": {
     "title": "Cuéntanos quién eres",

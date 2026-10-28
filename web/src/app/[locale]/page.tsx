@@ -22,9 +22,11 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
                     {t("title")}
                 </h1>
                 <p className="max-w-md text-lg text-ink-dim">{t("subtitle")}</p>
-                <Link href="/login" className="btn-primary">
+                {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+                <Link href="/auth/login" className="btn-primary">
                     {t("login")}
                 </Link>
+                <p className="max-w-md text-lg text-ink-dim">{t("info")}</p>
             </main>
             <SiteFooter />
         </>
