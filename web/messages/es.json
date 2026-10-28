@@ -5,7 +5,8 @@
   },
   "Home": {
     "title": "Ruta de Origen",
-    "subtitle": "Del campo a tu taza, sin perder el rastro."
+    "subtitle": "Del campo a tu taza, sin perder el rastro.",
+    "login": "Iniciar sesión"
   },
   "Errors": {
     "kind": {
@@ -15,11 +16,53 @@
       "not_found": "No encontramos lo que buscas.",
       "conflict": "La información cambió o ya existe. Intenta de nuevo.",
       "internal": "Ocurrió un error inesperado.",
-      "unavailable": "El servicio no está disponible por ahora."
+      "unavailable": "El servicio no está disponible por ahora.",
+      "unknown": "Ocurrió un error inesperado."
     },
     "code": {
       "TRACEABILITY_LOT_CODE_ALREADY_EXISTS": "Ya existe un lote con ese código."
     },
     "rate_limited": "Demasiadas solicitudes. Espera un momento."
+  },
+  "Session": {
+    "loading": "Cargando…",
+    "retry": "Reintentar",
+    "reference": "Referencia"
+  },
+  "Login": {
+    "title": "Inicia sesión",
+    "subtitle": "Accede para registrar y consultar la trazabilidad de tu café.",
+    "submit": "Continuar"
+  },
+  "Onboarding": {
+    "title": "Cuéntanos quién eres",
+    "subtitle": "Elige tu rol en la cadena y el nombre de tu finca o empresa.",
+    "typeLabel": "Tu rol",
+    "nameLabel": "Nombre de tu finca o empresa",
+    "submit": "Continuar",
+    "submitting": "Guardando…"
+  },
+  "ActorTypes": {
+    "organization": "Organización",
+    "producer": "Productor",
+    "roaster": "Tostador",
+    "brand": "Marca"
+  },
+  "Header": {
+    "brand": "Ruta de Origen",
+    "logout": "Salir",
+    "changeLanguage": "Cambiar a {language}",
+    "languages": {
+      "es": "español",
+      "en": "inglés"
+    }
+  },
+  "Dashboard": {
+    "title": "Tu panel",
+    "subtitle": "Aquí verás tus fincas y lotes."
+  },
+  "Footer": {
+    "openSource": "Este proyecto está bajo licencia y de código abierto.",
+    "repository": "Ver el repositorio"
   }
 }

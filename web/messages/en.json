@@ -5,7 +5,8 @@
   },
   "Home": {
     "title": "Ruta de Origen",
-    "subtitle": "From the farm to your cup, without losing the trace."
+    "subtitle": "From the farm to your cup, without losing the trace.",
+    "login": "Log in"
   },
   "Errors": {
     "kind": {
@@ -15,11 +16,53 @@
       "not_found": "We couldn't find what you're looking for.",
       "conflict": "The information changed or already exists. Try again.",
       "internal": "An unexpected error occurred.",
-      "unavailable": "The service is unavailable right now."
+      "unavailable": "The service is unavailable right now.",
+      "unknown": "An unexpected error occurred."
     },
     "code": {
       "TRACEABILITY_LOT_CODE_ALREADY_EXISTS": "A lot with that code already exists."
     },
     "rate_limited": "Too many requests. Please wait a moment."
+  },
+  "Session": {
+    "loading": "Loading…",
+    "retry": "Retry",
+    "reference": "Reference"
+  },
+  "Login": {
+    "title": "Log in",
+    "subtitle": "Log in to register and track your coffee's traceability.",
+    "submit": "Submit"
+  },
+  "Onboarding": {
+    "title": "Tell us who you are",
+    "subtitle": "Choose your role in the chain and the name of your farm or company.",
+    "typeLabel": "Your role",
+    "nameLabel": "Name of your farm or company",
+    "submit": "Continue",
+    "submitting": "Saving…"
+  },
+  "ActorTypes": {
+    "organization": "Organization",
+    "producer": "Producer",
+    "roaster": "Roaster",
+    "brand": "Brand"
+  },
+  "Header": {
+    "brand": "Ruta de Origen",
+    "logout": "Log out",
+    "changeLanguage": "Change to {language}",
+    "languages": {
+      "es": "spanish",
+      "en": "english"
+    }
+  },
+  "Dashboard": {
+    "title": "Your Panel",
+    "subtitle": "You can see here your farms and lots."
+  },
+  "Footer": {
+    "openSource": "This project is under license and open source.",
+    "repository": "View repository"
   }
 }
