@@ -1,0 +1,25 @@
+{
+  "Metadata": {
+    "title": "Ruta de Origen",
+    "description": "From the farm to your cup, without losing the trace."
+  },
+  "Home": {
+    "title": "Ruta de Origen",
+    "subtitle": "From the farm to your cup, without losing the trace."
+  },
+  "Errors": {
+    "kind": {
+      "validation": "Please check the data you entered.",
+      "unauthorized": "Your session expired. Please sign in again.",
+      "forbidden": "You don't have permission to do this.",
+      "not_found": "We couldn't find what you're looking for.",
+      "conflict": "The information changed or already exists. Try again.",
+      "internal": "An unexpected error occurred.",
+      "unavailable": "The service is unavailable right now."
+    },
+    "code": {
+      "TRACEABILITY_LOT_CODE_ALREADY_EXISTS": "A lot with that code already exists."
+    },
+    "rate_limited": "Too many requests. Please wait a moment."
+  }
+}

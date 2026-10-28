@@ -1,0 +1,25 @@
+{
+  "Metadata": {
+    "title": "Ruta de Origen",
+    "description": "Del campo a tu taza, sin perder el rastro."
+  },
+  "Home": {
+    "title": "Ruta de Origen",
+    "subtitle": "Del campo a tu taza, sin perder el rastro."
+  },
+  "Errors": {
+    "kind": {
+      "validation": "Revisa los datos ingresados.",
+      "unauthorized": "Tu sesión expiró. Inicia sesión de nuevo.",
+      "forbidden": "No tienes permiso para realizar esta acción.",
+      "not_found": "No encontramos lo que buscas.",
+      "conflict": "La información cambió o ya existe. Intenta de nuevo.",
+      "internal": "Ocurrió un error inesperado.",
+      "unavailable": "El servicio no está disponible por ahora."
+    },
+    "code": {
+      "TRACEABILITY_LOT_CODE_ALREADY_EXISTS": "Ya existe un lote con ese código."
+    },
+    "rate_limited": "Demasiadas solicitudes. Espera un momento."
+  }
+}

@@ -1,0 +1,9 @@
+node_modules
+.next
+.git
+.idea
+.impeccable
+.env
+.env.*
+*.log
+Dockerfile
