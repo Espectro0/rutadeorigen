@@ -18,13 +18,15 @@ type Login struct {
 	client         *workos.Client
 	redirectURI    string
 	cookiePassword string
+	sessionOpts    []workos.SessionOption
 }
 
-func NewLogin(client *workos.Client, redirectURI, cookiePassword string) *Login {
+func NewLogin(client *workos.Client, redirectURI, cookiePassword string, opts ...workos.SessionOption) *Login {
 	return &Login{
 		client:         client,
 		redirectURI:    redirectURI,
 		cookiePassword: cookiePassword,
+		sessionOpts:    opts,
 	}
 }
 
@@ -75,7 +77,7 @@ func (l *Login) LogoutURL(ctx context.Context, sealed, returnTo string) (string,
 		return "", ErrUnauthenticated
 	}
 
-	url, err := workos.NewSession(l.client, sealed, l.cookiePassword).GetLogoutURL(ctx, returnTo)
+	url, err := workos.NewSession(l.client, sealed, l.cookiePassword, l.sessionOpts...).GetLogoutURL(ctx, returnTo)
 	if errors.Is(err, workos.ErrSigningKeyUnavailable) {
 		return "", fmt.Errorf("%w: %w", ErrAuthUnavailable, err)
 	}

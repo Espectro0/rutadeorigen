@@ -80,7 +80,8 @@ func loadOIDC(log *slog.Logger) (authn, error) {
 		workos.WithMaxRetries(1),
 	)
 	cookie := session.NewCookie(session.CookieConfig{Domain: domain, Secure: secure})
-	authenticator := session.NewAuthenticator(session.NewWorkOSFactory(client, cookiePassword), cookie, session.WithoutRefresh())
+	issuer := workos.WithSessionIssuer("https://api.workos.com/user_management/" + clientID)
+	authenticator := session.NewAuthenticator(session.NewWorkOSFactory(client, cookiePassword, issuer), cookie, session.WithoutRefresh())
 
 	return authn{mode: authModeOIDC, authenticator: authenticator}, nil
 }

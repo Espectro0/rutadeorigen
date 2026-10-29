@@ -90,8 +90,9 @@ func loadOIDC(log *slog.Logger) (authn, error) {
 	)
 	cookie := session.NewCookie(session.CookieConfig{Domain: domain, Secure: secure})
 	state := session.NewState(session.StateConfig{Domain: domain, Secure: secure})
-	login := session.NewLogin(client, redirectURI, cookiePassword)
-	authenticator := session.NewAuthenticator(session.NewWorkOSFactory(client, cookiePassword), cookie)
+	issuer := workos.WithSessionIssuer("https://api.workos.com/user_management/" + clientID)
+	login := session.NewLogin(client, redirectURI, cookiePassword, issuer)
+	authenticator := session.NewAuthenticator(session.NewWorkOSFactory(client, cookiePassword, issuer), cookie)
 
 	routes, err := controllers.NewAuthController(login, state, cookie, redirects, log)
 	if err != nil {

@@ -14,9 +14,9 @@ type workosSession struct {
 	inner *workos.Session
 }
 
-func NewWorkOSFactory(client *workos.Client, cookiePassword string) Factory {
+func NewWorkOSFactory(client *workos.Client, cookiePassword string, opts ...workos.SessionOption) Factory {
 	return func(sealed string) Session {
-		return &workosSession{inner: workos.NewSession(client, sealed, cookiePassword)}
+		return &workosSession{inner: workos.NewSession(client, sealed, cookiePassword, opts...)}
 	}
 }
 
