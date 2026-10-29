@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { DM_Sans, Space_Grotesk, Space_Mono } from "next/font/google";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
@@ -11,8 +11,8 @@ export function generateStaticParams() {
 }
 
 export async function generateMetadata({
-  params,
-}: {
+                                         params,
+                                       }: {
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
@@ -22,26 +22,24 @@ export async function generateMetadata({
 }
 
 export default async function LocaleLayout({
-  children,
-  params,
-}: LayoutProps<"/[locale]">) {
+                                             children,
+                                             params,
+                                           }: LayoutProps<"/[locale]">) {
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
   setRequestLocale(locale);
 
   return (
-    <html
-      lang={locale}
-      className={`${spaceGrotesk.variable} ${dmSans.variable} ${spaceMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">
-        <NextIntlClientProvider>{children}</NextIntlClientProvider>
+      <html
+          lang={locale}
+          className={`${spaceGrotesk.variable} ${dmSans.variable} ${spaceMono.variable} h-full antialiased`}
+      >
+      <body className="flex min-h-full flex-col">
+      <NextIntlClientProvider>{children}</NextIntlClientProvider>
       </body>
-    </html>
+      </html>
   );
 }
-
-import { DM_Sans, Space_Grotesk, Space_Mono } from "next/font/google";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
