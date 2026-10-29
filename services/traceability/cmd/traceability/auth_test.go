@@ -9,6 +9,7 @@ import (
 
 var authEnvKeys = []string{
 	"AUTH_MODE",
+	"WORKOS_ISSUER",
 	"WORKOS_API_KEY",
 	"WORKOS_CLIENT_ID",
 	"WORKOS_REDIRECT_URI",
@@ -23,6 +24,7 @@ var authEnvKeys = []string{
 func validAuthEnv() map[string]string {
 	return map[string]string{
 		"AUTH_MODE":              "oidc",
+		"WORKOS_ISSUER":          "https://api.workos.com/user_management/client_123",
 		"WORKOS_API_KEY":         "sk_test_123",
 		"WORKOS_CLIENT_ID":       "client_123",
 		"WORKOS_REDIRECT_URI":    "http://localhost:8080/auth/callback",
