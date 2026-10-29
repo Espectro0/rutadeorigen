@@ -61,6 +61,7 @@ func loadOIDC(log *slog.Logger) (authn, error) {
 	clientID := required("WORKOS_CLIENT_ID")
 	redirectURI := required("WORKOS_REDIRECT_URI")
 	cookiePassword := required("WORKOS_COOKIE_PASSWORD")
+	issuerURL := required("WORKOS_ISSUER")
 	redirects := controllers.AuthRedirects{
 		Success: required("AUTH_SUCCESS_URL"),
 		Failure: required("AUTH_FAILURE_URL"),
@@ -90,7 +91,7 @@ func loadOIDC(log *slog.Logger) (authn, error) {
 	)
 	cookie := session.NewCookie(session.CookieConfig{Domain: domain, Secure: secure})
 	state := session.NewState(session.StateConfig{Domain: domain, Secure: secure})
-	issuer := workos.WithSessionIssuer("https://api.workos.com/user_management/" + clientID)
+	issuer := workos.WithSessionIssuer(issuerURL)
 	login := session.NewLogin(client, redirectURI, cookiePassword, issuer)
 	authenticator := session.NewAuthenticator(session.NewWorkOSFactory(client, cookiePassword, issuer), cookie)
 
