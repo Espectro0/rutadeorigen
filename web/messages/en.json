@@ -53,9 +53,19 @@
       "en": "english"
     }
   },
+  "Nav": {
+  "brand": "Ruta de Origen",
+  "dashboard": "Panel",
+  "farms": "Farms",
+  "lots": "Lots"
+},
   "Dashboard": {
     "title": "Your Panel",
-    "subtitle": "You can see here your farms and lots."
+    "subtitle": "You can see here your farms and lots.",
+    "cards": {
+      "farms": "Farms",
+      "lots": "Lots"
+    }
   },
   "Footer": {
     "openSource": "This project is under license and open source.",

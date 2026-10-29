@@ -53,9 +53,19 @@
       "en": "inglés"
     }
   },
+  "Nav": {
+    "brand": "Ruta de Origen",
+    "dashboard": "Panel",
+    "farms": "Fincas",
+    "lots": "Lotes"
+  },
   "Dashboard": {
     "title": "Tu panel",
-    "subtitle": "Aquí verás tus fincas y lotes."
+    "subtitle": "Aquí verás tus fincas y lotes.",
+    "cards": {
+      "farms": "Fincas",
+      "lots": "Lotes"
+    }
   },
   "Footer": {
     "openSource": "Este proyecto está bajo licencia y de código abierto.",
