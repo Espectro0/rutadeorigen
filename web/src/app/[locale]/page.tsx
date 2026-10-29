@@ -3,7 +3,7 @@ import { hasLocale } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { SiteFooter } from "@/components/site-footer";
-import { Link } from "@/i18n/navigation";
+import NextLink from "next/link";
 import { routing } from "@/i18n/routing";
 import {SiteHeader} from "@/components/site-header";
 
@@ -23,9 +23,9 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
                 </h1>
                 <p className="max-w-md text-lg text-ink-dim">{t("subtitle")}</p>
                 {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-                <Link href="/auth/login" className="btn-primary">
+                <NextLink href="/auth/login" className="btn-primary">
                     {t("login")}
-                </Link>
+                </NextLink>
                 <p className="max-w-md text-lg text-ink-dim">{t("info")}</p>
             </main>
             <SiteFooter />
