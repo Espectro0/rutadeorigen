@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 
 	"rutadeorigen/traceability/internal/domain/actor"
+	"rutadeorigen/traceability/internal/domain/lot"
 )
 
 type Action string
@@ -16,6 +17,9 @@ const (
 	ActionCreateFarm    Action = "farm:create"
 	ActionReadFarm      Action = "farm:read"
 	ActionRegisterStage Action = "lot:register_stage"
+	ActionDeleteFarm    Action = "farm:delete"
+	ActionTransferLot   Action = "lot:transfer"
+	ActionVoidLot       Action = "lot:void"
 )
 
 type Subject struct {
@@ -35,6 +39,7 @@ type Resource struct {
 	ID          uuid.UUID
 	OwnerID     uuid.UUID
 	CustodianID uuid.UUID
+	Stage       lot.Stage
 }
 
 type Authorizer interface {

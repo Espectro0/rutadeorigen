@@ -49,7 +49,7 @@ func (uc *RegisterStage) Execute(ctx context.Context, cmd Command) (Result, erro
 		return failed, err
 	}
 
-	resource := ports.Resource{Type: ports.ResourceLot, ID: l.ID(), CustodianID: l.CustodianID()}
+	resource := ports.Resource{Type: ports.ResourceLot, ID: l.ID(), CustodianID: l.CustodianID(), Stage: cmd.Stage}
 	if err := access.Require(ctx, uc.auth, uc.publisher, a, ports.ActionRegisterStage, resource); err != nil {
 		return failed, err
 	}

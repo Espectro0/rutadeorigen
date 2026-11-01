@@ -368,7 +368,7 @@ func TestRegisterStageSuccess(t *testing.T) {
 		if a.subject.ActorID != s.producer.ID() || a.subject.Role != actor.TypeProducer {
 			t.Error("unexpected subject")
 		}
-		if a.resource.Type != ports.ResourceLot || a.resource.ID != s.lot.ID() || a.resource.CustodianID != s.lot.CustodianID() {
+		if a.resource.Type != ports.ResourceLot || a.resource.ID != s.lot.ID() || a.resource.CustodianID != s.lot.CustodianID() || a.resource.Stage != cmd.Stage {
 			t.Error("unexpected resource")
 		}
 	})

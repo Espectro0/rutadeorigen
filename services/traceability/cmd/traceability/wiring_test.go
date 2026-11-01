@@ -595,32 +595,25 @@ func TestRegisterStageEndToEnd(t *testing.T) {
 	created := mustCreateLot(t, mux, "LOT-001")
 
 	farm, farmETag := mustRegisterStage(t, mux, created.ID, `"1"`, farmStageBody)
-	roasting, roastingETag := mustRegisterStage(t, mux, created.ID, farmETag, roastingStageBody)
-	packaging, packagingETag := mustRegisterStage(t, mux, created.ID, roastingETag, packagingStageBody)
 
 	t.Run("each registration bumps the lot version and returns it as ETag", func(t *testing.T) {
-		if farmETag != `"2"` || roastingETag != `"3"` || packagingETag != `"4"` {
-			t.Errorf("ETags: got %s, %s, %s", farmETag, roastingETag, packagingETag)
+		if farmETag != `"2"` {
+			t.Errorf("ETag: got %s", farmETag)
 		}
-		if farm.LotVersion != 2 || roasting.LotVersion != 3 || packaging.LotVersion != 4 {
-			t.Errorf("lot versions: got %d, %d, %d", farm.LotVersion, roasting.LotVersion, packaging.LotVersion)
+		if farm.LotVersion != 2 {
+			t.Errorf("lot version: got %d", farm.LotVersion)
 		}
 	})
 
-	t.Run("the events are chained from the genesis hash", func(t *testing.T) {
-		if farm.Event.Sequence != 1 || roasting.Event.Sequence != 2 || packaging.Event.Sequence != 3 {
-			t.Errorf("sequences: got %d, %d, %d", farm.Event.Sequence, roasting.Event.Sequence, packaging.Event.Sequence)
+	t.Run("the event is chained from the genesis hash", func(t *testing.T) {
+		if farm.Event.Sequence != 1 {
+			t.Errorf("sequence: got %d", farm.Event.Sequence)
 		}
 		if farm.Event.PreviousHash != genesisHash {
 			t.Errorf("first previous hash: got %q", farm.Event.PreviousHash)
 		}
-		if roasting.Event.PreviousHash != farm.Event.Hash || packaging.Event.PreviousHash != roasting.Event.Hash {
-			t.Error("each event must point to the hash of the previous one")
-		}
-		for _, e := range []string{farm.Event.Hash, roasting.Event.Hash, packaging.Event.Hash} {
-			if len(e) != 64 {
-				t.Errorf("hash must have 64 hex characters, got %q", e)
-			}
+		if len(farm.Event.Hash) != 64 {
+			t.Errorf("hash must have 64 hex characters, got %q", farm.Event.Hash)
 		}
 	})
 
@@ -656,8 +649,8 @@ func TestRegisterStageEndToEnd(t *testing.T) {
 		if rec.Code != http.StatusOK {
 			t.Fatalf("status: got %d (%s)", rec.Code, rec.Body.String())
 		}
-		if rec.Header().Get("ETag") != `"4"` {
-			t.Errorf("ETag: got %q, want \"4\"", rec.Header().Get("ETag"))
+		if rec.Header().Get("ETag") != `"2"` {
+			t.Errorf("ETag: got %q, want \"2\"", rec.Header().Get("ETag"))
 		}
 		var body struct {
 			Stage   string `json:"stage"`
@@ -666,14 +659,14 @@ func TestRegisterStageEndToEnd(t *testing.T) {
 		if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
 			t.Fatalf("body is not JSON: %v", err)
 		}
-		if body.Stage != "packaging" || body.Version != 4 {
-			t.Errorf("got stage %q and version %d, want packaging and 4", body.Stage, body.Version)
+		if body.Stage != "farm" || body.Version != 2 {
+			t.Errorf("got stage %q and version %d, want farm and 2", body.Stage, body.Version)
 		}
 	})
 
 	t.Run("a stage_registered event is published per registration", func(t *testing.T) {
-		if got := strings.Count(logs.String(), `"event_type":"lot.stage_registered"`); got != 3 {
-			t.Errorf("got %d lot.stage_registered events, want 3, logs: %s", got, logs.String())
+		if got := strings.Count(logs.String(), `"event_type":"lot.stage_registered"`); got != 1 {
+			t.Errorf("got %d lot.stage_registered events, want 1, logs: %s", got, logs.String())
 		}
 	})
 }
@@ -682,8 +675,10 @@ func TestRegisterStageEndToEndAcceptsWeakAndUnquotedIfMatch(t *testing.T) {
 	mux, _ := newTestServer(t)
 	created := mustCreateLot(t, mux, "LOT-001")
 
-	_, etag := mustRegisterStage(t, mux, created.ID, `W/"1"`, farmStageBody)
-	_, _ = mustRegisterStage(t, mux, created.ID, strings.Trim(etag, `"`), roastingStageBody)
+	_, _ = mustRegisterStage(t, mux, created.ID, `W/"1"`, farmStageBody)
+
+	other := mustCreateLot(t, mux, "LOT-002")
+	_, _ = mustRegisterStage(t, mux, other.ID, `1`, farmStageBody)
 }
 
 func TestRegisterStageEndToEndErrors(t *testing.T) {
@@ -703,7 +698,7 @@ func TestRegisterStageEndToEndErrors(t *testing.T) {
 		{"missing if-match", producerHeader, sameLot, "", farmStageBody, http.StatusBadRequest, string(exception.CodeLotInvalidIfMatch)},
 		{"malformed if-match", producerHeader, sameLot, `"abc"`, farmStageBody, http.StatusBadRequest, string(exception.CodeLotInvalidIfMatch)},
 		{"stale if-match", producerHeader, sameLot, `"2"`, farmStageBody, http.StatusConflict, string(exception.CodeLotVersionConflict)},
-		{"skipped stage", producerHeader, sameLot, `"1"`, roastingStageBody, http.StatusConflict, string(exception.CodeLotStageOutOfOrder)},
+		{"stage of another role", producerHeader, sameLot, `"1"`, roastingStageBody, http.StatusForbidden, "FORBIDDEN"},
 		{"unknown stage", producerHeader, sameLot, `"1"`, `{"stage":"drying","event_date":"2026-02-01","details":{}}`, http.StatusBadRequest, string(exception.CodeLotInvalidStage)},
 		{"stage none", producerHeader, sameLot, `"1"`, `{"stage":"none","event_date":"2026-02-01","details":{}}`, http.StatusBadRequest, string(exception.CodeLotInvalidStage)},
 		{"invalid event date", producerHeader, sameLot, `"1"`, strings.Replace(farmStageBody, "2026-02-01", "01/02/2026", 1), http.StatusBadRequest, string(exception.CodeLotInvalidEventDate)},
@@ -748,7 +743,7 @@ func TestRegisterStageEndToEndRejectsAStaleVersionAfterAnotherRegistration(t *te
 	created := mustCreateLot(t, mux, "LOT-001")
 	mustRegisterStage(t, mux, created.ID, `"1"`, farmStageBody)
 
-	rec := postStage(mux, producerHeader, created.ID, `"1"`, roastingStageBody)
+	rec := postStage(mux, producerHeader, created.ID, `"1"`, farmStageBody)
 
 	assertErrorCode(t, rec, http.StatusConflict, string(exception.CodeLotVersionConflict))
 }

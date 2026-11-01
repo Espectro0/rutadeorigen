@@ -34,7 +34,7 @@ import (
 
 func registerRoutes(mux *http.ServeMux, log *slog.Logger, pool *pgxpool.Pool, catalog *catalog.Catalog, authn authn) {
 	actors, farms, lots, events := repositories(pool)
-	auth := authorizer.NewAllowAll()
+	auth := authorizer.MustNewCasbin()
 	tx, publisher := outputs(pool, log)
 	errs := controllers.NewErrorResponder(log, catalog)
 
