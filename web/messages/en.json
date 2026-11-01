@@ -198,6 +198,15 @@
         "whole_bean": "Whole bean",
         "ground": "Ground"
       }
+    },
+    "transferForm": {
+      "title": "Transfer lot",
+      "target": "Recipient ({type})",
+      "placeholder": "Select a recipient",
+      "empty": "There are no {type} actors available.",
+      "note": "Note (optional)",
+      "submit": "Transfer",
+      "cancel": "Cancel"
     }
   }
 }

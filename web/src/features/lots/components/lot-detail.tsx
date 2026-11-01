@@ -9,9 +9,12 @@ import { useDateFormat } from "@/lib/use-date-format";
 import { useDescribeError } from "@/lib/use-describe-error";
 import { useRemote } from "@/lib/use-remote";
 import { getLot } from "../api";
-import { LOT_STAGES, nextStage, type Lot } from "../types";
+import { transferTargetFor } from "@/features/session/permissions";
+import { useActor } from "@/features/session/session-provider";
+import { LOT_STAGES, nextStage, type Lot, type LotAction } from "../types";
 import { LotActions } from "./lot-actions";
 import { LotStatusBadge } from "./lot-status-badge";
+import { TransferForm } from "./transfer-form";
 import { StageForm } from "./stage-form";
 
 const PROGRESS_STAGES = LOT_STAGES.filter((stage) => stage !== "none");
@@ -32,7 +35,8 @@ export function LotDetail({ id }: Readonly<{ id: string }>) {
     const dates = useDateFormat();
     const lot = useRemote(`lot:${id}`, () => getLot(id));
     const farms = useRemote("farms", listFarms);
-    const [registering, setRegistering] = useState(false);
+    const [panel, setPanel] = useState<"stage" | "transfer" | null>(null);
+    const actor = useActor();
 
     const back = (
         <Link href="/lots" className="text-sm underline-offset-2 hover:underline">
@@ -69,6 +73,15 @@ export function LotDetail({ id }: Readonly<{ id: string }>) {
     const farmName = (farms.data ?? []).find((farm) => farm.id === data.farmId)?.name ?? data.farmId;
     const currentIndex = PROGRESS_STAGES.findIndex((stage) => stage === data.stage);
     const upcoming = nextStage(data.stage);
+    const transferTarget = transferTargetFor(actor.type);
+    const handlers: Partial<Record<LotAction, () => void>> = {};
+    if (upcoming !== null) handlers["lot:register_stage"] = () => setPanel("stage");
+    if (transferTarget !== null) handlers["lot:transfer"] = () => setPanel("transfer");
+    const closePanel = () => setPanel(null);
+    const finishPanel = () => {
+        setPanel(null);
+        lot.reload();
+    };
 
     return (
         <div className="flex flex-col gap-6">
@@ -79,21 +92,25 @@ export function LotDetail({ id }: Readonly<{ id: string }>) {
                 <LotStatusBadge status={data.status} label={t(`status.${data.status}`)} />
             </div>
 
-            <LotActions
-                allowed={data.allowedActions}
-                handlers={upcoming === null ? {} : { "lot:register_stage": () => setRegistering(true) }}
-            />
+            <LotActions allowed={data.allowedActions} handlers={handlers} />
 
-            {registering && upcoming !== null && (
+            {panel === "stage" && upcoming !== null && (
                 <StageForm
                     lotId={data.id}
                     version={data.version}
                     stage={upcoming}
-                    onCancel={() => setRegistering(false)}
-                    onDone={() => {
-                        setRegistering(false);
-                        lot.reload();
-                    }}
+                    onCancel={closePanel}
+                    onDone={finishPanel}
+                />
+            )}
+
+            {panel === "transfer" && transferTarget !== null && (
+                <TransferForm
+                    lotId={data.id}
+                    version={data.version}
+                    targetType={transferTarget}
+                    onCancel={closePanel}
+                    onDone={finishPanel}
                 />
             )}
 

@@ -1,4 +1,4 @@
-import type { ActorType } from "./types";
+import type { ActorType, ValidActorType } from "./types";
 
 export type NavKey = "dashboard" | "farms" | "lots";
 
@@ -16,3 +16,12 @@ export function navFor(type: ActorType): readonly NavKey[] {
 
 export const FARM_WRITERS: readonly ActorType[] = ["producer"];
 export const LOT_CREATORS: readonly ActorType[] = ["producer"];
+
+const TRANSFER_TARGET: Readonly<Partial<Record<ActorType, ValidActorType>>> = {
+    producer: "roaster",
+    roaster: "brand",
+};
+
+export function transferTargetFor(type: ActorType): ValidActorType | null {
+    return TRANSFER_TARGET[type] ?? null;
+}

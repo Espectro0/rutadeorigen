@@ -198,6 +198,15 @@
         "whole_bean": "Grano entero",
         "ground": "Molido"
       }
+    },
+    "transferForm": {
+      "title": "Transferir lote",
+      "target": "Destinatario ({type})",
+      "placeholder": "Selecciona un destinatario",
+      "empty": "No hay actores de tipo {type} disponibles.",
+      "note": "Nota (opcional)",
+      "submit": "Transferir",
+      "cancel": "Cancelar"
     }
   }
 }

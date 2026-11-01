@@ -98,3 +98,13 @@ export async function registerStage(lotId: string, version: number, input: Stage
         }),
     });
 }
+
+export type LotTransfer = Readonly<{ targetActorId: string; note: string }>;
+
+export async function transferLot(lotId: string, version: number, input: LotTransfer): Promise<void> {
+    await request<unknown>(`/lots/${encodeURIComponent(lotId)}/transfers`, {
+        method: "POST",
+        headers: { "If-Match": `"${version}"` },
+        body: JSON.stringify({ target_actor_id: input.targetActorId, note: input.note }),
+    });
+}
