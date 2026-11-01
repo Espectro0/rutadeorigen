@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"sort"
 	"sync"
 
 	"github.com/google/uuid"
@@ -67,4 +68,24 @@ func (r *ActorRepository) Save(_ context.Context, a *actor.Actor) error {
 
 	r.actors[a.ID()] = a
 	return nil
+}
+
+func (r *ActorRepository) ListByType(_ context.Context, actorType actor.Type) ([]*actor.Actor, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	matches := make([]*actor.Actor, 0, len(r.actors))
+	for _, a := range r.actors {
+		if a.Type() == actorType {
+			matches = append(matches, a)
+		}
+	}
+
+	sort.Slice(matches, func(i, j int) bool {
+		if matches[i].Name() != matches[j].Name() {
+			return matches[i].Name() < matches[j].Name()
+		}
+		return matches[i].ID().String() < matches[j].ID().String()
+	})
+	return matches, nil
 }

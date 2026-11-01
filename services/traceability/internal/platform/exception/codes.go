@@ -33,6 +33,8 @@ const (
 	CodeLotInvalidStage             Code = "TRACEABILITY_LOT_INVALID_STAGE"
 	CodeLotInvalidEventDate         Code = "TRACEABILITY_LOT_INVALID_EVENT_DATE"
 	CodeLotInvalidNote              Code = "TRACEABILITY_LOT_INVALID_NOTE"
+	CodeLotNotTransferable          Code = "TRACEABILITY_LOT_NOT_TRANSFERABLE"
+	CodeLotInvalidTransferTarget    Code = "TRACEABILITY_LOT_INVALID_TRANSFER_TARGET"
 	CodeStageInvalidDetails         Code = "TRACEABILITY_STAGE_INVALID_DETAILS"
 
 	CodeActorInvalidUserID Code = "TRACEABILITY_ACTOR_INVALID_USER_ID"
@@ -92,6 +94,8 @@ var kindByCode = map[Code]Kind{
 	CodeLotInvalidStage:             KindValidation,
 	CodeLotInvalidEventDate:         KindValidation,
 	CodeLotInvalidNote:              KindValidation,
+	CodeLotNotTransferable:          KindConflict,
+	CodeLotInvalidTransferTarget:    KindValidation,
 	CodeStageInvalidDetails:         KindValidation,
 
 	CodeActorInvalidUserID: KindValidation,

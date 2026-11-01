@@ -6,29 +6,44 @@ import (
 	"errors"
 	"io"
 
+	"github.com/google/uuid"
+
 	"rutadeorigen/traceability/internal/domain/lot"
 	"rutadeorigen/traceability/internal/infrastructure/output/repositories/structured/postgres/entity"
 	"rutadeorigen/traceability/internal/platform/exception"
+	"rutadeorigen/traceability/internal/platform/helper"
 )
 
 type LotEvent struct{}
 
 func (LotEvent) ToDomain(e entity.LotEvent) (*lot.Event, error) {
-	details, err := decodeStageDetails(lot.ParseStage(e.Stage), e.Details)
-	if err != nil {
-		return lot.DefaultEvent(), err
+	eventType := lot.ParseEventType(e.Type)
+
+	var details lot.StageDetails
+	if eventType != lot.EventTypeTransfer {
+		decoded, err := decodeStageDetails(lot.ParseStage(e.Stage), e.Details)
+		if err != nil {
+			return lot.DefaultEvent(), err
+		}
+		details = decoded
+	}
+
+	target := helper.DefaultUUID()
+	if e.TargetActorID != nil {
+		target = *e.TargetActorID
 	}
 
 	return lot.RestoreEvent(lot.RestoreEventParams{
 		ID:           e.ID,
 		LotID:        e.LotID,
 		Sequence:     e.Sequence,
-		EventType:    lot.ParseEventType(e.Type),
+		EventType:    eventType,
 		Stage:        lot.ParseStage(e.Stage),
 		EventDate:    e.EventDate.UTC(),
 		Note:         e.Note,
 		ActorID:      e.ActorID,
 		ActorRole:    e.ActorRole,
+		TargetActorID: target,
 		Details:      details,
 		PreviousHash: e.PreviousHash,
 		Hash:         e.Hash,
@@ -40,16 +55,15 @@ func (LotEvent) ToEntity(e *lot.Event) (entity.LotEvent, error) {
 	if e.IsDefault() {
 		return entity.LotEvent{}, nil
 	}
-	if e.Details() == nil {
-		return entity.LotEvent{}, exception.New(exception.CodeInternal).
-			WithTechnical("lot event without details")
+	details, err := encodeDetails(e)
+	if err != nil {
+		return entity.LotEvent{}, err
 	}
 
-	details, err := json.Marshal(e.Details())
-	if err != nil {
-		return entity.LotEvent{}, exception.New(exception.CodeInternal).
-			WithTechnical("encode lot event details").
-			WithCause(err)
+	var target *uuid.UUID
+	if !helper.IsDefaultUUID(e.TargetActorID()) {
+		id := e.TargetActorID()
+		target = &id
 	}
 
 	return entity.LotEvent{
@@ -62,11 +76,30 @@ func (LotEvent) ToEntity(e *lot.Event) (entity.LotEvent, error) {
 		Note:         e.Note(),
 		ActorID:      e.ActorID(),
 		ActorRole:    e.ActorRole(),
+		TargetActorID: target,
 		Details:      details,
 		PreviousHash: e.PreviousHash(),
 		Hash:         e.Hash(),
 		RegisteredAt: e.RegisteredAt().UTC(),
 	}, nil
+}
+
+func encodeDetails(e *lot.Event) ([]byte, error) {
+	if e.Type() == lot.EventTypeTransfer {
+		return []byte("{}"), nil
+	}
+	if e.Details() == nil {
+		return nil, exception.New(exception.CodeInternal).
+			WithTechnical("lot event without details")
+	}
+
+	details, err := json.Marshal(e.Details())
+	if err != nil {
+		return nil, exception.New(exception.CodeInternal).
+			WithTechnical("encode lot event details").
+			WithCause(err)
+	}
+	return details, nil
 }
 
 func decodeStageDetails(stage lot.Stage, raw []byte) (lot.StageDetails, error) {

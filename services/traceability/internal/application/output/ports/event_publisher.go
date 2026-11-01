@@ -13,6 +13,7 @@ const (
 	EventLotCreated         EventType = "lot.created"
 	EventAccessDenied       EventType = "security.access_denied"
 	EventLotStageRegistered EventType = "lot.stage_registered"
+	EventLotTransferred     EventType = "lot.transferred"
 )
 
 type AggregateType string

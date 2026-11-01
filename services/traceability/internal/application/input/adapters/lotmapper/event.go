@@ -6,6 +6,7 @@ import (
 
 	"rutadeorigen/traceability/internal/application/input/dto/response"
 	"rutadeorigen/traceability/internal/domain/lot"
+	"rutadeorigen/traceability/internal/platform/helper"
 )
 
 func ToEventResponse(e *lot.Event) response.LotEvent {
@@ -13,9 +14,18 @@ func ToEventResponse(e *lot.Event) response.LotEvent {
 		return response.LotEvent{}
 	}
 
-	details, err := json.Marshal(e.Details())
-	if err != nil {
-		details = []byte("null")
+	details := []byte("{}")
+	if e.Details() != nil {
+		marshaled, err := json.Marshal(e.Details())
+		if err != nil {
+			marshaled = []byte("null")
+		}
+		details = marshaled
+	}
+
+	target := ""
+	if !helper.IsDefaultUUID(e.TargetActorID()) {
+		target = e.TargetActorID().String()
 	}
 
 	return response.LotEvent{
@@ -28,6 +38,7 @@ func ToEventResponse(e *lot.Event) response.LotEvent {
 		Note:         e.Note(),
 		ActorID:      e.ActorID().String(),
 		ActorRole:    e.ActorRole(),
+		TargetActorID: target,
 		Details:      details,
 		PreviousHash: e.PreviousHash(),
 		Hash:         e.Hash(),

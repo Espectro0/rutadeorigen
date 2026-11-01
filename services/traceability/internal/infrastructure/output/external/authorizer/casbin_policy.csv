@@ -3,6 +3,7 @@ p, *, farm, farm:read, *, any
 p, producer, farm, farm:delete, *, owner
 p, producer, farm, lot:create, *, owner
 p, *, lot, lot:read, *, any
+p, *, actor, actor:read, *, any
 p, producer, lot, lot:register_stage, farm, custodian
 p, roaster, lot, lot:register_stage, roasting, custodian
 p, brand, lot, lot:register_stage, packaging, custodian

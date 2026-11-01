@@ -291,6 +291,10 @@ func TestCreateFarmNilDraft(t *testing.T) {
 	assertFailed(t, got, err, exception.New(exception.CodeFarmInvalidName))
 }
 
+func (r fakeActors) ListByType(_ context.Context, _ actor.Type) ([]*actor.Actor, error) {
+	return nil, nil
+}
+
 func (r fakeActors) FindByUserID(_ context.Context, _ string) (*actor.Actor, error) {
 	return actor.Default(), nil
 }

@@ -11,20 +11,24 @@ import (
 	createlotadapter "rutadeorigen/traceability/internal/application/input/adapters/createlot"
 	getlotadapter "rutadeorigen/traceability/internal/application/input/adapters/getlot"
 	getmeadapter "rutadeorigen/traceability/internal/application/input/adapters/getme"
+	listactorsadapter "rutadeorigen/traceability/internal/application/input/adapters/listactors"
 	listfarmadapter "rutadeorigen/traceability/internal/application/input/adapters/listfarm"
 	listlotsadapter "rutadeorigen/traceability/internal/application/input/adapters/listlots"
 	registeractoradapter "rutadeorigen/traceability/internal/application/input/adapters/registeractor"
 	registerstageadapter "rutadeorigen/traceability/internal/application/input/adapters/registerstage"
 	resolveactoradapter "rutadeorigen/traceability/internal/application/input/adapters/resolveactor"
+	transferlotadapter "rutadeorigen/traceability/internal/application/input/adapters/transferlot"
 	"rutadeorigen/traceability/internal/application/output/ports"
 	createfarmuc "rutadeorigen/traceability/internal/application/usecases/createfarm"
 	createlotuc "rutadeorigen/traceability/internal/application/usecases/createlot"
 	getlotuc "rutadeorigen/traceability/internal/application/usecases/getlot"
+	listactorsuc "rutadeorigen/traceability/internal/application/usecases/listactors"
 	listfarmuc "rutadeorigen/traceability/internal/application/usecases/listfarm"
 	listlotsuc "rutadeorigen/traceability/internal/application/usecases/listlots"
 	registeractoruc "rutadeorigen/traceability/internal/application/usecases/registeractor"
 	registerstageuc "rutadeorigen/traceability/internal/application/usecases/registerstage"
 	resolveactoruc "rutadeorigen/traceability/internal/application/usecases/resolveactor"
+	transferlotuc "rutadeorigen/traceability/internal/application/usecases/transferlot"
 	"rutadeorigen/traceability/internal/infrastructure/input/controllers"
 	"rutadeorigen/traceability/internal/infrastructure/output/external/authorizer"
 	"rutadeorigen/traceability/internal/infrastructure/output/messaging"
@@ -45,6 +49,8 @@ func registerRoutes(mux *http.ServeMux, log *slog.Logger, pool *pgxpool.Pool, ca
 	createFarmAdapter := createfarmadapter.New(createfarmuc.New(actors, farms, auth))
 	listFarmsAdapter := listfarmadapter.New(listfarmuc.New(actors, farms, auth))
 	registerStageAdapter := registerstageadapter.New(registerstageuc.New(actors, lots, events, auth, publisher, tx))
+	transferLotAdapter := transferlotadapter.New(transferlotuc.New(actors, lots, events, auth, publisher, tx))
+	listActorsAdapter := listactorsadapter.New(listactorsuc.New(actors, auth))
 
 	resolver := resolveactoruc.New(actors)
 	requireActor, authenticated := authn.middlewares(errs, resolveactoradapter.New(resolver))
@@ -52,6 +58,8 @@ func registerRoutes(mux *http.ServeMux, log *slog.Logger, pool *pgxpool.Pool, ca
 	controllers.NewLotController(createLotAdapter, getLotAdapter, listLotsAdapter, errs, log).Register(mux, requireActor)
 	controllers.NewFarmController(createFarmAdapter, listFarmsAdapter, errs, log).Register(mux, requireActor)
 	controllers.NewLotEventController(registerStageAdapter, errs, log).Register(mux, requireActor)
+	controllers.NewLotTransferController(transferLotAdapter, errs, log).Register(mux, requireActor)
+	controllers.NewActorController(listActorsAdapter, errs, log).Register(mux, requireActor)
 
 	if authenticated != nil {
 		registerActorAdapter := registeractoradapter.New(registeractoruc.New(actors))

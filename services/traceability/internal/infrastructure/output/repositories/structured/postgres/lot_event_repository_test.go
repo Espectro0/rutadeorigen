@@ -19,7 +19,7 @@ import (
 
 var lotEventColumns = []string{
 	"id", "lot_id", "sequence", "type", "stage", "event_date", "note", "actor_id",
-	"actor_role", "details", "previous_hash", "hash", "registered_at",
+	"actor_role", "target_actor_id", "details", "previous_hash", "hash", "registered_at",
 }
 
 type eventRows struct {
@@ -56,12 +56,14 @@ func (r *eventRows) Scan(dest ...any) error {
 	e := r.rows[r.index-1]
 	values := []any{
 		e.ID, e.LotID, e.Sequence, e.Type, e.Stage, e.EventDate, e.Note, e.ActorID,
-		e.ActorRole, e.Details, e.PreviousHash, e.Hash, e.RegisteredAt,
+		e.ActorRole, e.TargetActorID, e.Details, e.PreviousHash, e.Hash, e.RegisteredAt,
 	}
 	for i, target := range dest {
 		switch p := target.(type) {
 		case *uuid.UUID:
 			*p = values[i].(uuid.UUID)
+		case **uuid.UUID:
+			*p = values[i].(*uuid.UUID)
 		case *int:
 			*p = values[i].(int)
 		case *string:
@@ -199,22 +201,22 @@ func TestLotEventRepositorySaveInsertsTheEventInTheCurrentTransaction(t *testing
 	row := toRow(t, e)
 	want := []any{
 		row.ID, row.LotID, 1, "stage", "farm", row.EventDate, "Dried on raised beds", row.ActorID,
-		"producer", row.Details, lot.GenesisHash, e.Hash(), row.RegisteredAt,
+		"producer", row.TargetActorID, row.Details, lot.GenesisHash, e.Hash(), row.RegisteredAt,
 	}
 	if len(tx.execArgs) != len(want) {
 		t.Fatalf("got %d args, want %d", len(tx.execArgs), len(want))
 	}
 	for i := range want {
-		if i == 9 {
+		if i == 10 {
 			continue
 		}
 		if tx.execArgs[i] != want[i] {
 			t.Errorf("arg %d: got %v, want %v", i, tx.execArgs[i], want[i])
 		}
 	}
-	details, ok := tx.execArgs[9].([]byte)
+	details, ok := tx.execArgs[10].([]byte)
 	if !ok || string(details) != string(row.Details) {
-		t.Errorf("details arg: got %v, want %s", tx.execArgs[9], row.Details)
+		t.Errorf("details arg: got %v, want %s", tx.execArgs[10], row.Details)
 	}
 	if strings.Count(insertLotEvent, "$") != len(lotEventColumns) {
 		t.Error("the insert must have one placeholder per column")

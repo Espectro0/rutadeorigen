@@ -3,6 +3,7 @@ package lot
 import (
 	"strings"
 
+	"rutadeorigen/traceability/internal/domain/actor"
 	"rutadeorigen/traceability/internal/platform/helper"
 )
 
@@ -56,4 +57,17 @@ func (s Stage) Next() Stage {
 
 func (s Stage) String() string {
 	return string(s)
+}
+
+func (s Stage) ResponsibleRole() actor.Type {
+	switch s {
+	case StageFarm:
+		return actor.TypeProducer
+	case StageRoasting:
+		return actor.TypeRoaster
+	case StagePackaging:
+		return actor.TypeBrand
+	default:
+		return actor.TypeUnknown
+	}
 }

@@ -66,12 +66,16 @@ func TestCasbinReadEveryRole(t *testing.T) {
 		subject := ports.Subject{ActorID: uuid.New(), Role: role}
 		farm := ports.Resource{Type: ports.ResourceFarm, OwnerID: uuid.New()}
 		batch := ports.Resource{Type: ports.ResourceLot, ID: uuid.New(), CustodianID: uuid.New()}
+		directory := ports.Resource{Type: ports.ResourceActor}
 
 		if !decide(t, c, subject, ports.ActionReadFarm, farm) {
 			t.Errorf("role %s must read farms", role)
 		}
 		if !decide(t, c, subject, ports.ActionReadLot, batch) {
 			t.Errorf("role %s must read lots", role)
+		}
+		if !decide(t, c, subject, ports.ActionReadActor, directory) {
+			t.Errorf("role %s must read actors", role)
 		}
 	}
 }

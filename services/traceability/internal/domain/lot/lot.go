@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"rutadeorigen/traceability/internal/domain/actor"
 	"rutadeorigen/traceability/internal/platform/exception"
 	"rutadeorigen/traceability/internal/platform/helper"
 )
@@ -144,6 +145,25 @@ func (l *Lot) AdvanceTo(stage Stage) error {
 	}
 
 	l.currentStage = stage
+	l.version++
+
+	return nil
+}
+
+func (l *Lot) TransferTo(targetID uuid.UUID, targetRole actor.Type) error {
+	if !l.IsActive() {
+		return exception.New(exception.CodeLotVoided)
+	}
+
+	next := l.currentStage.Next()
+	if !l.HasEvents() || next == StageUnknown {
+		return exception.New(exception.CodeLotNotTransferable)
+	}
+	if helper.IsDefaultUUID(targetID) || targetID == l.custodianID || targetRole != next.ResponsibleRole() {
+		return exception.New(exception.CodeLotInvalidTransferTarget)
+	}
+
+	l.custodianID = targetID
 	l.version++
 
 	return nil

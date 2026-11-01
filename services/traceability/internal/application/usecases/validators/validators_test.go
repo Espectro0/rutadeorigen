@@ -52,6 +52,10 @@ func (r fakeLotRepository) ExistsByCode(_ context.Context, _ uuid.UUID, _ string
 	return false, nil
 }
 
+func (r fakeLotRepository) UpdateCustodian(_ context.Context, _ *lot.Lot, _ int) error {
+	return nil
+}
+
 func (r fakeLotRepository) UpdateStage(_ context.Context, _ *lot.Lot, _ int) error {
 	return nil
 }
@@ -269,6 +273,10 @@ func TestLotVersion(t *testing.T) {
 			t.Errorf("got %v, want code %q", err, exception.CodeLotNotFound)
 		}
 	})
+}
+
+func (r fakeActorRepository) ListByType(_ context.Context, _ actor.Type) ([]*actor.Actor, error) {
+	return nil, nil
 }
 
 func (r fakeActorRepository) FindByUserID(_ context.Context, _ string) (*actor.Actor, error) {

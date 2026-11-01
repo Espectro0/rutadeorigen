@@ -20,6 +20,7 @@ const (
 	ActionDeleteFarm    Action = "farm:delete"
 	ActionTransferLot   Action = "lot:transfer"
 	ActionVoidLot       Action = "lot:void"
+	ActionReadActor     Action = "actor:read"
 )
 
 type Subject struct {
@@ -30,8 +31,9 @@ type Subject struct {
 type ResourceType string
 
 const (
-	ResourceFarm ResourceType = "farm"
-	ResourceLot  ResourceType = "lot"
+	ResourceFarm  ResourceType = "farm"
+	ResourceLot   ResourceType = "lot"
+	ResourceActor ResourceType = "actor"
 )
 
 type Resource struct {

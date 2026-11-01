@@ -56,6 +56,14 @@ func (r *LotRepository) Save(_ context.Context, l *lot.Lot) error {
 }
 
 func (r *LotRepository) UpdateStage(_ context.Context, l *lot.Lot, expectedVersion int) error {
+	return r.replace(l, expectedVersion)
+}
+
+func (r *LotRepository) UpdateCustodian(_ context.Context, l *lot.Lot, expectedVersion int) error {
+	return r.replace(l, expectedVersion)
+}
+
+func (r *LotRepository) replace(l *lot.Lot, expectedVersion int) error {
 	if l.IsDefault() {
 		return exception.New(exception.CodeInternal).WithTechnical("cannot update a default lot")
 	}

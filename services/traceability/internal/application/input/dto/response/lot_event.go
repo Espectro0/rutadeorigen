@@ -12,6 +12,7 @@ type LotEvent struct {
 	Note         string          `json:"note,omitempty"`
 	ActorID      string          `json:"actor_id"`
 	ActorRole    string          `json:"actor_role"`
+	TargetActorID string         `json:"target_actor_id,omitempty"`
 	Details      json.RawMessage `json:"details"`
 	PreviousHash string          `json:"previous_hash"`
 	Hash         string          `json:"hash"`

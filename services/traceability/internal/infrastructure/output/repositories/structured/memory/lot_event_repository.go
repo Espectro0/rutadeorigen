@@ -103,6 +103,7 @@ func cloneEvent(e *lot.Event) *lot.Event {
 		Note:         e.Note(),
 		ActorID:      e.ActorID(),
 		ActorRole:    e.ActorRole(),
+		TargetActorID: e.TargetActorID(),
 		Details:      e.Details(),
 		PreviousHash: e.PreviousHash(),
 		Hash:         e.Hash(),

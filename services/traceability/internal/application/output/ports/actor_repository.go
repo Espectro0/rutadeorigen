@@ -11,5 +11,6 @@ import (
 type ActorRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*actor.Actor, error)
 	FindByUserID(ctx context.Context, userID string) (*actor.Actor, error)
+	ListByType(ctx context.Context, actorType actor.Type) ([]*actor.Actor, error)
 	Save(ctx context.Context, actor *actor.Actor) error
 }

@@ -26,7 +26,8 @@ type Event struct {
 	eventDate    time.Time
 	note         string
 	actorID      uuid.UUID
-	actorRole    string
+	actorRole     string
+	targetActorID uuid.UUID
 	details      StageDetails
 	previousHash string
 	hash         string
@@ -43,6 +44,7 @@ var defaultEvent = Event{
 	note:         helper.EmptyString,
 	actorID:      helper.DefaultUUID(),
 	actorRole:    helper.EmptyString,
+	targetActorID: helper.DefaultUUID(),
 	details:      nil,
 	previousHash: helper.EmptyString,
 	hash:         helper.EmptyString,
@@ -123,6 +125,68 @@ func NewStageEvent(p StageEventParams) (*Event, error) {
 	return e, nil
 }
 
+type TransferEventParams struct {
+	LotID         uuid.UUID
+	Previous      *Event
+	Stage         Stage
+	EventDate     time.Time
+	Note          string
+	ActorID       uuid.UUID
+	ActorRole     string
+	TargetActorID uuid.UUID
+}
+
+func NewTransferEvent(p TransferEventParams) (*Event, error) {
+	note := helper.ApplyTrim(p.Note)
+	role := helper.ApplyTrim(p.ActorRole)
+
+	if helper.IsDefaultUUID(p.LotID) || helper.IsDefaultUUID(p.ActorID) || helper.IsEmpty(role) {
+		return DefaultEvent(), exception.New(exception.CodeInternal).
+			WithTechnical("lot event requires a lot, an actor and an actor role")
+	}
+	if helper.IsDefaultUUID(p.TargetActorID) || p.TargetActorID == p.ActorID {
+		return DefaultEvent(), exception.New(exception.CodeLotInvalidTransferTarget)
+	}
+	if !p.Stage.IsValid() || p.Stage == StageNone {
+		return DefaultEvent(), exception.New(exception.CodeLotInvalidStage)
+	}
+	if utf8.RuneCountInString(note) > noteMaxLength {
+		return DefaultEvent(), exception.New(exception.CodeLotInvalidNote).
+			WithParams(map[string]any{"max": noteMaxLength})
+	}
+	if helper.IsDefaultDate(p.EventDate) || helper.IsFutureDate(p.EventDate) {
+		return DefaultEvent(), exception.New(exception.CodeLotInvalidEventDate)
+	}
+
+	sequence, previousHash, err := chainPosition(p.LotID, p.Previous)
+	if err != nil {
+		return DefaultEvent(), err
+	}
+
+	e := &Event{
+		id:            uuid.New(),
+		lotID:         p.LotID,
+		sequence:      sequence,
+		eventType:     EventTypeTransfer,
+		stage:         p.Stage,
+		eventDate:     helper.DateUTC(p.EventDate),
+		note:          note,
+		actorID:       p.ActorID,
+		actorRole:     role,
+		targetActorID: p.TargetActorID,
+		details:       nil,
+		previousHash:  previousHash,
+		registeredAt:  time.Now().UTC().Truncate(time.Microsecond),
+	}
+
+	e.hash = e.ComputeHash()
+	if helper.IsEmpty(e.hash) {
+		return DefaultEvent(), exception.New(exception.CodeInternal).
+			WithTechnical("compute lot event hash")
+	}
+	return e, nil
+}
+
 func chainPosition(lotID uuid.UUID, previous *Event) (int, string, error) {
 	if previous.IsDefault() {
 		return firstSequence, GenesisHash, nil
@@ -135,16 +199,17 @@ func chainPosition(lotID uuid.UUID, previous *Event) (int, string, error) {
 }
 
 type RestoreEventParams struct {
-	ID           uuid.UUID
-	LotID        uuid.UUID
-	Sequence     int
-	EventType    EventType
-	Stage        Stage
-	EventDate    time.Time
-	Note         string
-	ActorID      uuid.UUID
-	ActorRole    string
-	Details      StageDetails
+	ID            uuid.UUID
+	LotID         uuid.UUID
+	Sequence      int
+	EventType     EventType
+	Stage         Stage
+	EventDate     time.Time
+	Note          string
+	ActorID       uuid.UUID
+	ActorRole     string
+	TargetActorID uuid.UUID
+	Details       StageDetails
 	PreviousHash string
 	Hash         string
 	RegisteredAt time.Time
@@ -161,6 +226,7 @@ func RestoreEvent(p RestoreEventParams) *Event {
 		note:         p.Note,
 		actorID:      p.ActorID,
 		actorRole:    p.ActorRole,
+		targetActorID: p.TargetActorID,
 		details:      p.Details,
 		previousHash: p.PreviousHash,
 		hash:         p.Hash,
@@ -178,11 +244,17 @@ type hashInput struct {
 	Note         string       `json:"note"`
 	ActorID      string       `json:"actor_id"`
 	ActorRole    string       `json:"actor_role"`
+	TargetActorID string      `json:"target_actor_id,omitempty"`
 	Details      StageDetails `json:"details"`
 	RegisteredAt string       `json:"registered_at"`
 }
 
 func (e *Event) ComputeHash() string {
+	target := helper.EmptyString
+	if !helper.IsDefaultUUID(e.targetActorID) {
+		target = e.targetActorID.String()
+	}
+
 	payload, err := json.Marshal(hashInput{
 		PreviousHash: e.previousHash,
 		LotID:        e.lotID.String(),
@@ -193,6 +265,7 @@ func (e *Event) ComputeHash() string {
 		Note:         e.note,
 		ActorID:      e.actorID.String(),
 		ActorRole:    e.actorRole,
+		TargetActorID: target,
 		Details:      e.details,
 		RegisteredAt: e.registeredAt.UTC().Format(time.RFC3339Nano),
 	})
@@ -215,6 +288,7 @@ func (e *Event) EventDate() time.Time    { return e.eventDate }
 func (e *Event) Note() string            { return e.note }
 func (e *Event) ActorID() uuid.UUID      { return e.actorID }
 func (e *Event) ActorRole() string       { return e.actorRole }
+func (e *Event) TargetActorID() uuid.UUID { return e.targetActorID }
 func (e *Event) Details() StageDetails   { return e.details }
 func (e *Event) PreviousHash() string    { return e.previousHash }
 func (e *Event) Hash() string            { return e.hash }

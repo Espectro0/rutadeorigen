@@ -102,6 +102,10 @@ func (r *fakeLots) List(_ context.Context, _ lot.Filter, _ lot.Cursor, _ int) ([
 	return nil, nil
 }
 
+func (r *fakeLots) UpdateCustodian(_ context.Context, _ *lot.Lot, _ int) error {
+	return nil
+}
+
 func (r *fakeLots) UpdateStage(_ context.Context, _ *lot.Lot, _ int) error {
 	return nil
 }
@@ -591,6 +595,10 @@ func TestCreateLotTransaction(t *testing.T) {
 			t.Errorf("got %d transactions, want 0", s.tx.calls)
 		}
 	})
+}
+
+func (r fakeActors) ListByType(_ context.Context, _ actor.Type) ([]*actor.Actor, error) {
+	return nil, nil
 }
 
 func (r fakeActors) FindByUserID(_ context.Context, _ string) (*actor.Actor, error) {

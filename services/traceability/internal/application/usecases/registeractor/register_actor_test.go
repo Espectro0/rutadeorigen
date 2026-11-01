@@ -29,6 +29,10 @@ func (r *fakeActors) FindByID(_ context.Context, _ uuid.UUID) (*actor.Actor, err
 	return actor.Default(), nil
 }
 
+func (r *fakeActors) ListByType(_ context.Context, _ actor.Type) ([]*actor.Actor, error) {
+	return nil, nil
+}
+
 func (r *fakeActors) FindByUserID(_ context.Context, userID string) (*actor.Actor, error) {
 	r.findCalls++
 	if r.findErr != nil && (r.findErrOnN == 0 || r.findErrOnN == r.findCalls) {

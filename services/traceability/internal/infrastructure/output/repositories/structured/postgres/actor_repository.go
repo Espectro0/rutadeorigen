@@ -30,6 +30,12 @@ const (
 	FROM actor
 	WHERE user_id = $1`
 
+	selectActorsByType = `
+	SELECT id, user_id, type, name, email, status, created_at
+	FROM actor
+	WHERE type = $1
+	ORDER BY name ASC, id ASC`
+
 	upsertActor = `
 	INSERT INTO actor (id, user_id, type, name, email, status, created_at)
 	VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -52,6 +58,24 @@ func (r *ActorRepository) FindByID(ctx context.Context, id uuid.UUID) (*actor.Ac
 
 func (r *ActorRepository) FindByUserID(ctx context.Context, userID string) (*actor.Actor, error) {
 	return r.findOne(ctx, selectActorByUserID, userID, "actor by user id")
+}
+
+func (r *ActorRepository) ListByType(ctx context.Context, actorType actor.Type) ([]*actor.Actor, error) {
+	rows, err := conn(ctx, r.pool).Query(ctx, selectActorsByType, actorType.String())
+	if err != nil {
+		return nil, internalError("query actors by type", err)
+	}
+
+	entities, err := pgx.CollectRows(rows, pgx.RowToStructByName[entity.Actor])
+	if err != nil {
+		return nil, internalError("scan actors by type", err)
+	}
+
+	actors := make([]*actor.Actor, 0, len(entities))
+	for _, e := range entities {
+		actors = append(actors, r.assembler.ToDomain(e))
+	}
+	return actors, nil
 }
 
 func (r *ActorRepository) Save(ctx context.Context, a *actor.Actor) error {

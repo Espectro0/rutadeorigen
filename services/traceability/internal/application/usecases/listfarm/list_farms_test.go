@@ -267,6 +267,10 @@ func TestListFarmsRepositoryErrors(t *testing.T) {
 	assertInternal(t, got, err)
 }
 
+func (r fakeActors) ListByType(_ context.Context, _ actor.Type) ([]*actor.Actor, error) {
+	return nil, nil
+}
+
 func (r fakeActors) FindByUserID(_ context.Context, _ string) (*actor.Actor, error) {
 	return actor.Default(), nil
 }

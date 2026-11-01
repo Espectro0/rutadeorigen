@@ -36,6 +36,10 @@ func (f fakeLots) ExistsByCode(_ context.Context, _ uuid.UUID, _ string) (bool, 
 	return false, nil
 }
 
+func (f fakeLots) UpdateCustodian(_ context.Context, _ *lot.Lot, _ int) error {
+	return nil
+}
+
 func (f fakeLots) UpdateStage(_ context.Context, _ *lot.Lot, _ int) error { return nil }
 
 func (f fakeLots) Save(_ context.Context, _ *lot.Lot) error { return nil }
@@ -195,6 +199,10 @@ func TestGetLotExecute(t *testing.T) {
 			t.Errorf("the cause must be preserved, got %v", err)
 		}
 	})
+}
+
+func (f fakeActors) ListByType(_ context.Context, _ actor.Type) ([]*actor.Actor, error) {
+	return nil, nil
 }
 
 func (f fakeActors) FindByUserID(_ context.Context, _ string) (*actor.Actor, error) {

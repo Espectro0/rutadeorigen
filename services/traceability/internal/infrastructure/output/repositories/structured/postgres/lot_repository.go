@@ -30,6 +30,10 @@ const (
 		UPDATE lot SET current_stage = $2, version = $3
 		WHERE id = $1 AND version = $4`
 
+	updateLotCustodian = `
+		UPDATE lot SET custodian_id = $2, version = $3
+		WHERE id = $1 AND version = $4`
+
 	existsLotByID = `
 		SELECT EXISTS (
 			SELECT 1 FROM lot WHERE id = $1
@@ -94,8 +98,29 @@ func (r *LotRepository) UpdateStage(ctx context.Context, l *lot.Lot, expectedVer
 		return nil
 	}
 
+	return r.explainNoRows(ctx, e.ID)
+}
+
+func (r *LotRepository) UpdateCustodian(ctx context.Context, l *lot.Lot, expectedVersion int) error {
+	if l.IsDefault() {
+		return exception.New(exception.CodeInternal).WithTechnical("update lot custodian of a default lot")
+	}
+
+	e := r.assembler.ToEntity(l)
+	tag, err := conn(ctx, r.pool).Exec(ctx, updateLotCustodian, e.ID, e.CustodianID, e.Version, expectedVersion)
+	if err != nil {
+		return internalError("update lot custodian", err)
+	}
+	if tag.RowsAffected() == 1 {
+		return nil
+	}
+
+	return r.explainNoRows(ctx, e.ID)
+}
+
+func (r *LotRepository) explainNoRows(ctx context.Context, id uuid.UUID) error {
 	var exists bool
-	if err := conn(ctx, r.pool).QueryRow(ctx, existsLotByID, e.ID).Scan(&exists); err != nil {
+	if err := conn(ctx, r.pool).QueryRow(ctx, existsLotByID, id).Scan(&exists); err != nil {
 		return internalError("check lot exists", err)
 	}
 	if !exists {

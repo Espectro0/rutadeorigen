@@ -5,7 +5,7 @@ const (
 
 	selectLotEvent = `
 	SELECT id, lot_id, sequence, type, stage, event_date, note, actor_id,
-	       actor_role, details, previous_hash, hash, registered_at
+	       actor_role, target_actor_id, details, previous_hash, hash, registered_at
 	FROM lot_event`
 
 	selectLastLotEvent = selectLotEvent + `
@@ -20,6 +20,6 @@ const (
 	insertLotEvent = `
 		INSERT INTO lot_event (
 			id, lot_id, sequence, type, stage, event_date, note, actor_id,
-			actor_role, details, previous_hash, hash, registered_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
+			actor_role, target_actor_id, details, previous_hash, hash, registered_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
 )

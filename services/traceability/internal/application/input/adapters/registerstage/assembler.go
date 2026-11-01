@@ -5,9 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"strconv"
-	"strings"
 
+	"rutadeorigen/traceability/internal/application/input/adapters/ifmatch"
 	"rutadeorigen/traceability/internal/application/input/adapters/lotmapper"
 	"rutadeorigen/traceability/internal/application/input/dto/request"
 	"rutadeorigen/traceability/internal/application/input/dto/response"
@@ -63,14 +62,7 @@ func (Assembler) ToDTO(res registerstageuc.Result) response.RegisteredStage {
 }
 
 func parseIfMatch(header string) (int, error) {
-	value := strings.TrimPrefix(helper.ApplyTrim(header), "W/")
-	value = strings.Trim(value, `"`)
-
-	version, err := strconv.Atoi(value)
-	if err != nil || version < 1 {
-		return 0, exception.New(exception.CodeLotInvalidIfMatch)
-	}
-	return version, nil
+	return ifmatch.Parse(header)
 }
 
 func decodeDetails(stage lot.Stage, raw json.RawMessage) (lot.StageDetails, error) {
