@@ -42,7 +42,8 @@
     "organization": "Organization",
     "producer": "Producer",
     "roaster": "Roaster",
-    "brand": "Brand"
+    "brand": "Brand",
+    "unknown": "Unknown"
   },
   "Header": {
     "brand": "Ruta de Origen",
@@ -62,8 +63,9 @@
     "openMenu": "Open Menu"
   },
   "Dashboard": {
-    "title": "Your Panel",
-    "subtitle": "You can see here your farms and lots.",
+    "welcome": "Welcome, {name}!",
+    "welcomeFallback": "Welcome!",
+    "subtitle": "Here's an overview of your activity on Ruta De Origen.",
     "cards": {
       "farms": "Farms",
       "lots": "Lots"

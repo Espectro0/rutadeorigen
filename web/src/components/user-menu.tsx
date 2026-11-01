@@ -9,11 +9,17 @@ import { useActor } from "@/features/session/session-provider";
 export function UserMenu() {
     const t = useTranslations("Nav");
     const header = useTranslations("Header");
+    const actorTypes = useTranslations("ActorTypes");
     const actor = useActor();
     const [open, setOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
     const panelId = useId();
-    const initial = actor.firstName.charAt(0).toUpperCase() || "?";
+    const initials = [actor.firstName, actor.lastName]
+            .filter(Boolean)
+            .map((name) => name.charAt(0))
+            .join("")
+            .slice(0, 2)
+            .toUpperCase() || "?";
 
     useEffect(() => {
         if (!open) return;
@@ -62,10 +68,11 @@ export function UserMenu() {
                     aria-hidden
                     className="flex size-9 shrink-0 items-center justify-center rounded-full bg-terracotta text-sm font-semibold text-on-accent"
                 >
-                    {initial}
+                    {initials}
                 </span>
                 <span className="min-w-0 flex-1 leading-tight">
                     <span className="block truncate text-sm font-medium text-ink">{shortName(actor)}</span>
+                    <span className="block truncate text-xs text-ink-dim">{actorTypes(actor.type)}</span>
                     <span className="block truncate text-xs text-ink-dim">{actor.name}</span>
                 </span>
                 <LuChevronsUpDown className="size-4 shrink-0 text-ink-dim" aria-hidden />
