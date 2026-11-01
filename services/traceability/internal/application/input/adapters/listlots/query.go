@@ -32,6 +32,22 @@ func toQuery(req request.ListLots) (listlotsuc.Query, error) {
 		q.Filter.CustodianID = id
 	}
 
+	if v := helper.ApplyTrim(req.Status); v != "" {
+		status := lot.ParseStatus(v)
+		if !status.IsValid() {
+			return q, exception.New(exception.CodeLotInvalidStatus)
+		}
+		q.Filter.Status = status
+	}
+
+	if v := helper.ApplyTrim(req.Stage); v != "" {
+		stage := lot.ParseStage(v)
+		if !stage.IsValid() {
+			return q, exception.New(exception.CodeLotInvalidStage)
+		}
+		q.Filter.Stage = stage
+	}
+
 	if v := helper.ApplyTrim(req.Limit); v != "" {
 		n := helper.ParseInt(v)
 		if n < 1 {

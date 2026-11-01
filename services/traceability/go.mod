@@ -5,6 +5,7 @@ go 1.27
 replace rutadeorigen/lib => ../../lib
 
 require (
+	github.com/casbin/casbin/v2 v2.135.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/workos/workos-go/v10 v10.6.0
@@ -12,6 +13,8 @@ require (
 )
 
 require (
+	github.com/bmatcuk/doublestar/v4 v4.6.1 // indirect
+	github.com/casbin/govaluate v1.3.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect

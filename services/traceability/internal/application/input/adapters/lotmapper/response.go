@@ -23,6 +23,7 @@ func ToResponse(l *lot.Lot) response.Lot {
 		HarvestDate: l.HarvestDate().Format(time.DateOnly),
 		Stage:       l.CurrentStage().String(),
 		Status:      l.Status().String(),
+		Completed:   l.IsCompleted(),
 		VoidReason:  l.VoidReason(),
 		CreatedAt:   l.CreatedAt().Format(time.RFC3339),
 	}

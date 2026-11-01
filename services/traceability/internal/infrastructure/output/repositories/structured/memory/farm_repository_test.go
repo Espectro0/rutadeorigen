@@ -86,57 +86,85 @@ func TestFarmRepositorySave(t *testing.T) {
 			}
 		}
 
-		got, _ := repo.ListByProducer(ctx, uuid.Nil)
+		got, _ := repo.List(ctx)
 		if len(got) != 0 {
 			t.Error("nothing must be saved")
 		}
 	})
 }
 
-func TestFarmRepositoryListByProducer(t *testing.T) {
+func TestFarmRepositoryList(t *testing.T) {
 	ctx := context.Background()
-	producer := uuid.New()
 	base := time.Date(2026, time.October, 1, 12, 0, 0, 0, time.UTC)
 
-	older := farm.Restore(uuid.New(), producer, "La Esperanza", 1650, base)
-	newer := farm.Restore(uuid.New(), producer, "El Mirador", 1800, base.Add(time.Hour))
-	other := farm.Restore(uuid.New(), uuid.New(), "La Otra Finca", 1500, base.Add(2*time.Hour))
+	older := farm.Restore(uuid.New(), uuid.New(), "La Esperanza", 1650, base)
+	newer := farm.Restore(uuid.New(), uuid.New(), "El Mirador", 1800, base.Add(time.Hour))
+	newest := farm.Restore(uuid.New(), uuid.New(), "La Otra Finca", 1500, base.Add(2*time.Hour))
 
-	t.Run("returns only the farms of the producer, newest first", func(t *testing.T) {
-		repo := memory.NewFarmRepository(older, other, newer)
+	t.Run("returns the farms of every producer, newest first", func(t *testing.T) {
+		repo := memory.NewFarmRepository(older, newest, newer)
 
-		got, err := repo.ListByProducer(ctx, producer)
+		got, err := repo.List(ctx)
 
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if len(got) != 2 || got[0] != newer || got[1] != older {
-			t.Errorf("got %v, want [newer, older]", got)
+		if len(got) != 3 || got[0] != newest || got[1] != newer || got[2] != older {
+			t.Errorf("got %v, want [newest, newer, older]", got)
 		}
 	})
 
 	t.Run("ties on the date are ordered by id, descending", func(t *testing.T) {
-		a := farm.Restore(uuid.MustParse("00000000-0000-0000-0000-000000000001"), producer, "Finca A", 1650, base)
-		b := farm.Restore(uuid.MustParse("00000000-0000-0000-0000-000000000002"), producer, "Finca B", 1650, base)
+		a := farm.Restore(uuid.MustParse("00000000-0000-0000-0000-000000000001"), uuid.New(), "Finca A", 1650, base)
+		b := farm.Restore(uuid.MustParse("00000000-0000-0000-0000-000000000002"), uuid.New(), "Finca B", 1650, base)
 		repo := memory.NewFarmRepository(a, b)
 
-		got, _ := repo.ListByProducer(ctx, producer)
+		got, _ := repo.List(ctx)
 
 		if len(got) != 2 || got[0] != b || got[1] != a {
 			t.Errorf("got %v, want [b, a]", got)
 		}
 	})
 
-	t.Run("a producer without farms gets an empty, non-nil list", func(t *testing.T) {
-		repo := memory.NewFarmRepository(other)
+	t.Run("without farms it returns an empty, non-nil list", func(t *testing.T) {
+		repo := memory.NewFarmRepository()
 
-		got, err := repo.ListByProducer(ctx, producer)
+		got, err := repo.List(ctx)
 
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if got == nil || len(got) != 0 {
 			t.Errorf("got %v, want an empty, non-nil list", got)
+		}
+	})
+}
+
+func TestFarmRepositoryDelete(t *testing.T) {
+	ctx := context.Background()
+	kept := farm.Restore(uuid.New(), uuid.New(), "El Mirador", 1800, time.Now().UTC())
+	removed := farm.Restore(uuid.New(), uuid.New(), "La Esperanza", 1650, time.Now().UTC())
+
+	t.Run("removes only the given farm", func(t *testing.T) {
+		repo := memory.NewFarmRepository(kept, removed)
+
+		if err := repo.Delete(ctx, removed.ID()); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if found, _ := repo.FindByID(ctx, removed.ID()); !found.IsDefault() {
+			t.Error("the farm must be gone")
+		}
+		if found, _ := repo.FindByID(ctx, kept.ID()); found.IsDefault() {
+			t.Error("the other farm must stay")
+		}
+	})
+
+	t.Run("reports a missing farm", func(t *testing.T) {
+		err := memory.NewFarmRepository(kept).Delete(ctx, uuid.New())
+
+		if !exception.HasCode(err, exception.CodeFarmNotFound) {
+			t.Errorf("got %v, want code %q", err, exception.CodeFarmNotFound)
 		}
 	})
 }

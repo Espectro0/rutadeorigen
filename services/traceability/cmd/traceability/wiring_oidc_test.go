@@ -250,8 +250,8 @@ func TestOIDCFullLoginFlowEndToEnd(t *testing.T) {
 	}
 
 	farms := decodeFarms(t, oidcRequest(mux, http.MethodGet, "/farms", "", sessionCookie))
-	if len(farms.Items) != 1 || farms.Items[0].ID != createdFarm.ID {
-		t.Errorf("the producer must see only its own farm, got %+v", farms.Items)
+	if len(farms.Items) != 2 || farms.Items[0].ID != createdFarm.ID || farms.Items[1].ID != seedFarmID.String() {
+		t.Errorf("the producer must see its own farm and the seeded one, got %+v", farms.Items)
 	}
 
 	logout := oidcRequest(mux, http.MethodGet, "/auth/logout", "", sessionCookie)
@@ -346,7 +346,7 @@ func TestOIDCUserWithAnExistingActor(t *testing.T) {
 	}
 }
 
-func TestOIDCUsersAreIsolated(t *testing.T) {
+func TestOIDCUsersGetTheirOwnActorButSeeTheSameFarms(t *testing.T) {
 	mux := newOIDCServer(t)
 	first := mustRegister(t, mux, "sealed-new")
 	second := mustRegister(t, mux, "sealed-other")
@@ -364,8 +364,11 @@ func TestOIDCUsersAreIsolated(t *testing.T) {
 	}
 
 	others := decodeFarms(t, oidcRequest(mux, http.MethodGet, "/farms", "", sessionOf("sealed-other")))
-	if len(others.Items) != 0 {
-		t.Errorf("a user must not see the farms of another, got %+v", others.Items)
+	if len(others.Items) != 2 {
+		t.Fatalf("every user must see every farm, got %+v", others.Items)
+	}
+	if others.Items[0].ProducerID != first.ID {
+		t.Errorf("the farm must keep the producer that created it, got %q want %q", others.Items[0].ProducerID, first.ID)
 	}
 }
 

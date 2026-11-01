@@ -43,6 +43,13 @@ CREATE TABLE IF NOT EXISTS qr_scan (
 
 CREATE INDEX IF NOT EXISTS qr_scan_lot_scanned_at_idx ON qr_scan (lot_id, scanned_at DESC);
 
+CREATE TABLE IF NOT EXISTS actor_view (
+    actor_id    UUID        PRIMARY KEY,
+    user_id     TEXT        NOT NULL UNIQUE,
+    role        TEXT        NOT NULL CHECK (role IN ('organization', 'producer', 'roaster', 'brand')),
+    created_at  TIMESTAMPTZ NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS processed_event (
     message_id    UUID        PRIMARY KEY,
     event_type    TEXT        NOT NULL,

@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"rutadeorigen/traceability/internal/application/output/ports"
 	"rutadeorigen/traceability/internal/application/usecases/registeractor"
 	"rutadeorigen/traceability/internal/domain/actor"
 	"rutadeorigen/traceability/internal/platform/exception"
@@ -27,6 +28,10 @@ type fakeActors struct {
 
 func (r *fakeActors) FindByID(_ context.Context, _ uuid.UUID) (*actor.Actor, error) {
 	return actor.Default(), nil
+}
+
+func (r *fakeActors) ListByType(_ context.Context, _ actor.Type) ([]*actor.Actor, error) {
+	return nil, nil
 }
 
 func (r *fakeActors) FindByUserID(_ context.Context, userID string) (*actor.Actor, error) {
@@ -51,6 +56,32 @@ func (r *fakeActors) Save(_ context.Context, a *actor.Actor) error {
 	}
 	r.byUserID[a.UserID()] = a
 	r.saved = append(r.saved, a)
+	return nil
+}
+
+type fakeTx struct {
+	calls int
+	err   error
+}
+
+func (m *fakeTx) WithinTx(ctx context.Context, fn func(context.Context) error) error {
+	m.calls++
+	if m.err != nil {
+		return m.err
+	}
+	return fn(ctx)
+}
+
+type fakePublisher struct {
+	err    error
+	events []ports.Event
+}
+
+func (p *fakePublisher) Publish(_ context.Context, e ports.Event) error {
+	if p.err != nil {
+		return p.err
+	}
+	p.events = append(p.events, e)
 	return nil
 }
 
@@ -106,7 +137,7 @@ func assertEmptyResult(t *testing.T, got registeractor.Result) {
 
 func TestRegisterActorCreates(t *testing.T) {
 	actors := newActors()
-	uc := registeractor.New(actors)
+	uc := registeractor.New(actors, &fakePublisher{}, &fakeTx{})
 
 	got, err := uc.Execute(context.Background(), validCommand())
 	if err != nil {
@@ -158,7 +189,7 @@ func TestRegisterActorTrimsUserID(t *testing.T) {
 	cmd := validCommand()
 	cmd.UserID = "  user_01  "
 
-	got, err := registeractor.New(actors).Execute(context.Background(), cmd)
+	got, err := registeractor.New(actors, &fakePublisher{}, &fakeTx{}).Execute(context.Background(), cmd)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -176,7 +207,7 @@ func TestRegisterActorIsIdempotent(t *testing.T) {
 	cmd.Name = "Another Name"
 	cmd.Type = actor.TypeBrand
 
-	got, err := registeractor.New(actors).Execute(context.Background(), cmd)
+	got, err := registeractor.New(actors, &fakePublisher{}, &fakeTx{}).Execute(context.Background(), cmd)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -208,7 +239,7 @@ func TestRegisterActorIsIdempotent(t *testing.T) {
 
 func TestRegisterActorSecondCallReturnsSameActor(t *testing.T) {
 	actors := newActors()
-	uc := registeractor.New(actors)
+	uc := registeractor.New(actors, &fakePublisher{}, &fakeTx{})
 
 	first, err := uc.Execute(context.Background(), validCommand())
 	if err != nil {
@@ -237,7 +268,7 @@ func TestRegisterActorRequiresUserID(t *testing.T) {
 			cmd := validCommand()
 			cmd.UserID = userID
 
-			got, err := registeractor.New(actors).Execute(context.Background(), cmd)
+			got, err := registeractor.New(actors, &fakePublisher{}, &fakeTx{}).Execute(context.Background(), cmd)
 
 			assertCode(t, err, exception.CodeUnauthorized)
 			assertEmptyResult(t, got)
@@ -268,7 +299,7 @@ func TestRegisterActorValidation(t *testing.T) {
 			cmd := validCommand()
 			tt.mutate(&cmd)
 
-			got, err := registeractor.New(actors).Execute(context.Background(), cmd)
+			got, err := registeractor.New(actors, &fakePublisher{}, &fakeTx{}).Execute(context.Background(), cmd)
 
 			assertCode(t, err, tt.code)
 			assertEmptyResult(t, got)
@@ -284,7 +315,7 @@ func TestRegisterActorConflictReturnsWinner(t *testing.T) {
 	winner := mustActor(t, "user_01")
 	actors.raceWinner = winner
 
-	got, err := registeractor.New(actors).Execute(context.Background(), validCommand())
+	got, err := registeractor.New(actors, &fakePublisher{}, &fakeTx{}).Execute(context.Background(), validCommand())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -312,7 +343,7 @@ func TestRegisterActorConflictWithoutActor(t *testing.T) {
 	actors := newActors()
 	actors.saveErr = exception.New(exception.CodeActorAlreadyExists)
 
-	got, err := registeractor.New(actors).Execute(context.Background(), validCommand())
+	got, err := registeractor.New(actors, &fakePublisher{}, &fakeTx{}).Execute(context.Background(), validCommand())
 
 	e, ok := exception.From(err)
 	if !ok || e.Kind() != exception.KindInternal {
@@ -327,7 +358,7 @@ func TestRegisterActorConflictLookupFails(t *testing.T) {
 	actors.findErr = errInfra
 	actors.findErrOnN = 2
 
-	got, err := registeractor.New(actors).Execute(context.Background(), validCommand())
+	got, err := registeractor.New(actors, &fakePublisher{}, &fakeTx{}).Execute(context.Background(), validCommand())
 
 	assertInternal(t, err)
 	assertEmptyResult(t, got)
@@ -337,7 +368,7 @@ func TestRegisterActorFindFails(t *testing.T) {
 	actors := newActors()
 	actors.findErr = errInfra
 
-	got, err := registeractor.New(actors).Execute(context.Background(), validCommand())
+	got, err := registeractor.New(actors, &fakePublisher{}, &fakeTx{}).Execute(context.Background(), validCommand())
 
 	assertInternal(t, err)
 	assertEmptyResult(t, got)
@@ -350,7 +381,7 @@ func TestRegisterActorSaveFails(t *testing.T) {
 	actors := newActors()
 	actors.saveErr = errInfra
 
-	got, err := registeractor.New(actors).Execute(context.Background(), validCommand())
+	got, err := registeractor.New(actors, &fakePublisher{}, &fakeTx{}).Execute(context.Background(), validCommand())
 
 	assertInternal(t, err)
 	assertEmptyResult(t, got)
@@ -360,7 +391,90 @@ func TestRegisterActorKeepsDomainErrorsFromRepository(t *testing.T) {
 	actors := newActors()
 	actors.saveErr = exception.New(exception.CodeForbidden)
 
-	_, err := registeractor.New(actors).Execute(context.Background(), validCommand())
+	_, err := registeractor.New(actors, &fakePublisher{}, &fakeTx{}).Execute(context.Background(), validCommand())
 
 	assertCode(t, err, exception.CodeForbidden)
+}
+
+func TestRegisterActorPublishesActorRegistered(t *testing.T) {
+	actors := newActors()
+	publisher := &fakePublisher{}
+	tx := &fakeTx{}
+
+	got, err := registeractor.New(actors, publisher, tx).Execute(context.Background(), validCommand())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if tx.calls != 1 || len(publisher.events) != 1 {
+		t.Fatalf("got %d transactions and %d events, want 1 and 1", tx.calls, len(publisher.events))
+	}
+	event := publisher.events[0]
+	if event.Type != ports.EventActorRegistered || event.AggregateType != ports.AggregateActor ||
+		event.AggregateID != got.Actor.ID() || event.Version != 1 || event.ActorID != got.Actor.ID() {
+		t.Errorf("unexpected envelope %+v", event)
+	}
+	payload, ok := event.Payload.(registeractor.ActorRegisteredPayload)
+	if !ok {
+		t.Fatalf("unexpected payload type %T", event.Payload)
+	}
+	if payload.ActorID != got.Actor.ID() || payload.UserID != "user_01" || payload.Type != "producer" {
+		t.Errorf("unexpected payload %+v", payload)
+	}
+}
+
+func TestRegisterActorDoesNotPublishForAnExistingActor(t *testing.T) {
+	actors := newActors()
+	existing := mustActor(t, "user_01")
+	actors.byUserID["user_01"] = existing
+	publisher := &fakePublisher{}
+	tx := &fakeTx{}
+
+	got, err := registeractor.New(actors, publisher, tx).Execute(context.Background(), validCommand())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if got.Created || got.Actor != existing {
+		t.Errorf("expected the existing actor and Created false, got %+v", got)
+	}
+	if len(publisher.events) != 0 || tx.calls != 0 {
+		t.Errorf("got %d events and %d transactions, want none", len(publisher.events), tx.calls)
+	}
+}
+
+func TestRegisterActorDoesNotPublishWhenTheRaceIsLost(t *testing.T) {
+	actors := newActors()
+	actors.raceWinner = mustActor(t, "user_01")
+	publisher := &fakePublisher{}
+
+	got, err := registeractor.New(actors, publisher, &fakeTx{}).Execute(context.Background(), validCommand())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if got.Created || got.Actor != actors.raceWinner {
+		t.Errorf("expected the winner and Created false, got %+v", got)
+	}
+	if len(publisher.events) != 0 {
+		t.Error("the loser of the race must not publish")
+	}
+}
+
+func TestRegisterActorFailsWhenPublishingOrTheTransactionFails(t *testing.T) {
+	t.Run("publishing fails", func(t *testing.T) {
+		publisher := &fakePublisher{err: errInfra}
+
+		got, err := registeractor.New(newActors(), publisher, &fakeTx{}).Execute(context.Background(), validCommand())
+
+		assertInternal(t, err)
+		assertEmptyResult(t, got)
+	})
+
+	t.Run("the transaction fails", func(t *testing.T) {
+		got, err := registeractor.New(newActors(), &fakePublisher{}, &fakeTx{err: errInfra}).Execute(context.Background(), validCommand())
+
+		assertInternal(t, err)
+		assertEmptyResult(t, got)
+	})
 }

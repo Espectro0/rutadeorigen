@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"rutadeorigen/qr/internal/domain/actorview"
 	"rutadeorigen/qr/internal/domain/lotview"
 	"rutadeorigen/qr/internal/domain/qrcode"
 	"rutadeorigen/qr/internal/domain/redirect"
@@ -180,5 +181,61 @@ func TestTxManagerRunsFunctionAndReturnsItsError(t *testing.T) {
 	}
 	if !errors.Is(err, boom) {
 		t.Errorf("expected the function error, got %v", err)
+	}
+}
+
+func TestActorViewRepositorySavesAndFindsByUser(t *testing.T) {
+	ctx := context.Background()
+	repo := memory.NewActorViewRepository()
+	view, err := actorview.New(actorview.NewParams{ActorID: uuid.New(), UserID: "user_01", Role: actorview.RoleOrganization})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if err := repo.Save(ctx, view); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got, err := repo.FindByUserID(ctx, "user_01")
+	if err != nil || got != view {
+		t.Errorf("expected the saved view, got %+v and %v", got, err)
+	}
+}
+
+func TestActorViewRepositoryReturnsDefaultForUnknownUsers(t *testing.T) {
+	got, err := memory.NewActorViewRepository().FindByUserID(context.Background(), "nobody")
+
+	if err != nil || !got.IsDefault() {
+		t.Errorf("expected the default view, got %+v and %v", got, err)
+	}
+}
+
+func TestActorViewRepositorySaveReplacesTheViewOfTheSameUser(t *testing.T) {
+	ctx := context.Background()
+	repo := memory.NewActorViewRepository()
+	first, _ := actorview.New(actorview.NewParams{ActorID: uuid.New(), UserID: "user_01", Role: actorview.RoleProducer})
+	second, _ := actorview.New(actorview.NewParams{ActorID: first.ActorID(), UserID: "user_01", Role: actorview.RoleBrand})
+
+	_ = repo.Save(ctx, first)
+	_ = repo.Save(ctx, second)
+
+	got, _ := repo.FindByUserID(ctx, "user_01")
+	if got.Role() != actorview.RoleBrand {
+		t.Errorf("expected the latest view, got %+v", got)
+	}
+}
+
+func TestActorViewRepositoryFindsByID(t *testing.T) {
+	ctx := context.Background()
+	repo := memory.NewActorViewRepository()
+	view, _ := actorview.New(actorview.NewParams{ActorID: uuid.New(), UserID: "user_01", Role: actorview.RoleRoaster})
+	_ = repo.Save(ctx, view)
+
+	got, err := repo.FindByID(ctx, view.ActorID())
+	if err != nil || got != view {
+		t.Errorf("expected the saved view, got %+v and %v", got, err)
+	}
+	if other, _ := repo.FindByID(ctx, uuid.New()); !other.IsDefault() {
+		t.Error("an unknown id must return the default view")
 	}
 }

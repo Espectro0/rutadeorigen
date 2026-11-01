@@ -50,7 +50,9 @@ func (r *fakeFarms) Save(_ context.Context, f *farm.Farm) error {
 	return nil
 }
 
-func (r *fakeFarms) ListByProducer(_ context.Context, _ uuid.UUID) ([]*farm.Farm, error) {
+func (r *fakeFarms) Delete(_ context.Context, _ uuid.UUID) error { return nil }
+
+func (r *fakeFarms) List(_ context.Context) ([]*farm.Farm, error) {
 	return []*farm.Farm{}, nil
 }
 
@@ -289,6 +291,10 @@ func TestCreateFarmNilDraft(t *testing.T) {
 
 	got, err := execute(s.ctx(), s.useCase(), nil)
 	assertFailed(t, got, err, exception.New(exception.CodeFarmInvalidName))
+}
+
+func (r fakeActors) ListByType(_ context.Context, _ actor.Type) ([]*actor.Actor, error) {
+	return nil, nil
 }
 
 func (r fakeActors) FindByUserID(_ context.Context, _ string) (*actor.Actor, error) {

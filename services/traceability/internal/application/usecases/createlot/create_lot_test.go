@@ -73,7 +73,9 @@ func (r fakeFarms) Save(_ context.Context, _ *farm.Farm) error {
 	return nil
 }
 
-func (r fakeFarms) ListByProducer(_ context.Context, _ uuid.UUID) ([]*farm.Farm, error) {
+func (r fakeFarms) Delete(_ context.Context, _ uuid.UUID) error { return nil }
+
+func (r fakeFarms) List(_ context.Context) ([]*farm.Farm, error) {
 	return []*farm.Farm{}, nil
 }
 
@@ -100,6 +102,12 @@ func (r *fakeLots) FindByID(_ context.Context, _ uuid.UUID) (*lot.Lot, error) {
 
 func (r *fakeLots) List(_ context.Context, _ lot.Filter, _ lot.Cursor, _ int) ([]*lot.Lot, error) {
 	return nil, nil
+}
+
+func (r *fakeLots) UpdateStatus(_ context.Context, _ *lot.Lot, _ int) error { return nil }
+
+func (r *fakeLots) UpdateCustodian(_ context.Context, _ *lot.Lot, _ int) error {
+	return nil
 }
 
 func (r *fakeLots) UpdateStage(_ context.Context, _ *lot.Lot, _ int) error {
@@ -591,6 +599,10 @@ func TestCreateLotTransaction(t *testing.T) {
 			t.Errorf("got %d transactions, want 0", s.tx.calls)
 		}
 	})
+}
+
+func (r fakeActors) ListByType(_ context.Context, _ actor.Type) ([]*actor.Actor, error) {
+	return nil, nil
 }
 
 func (r fakeActors) FindByUserID(_ context.Context, _ string) (*actor.Actor, error) {

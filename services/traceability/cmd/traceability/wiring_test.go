@@ -12,11 +12,17 @@ import (
 
 	"github.com/google/uuid"
 
+	"rutadeorigen/traceability/internal/domain/actor"
 	"rutadeorigen/traceability/internal/platform/catalog"
 	"rutadeorigen/traceability/internal/platform/exception"
 )
 
-const producerHeader = "11111111-1111-1111-1111-111111111111"
+const (
+	producerHeader = "11111111-1111-1111-1111-111111111111"
+	roasterHeader  = "33333333-3333-3333-3333-333333333333"
+	brandHeader    = "44444444-4444-4444-4444-444444444444"
+	orgHeader      = "55555555-5555-5555-5555-555555555555"
+)
 
 func newTestServer(t *testing.T) (*http.ServeMux, *bytes.Buffer) {
 	t.Helper()
@@ -149,8 +155,17 @@ func TestSeedData(t *testing.T) {
 	actors := seedActors()
 	farms := seedFarms()
 
-	if len(actors) != 1 || actors[0].ID() != seedProducerID || !actors[0].IsActive() || !actors[0].IsProducer() {
-		t.Errorf("seed must contain one active producer with the fixed id, got %+v", actors)
+	if len(actors) != 4 || actors[0].ID() != seedProducerID || !actors[0].IsActive() || !actors[0].IsProducer() {
+		t.Errorf("seed must start with an active producer with the fixed id, got %+v", actors)
+	}
+	if actors[1].ID() != seedRoasterID || actors[1].Type() != actor.TypeRoaster || !actors[1].IsActive() {
+		t.Errorf("seed must contain an active roaster with the fixed id, got %+v", actors[1])
+	}
+	if actors[2].ID() != seedBrandID || actors[2].Type() != actor.TypeBrand || !actors[2].IsActive() {
+		t.Errorf("seed must contain an active brand with the fixed id, got %+v", actors[2])
+	}
+	if actors[3].ID() != seedOrgID || actors[3].Type() != actor.TypeOrganization || !actors[3].IsActive() {
+		t.Errorf("seed must contain an active organization with the fixed id, got %+v", actors[3])
 	}
 	if len(farms) != 1 || farms[0].ID() != seedFarmID || !farms[0].BelongsTo(seedProducerID) {
 		t.Errorf("seed must contain one farm owned by the producer, got %+v", farms)
@@ -494,6 +509,20 @@ func TestListFarmsEndToEnd(t *testing.T) {
 		}
 	})
 
+	t.Run("every role sees the farms of every producer", func(t *testing.T) {
+		for _, actorID := range []string{roasterHeader, brandHeader} {
+			rec := get(mux, actorID, "/farms")
+
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status: got %d, want %d (%s)", rec.Code, http.StatusOK, rec.Body.String())
+			}
+			list := decodeFarms(t, rec)
+			if len(list.Items) != 2 || list.Items[0].ID != created.ID || list.Items[1].ID != seedFarmID.String() {
+				t.Errorf("actor %s: got %+v, want the created and the seeded farms", actorID, list.Items)
+			}
+		}
+	})
+
 	t.Run("missing actor", func(t *testing.T) {
 		assertErrorCode(t, get(mux, "", "/farms"), http.StatusUnauthorized, "UNAUTHORIZED")
 	})
@@ -544,19 +573,20 @@ const (
 
 type stageView struct {
 	Event struct {
-		ID           string          `json:"id"`
-		LotID        string          `json:"lot_id"`
-		Sequence     int             `json:"sequence"`
-		Type         string          `json:"type"`
-		Stage        string          `json:"stage"`
-		EventDate    string          `json:"event_date"`
-		Note         string          `json:"note"`
-		ActorID      string          `json:"actor_id"`
-		ActorRole    string          `json:"actor_role"`
-		Details      json.RawMessage `json:"details"`
-		PreviousHash string          `json:"previous_hash"`
-		Hash         string          `json:"hash"`
-		RegisteredAt string          `json:"registered_at"`
+		ID            string          `json:"id"`
+		LotID         string          `json:"lot_id"`
+		Sequence      int             `json:"sequence"`
+		Type          string          `json:"type"`
+		Stage         string          `json:"stage"`
+		EventDate     string          `json:"event_date"`
+		Note          string          `json:"note"`
+		ActorID       string          `json:"actor_id"`
+		ActorRole     string          `json:"actor_role"`
+		TargetActorID string          `json:"target_actor_id"`
+		Details       json.RawMessage `json:"details"`
+		PreviousHash  string          `json:"previous_hash"`
+		Hash          string          `json:"hash"`
+		RegisteredAt  string          `json:"registered_at"`
 	} `json:"event"`
 	LotVersion int `json:"lot_version"`
 }
@@ -578,9 +608,48 @@ func postStage(mux http.Handler, actorID, lotID, ifMatch, body string) *httptest
 func mustRegisterStage(t *testing.T, mux http.Handler, lotID, ifMatch, body string) (stageView, string) {
 	t.Helper()
 
-	rec := postStage(mux, producerHeader, lotID, ifMatch, body)
+	return mustRegisterStageAs(t, mux, producerHeader, lotID, ifMatch, body)
+}
+
+func mustRegisterStageAs(t *testing.T, mux http.Handler, actorID, lotID, ifMatch, body string) (stageView, string) {
+	t.Helper()
+
+	rec := postStage(mux, actorID, lotID, ifMatch, body)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("register stage: status %d (%s)", rec.Code, rec.Body.String())
+	}
+
+	var view stageView
+	if err := json.NewDecoder(rec.Body).Decode(&view); err != nil {
+		t.Fatalf("body is not JSON: %v", err)
+	}
+	return view, rec.Header().Get("ETag")
+}
+
+func postTransfer(mux http.Handler, actorID, lotID, ifMatch, body string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodPost, "/lots/"+lotID+"/transfers", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	if actorID != "" {
+		req.Header.Set("X-Actor-ID", actorID)
+	}
+	if ifMatch != "" {
+		req.Header.Set("If-Match", ifMatch)
+	}
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	return rec
+}
+
+func transferBody(targetID string) string {
+	return `{"target_actor_id":"` + targetID + `","note":"Handed over"}`
+}
+
+func mustTransfer(t *testing.T, mux http.Handler, actorID, lotID, ifMatch, targetID string) (stageView, string) {
+	t.Helper()
+
+	rec := postTransfer(mux, actorID, lotID, ifMatch, transferBody(targetID))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("transfer: status %d (%s)", rec.Code, rec.Body.String())
 	}
 
 	var view stageView
@@ -594,48 +663,88 @@ func TestRegisterStageEndToEnd(t *testing.T) {
 	mux, logs := newTestServer(t)
 	created := mustCreateLot(t, mux, "LOT-001")
 
-	farm, farmETag := mustRegisterStage(t, mux, created.ID, `"1"`, farmStageBody)
-	roasting, roastingETag := mustRegisterStage(t, mux, created.ID, farmETag, roastingStageBody)
-	packaging, packagingETag := mustRegisterStage(t, mux, created.ID, roastingETag, packagingStageBody)
+	farm, farmETag := mustRegisterStageAs(t, mux, producerHeader, created.ID, `"1"`, farmStageBody)
+	toRoaster, toRoasterETag := mustTransfer(t, mux, producerHeader, created.ID, farmETag, roasterHeader)
+	roasting, roastingETag := mustRegisterStageAs(t, mux, roasterHeader, created.ID, toRoasterETag, roastingStageBody)
+	toBrand, toBrandETag := mustTransfer(t, mux, roasterHeader, created.ID, roastingETag, brandHeader)
+	packaging, packagingETag := mustRegisterStageAs(t, mux, brandHeader, created.ID, toBrandETag, packagingStageBody)
 
 	t.Run("each registration bumps the lot version and returns it as ETag", func(t *testing.T) {
-		if farmETag != `"2"` || roastingETag != `"3"` || packagingETag != `"4"` {
-			t.Errorf("ETags: got %s, %s, %s", farmETag, roastingETag, packagingETag)
+		etags := []string{farmETag, toRoasterETag, roastingETag, toBrandETag, packagingETag}
+		for i, got := range etags {
+			if want := `"` + strconv.Itoa(i+2) + `"`; got != want {
+				t.Errorf("ETag %d: got %s, want %s", i, got, want)
+			}
 		}
-		if farm.LotVersion != 2 || roasting.LotVersion != 3 || packaging.LotVersion != 4 {
-			t.Errorf("lot versions: got %d, %d, %d", farm.LotVersion, roasting.LotVersion, packaging.LotVersion)
-		}
-	})
-
-	t.Run("the events are chained from the genesis hash", func(t *testing.T) {
-		if farm.Event.Sequence != 1 || roasting.Event.Sequence != 2 || packaging.Event.Sequence != 3 {
-			t.Errorf("sequences: got %d, %d, %d", farm.Event.Sequence, roasting.Event.Sequence, packaging.Event.Sequence)
-		}
-		if farm.Event.PreviousHash != genesisHash {
-			t.Errorf("first previous hash: got %q", farm.Event.PreviousHash)
-		}
-		if roasting.Event.PreviousHash != farm.Event.Hash || packaging.Event.PreviousHash != roasting.Event.Hash {
-			t.Error("each event must point to the hash of the previous one")
-		}
-		for _, e := range []string{farm.Event.Hash, roasting.Event.Hash, packaging.Event.Hash} {
-			if len(e) != 64 {
-				t.Errorf("hash must have 64 hex characters, got %q", e)
+		versions := []int{farm.LotVersion, toRoaster.LotVersion, roasting.LotVersion, toBrand.LotVersion, packaging.LotVersion}
+		for i, got := range versions {
+			if want := i + 2; got != want {
+				t.Errorf("lot version %d: got %d, want %d", i, got, want)
 			}
 		}
 	})
 
-	t.Run("the event carries the request data and the actor", func(t *testing.T) {
+	t.Run("the events are chained from the genesis hash", func(t *testing.T) {
+		chain := []stageView{farm, toRoaster, roasting, toBrand, packaging}
+		for i, view := range chain {
+			if view.Event.Sequence != i+1 {
+				t.Errorf("event %d: got sequence %d", i, view.Event.Sequence)
+			}
+			if len(view.Event.Hash) != 64 {
+				t.Errorf("hash must have 64 hex characters, got %q", view.Event.Hash)
+			}
+			if i == 0 {
+				if view.Event.PreviousHash != genesisHash {
+					t.Errorf("first previous hash: got %q", view.Event.PreviousHash)
+				}
+				continue
+			}
+			if view.Event.PreviousHash != chain[i-1].Event.Hash {
+				t.Errorf("event %d must point to the hash of the previous one", i)
+			}
+		}
+	})
+
+	t.Run("each event carries the type, the stage and the actor", func(t *testing.T) {
+		want := []struct {
+			view  stageView
+			kind  string
+			stage string
+			actor string
+			role  string
+		}{
+			{farm, "stage", "farm", producerHeader, "producer"},
+			{toRoaster, "transfer", "farm", producerHeader, "producer"},
+			{roasting, "stage", "roasting", roasterHeader, "roaster"},
+			{toBrand, "transfer", "roasting", roasterHeader, "roaster"},
+			{packaging, "stage", "packaging", brandHeader, "brand"},
+		}
+		for i, w := range want {
+			e := w.view.Event
+			if e.LotID != created.ID || e.Type != w.kind || e.Stage != w.stage || e.ActorID != w.actor || e.ActorRole != w.role {
+				t.Errorf("event %d: unexpected %+v", i, e)
+			}
+		}
+	})
+
+	t.Run("a transfer event names the receiving actor", func(t *testing.T) {
+		if toRoaster.Event.TargetActorID != roasterHeader || toBrand.Event.TargetActorID != brandHeader {
+			t.Errorf("targets: got %q and %q", toRoaster.Event.TargetActorID, toBrand.Event.TargetActorID)
+		}
+		if farm.Event.TargetActorID != "" {
+			t.Errorf("a stage event has no target, got %q", farm.Event.TargetActorID)
+		}
+		if toRoaster.Event.Note != "Handed over" {
+			t.Errorf("note: got %q", toRoaster.Event.Note)
+		}
+	})
+
+	t.Run("the event carries the request data", func(t *testing.T) {
 		if _, err := uuid.Parse(farm.Event.ID); err != nil {
 			t.Errorf("id must be a UUID, got %q", farm.Event.ID)
 		}
-		if farm.Event.LotID != created.ID || farm.Event.Type != "stage" || farm.Event.Stage != "farm" {
-			t.Errorf("unexpected event: %+v", farm.Event)
-		}
 		if farm.Event.EventDate != "2026-02-01" || farm.Event.Note != "Dried on raised beds" {
 			t.Errorf("date/note: got %q/%q", farm.Event.EventDate, farm.Event.Note)
-		}
-		if farm.Event.ActorID != producerHeader || farm.Event.ActorRole != "producer" {
-			t.Errorf("actor: got %q/%q", farm.Event.ActorID, farm.Event.ActorRole)
 		}
 		if farm.Event.RegisteredAt == "" {
 			t.Error("registered_at must not be empty")
@@ -650,30 +759,34 @@ func TestRegisterStageEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("the lot reflects the last stage and version", func(t *testing.T) {
+	t.Run("the lot reflects the last stage, the custodian and the version", func(t *testing.T) {
 		rec := get(mux, producerHeader, "/lots/"+created.ID)
 
 		if rec.Code != http.StatusOK {
 			t.Fatalf("status: got %d (%s)", rec.Code, rec.Body.String())
 		}
-		if rec.Header().Get("ETag") != `"4"` {
-			t.Errorf("ETag: got %q, want \"4\"", rec.Header().Get("ETag"))
+		if rec.Header().Get("ETag") != `"6"` {
+			t.Errorf("ETag: got %q, want \"6\"", rec.Header().Get("ETag"))
 		}
 		var body struct {
-			Stage   string `json:"stage"`
-			Version int    `json:"version"`
+			Stage       string `json:"stage"`
+			Version     int    `json:"version"`
+			CustodianID string `json:"custodian_id"`
 		}
 		if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
 			t.Fatalf("body is not JSON: %v", err)
 		}
-		if body.Stage != "packaging" || body.Version != 4 {
-			t.Errorf("got stage %q and version %d, want packaging and 4", body.Stage, body.Version)
+		if body.Stage != "packaging" || body.Version != 6 || body.CustodianID != brandHeader {
+			t.Errorf("got stage %q, version %d and custodian %q", body.Stage, body.Version, body.CustodianID)
 		}
 	})
 
-	t.Run("a stage_registered event is published per registration", func(t *testing.T) {
+	t.Run("an event is published per registration and per transfer", func(t *testing.T) {
 		if got := strings.Count(logs.String(), `"event_type":"lot.stage_registered"`); got != 3 {
 			t.Errorf("got %d lot.stage_registered events, want 3, logs: %s", got, logs.String())
+		}
+		if got := strings.Count(logs.String(), `"event_type":"lot.transferred"`); got != 2 {
+			t.Errorf("got %d lot.transferred events, want 2, logs: %s", got, logs.String())
 		}
 	})
 }
@@ -682,8 +795,10 @@ func TestRegisterStageEndToEndAcceptsWeakAndUnquotedIfMatch(t *testing.T) {
 	mux, _ := newTestServer(t)
 	created := mustCreateLot(t, mux, "LOT-001")
 
-	_, etag := mustRegisterStage(t, mux, created.ID, `W/"1"`, farmStageBody)
-	_, _ = mustRegisterStage(t, mux, created.ID, strings.Trim(etag, `"`), roastingStageBody)
+	_, _ = mustRegisterStage(t, mux, created.ID, `W/"1"`, farmStageBody)
+
+	other := mustCreateLot(t, mux, "LOT-002")
+	_, _ = mustRegisterStage(t, mux, other.ID, `1`, farmStageBody)
 }
 
 func TestRegisterStageEndToEndErrors(t *testing.T) {
@@ -703,7 +818,7 @@ func TestRegisterStageEndToEndErrors(t *testing.T) {
 		{"missing if-match", producerHeader, sameLot, "", farmStageBody, http.StatusBadRequest, string(exception.CodeLotInvalidIfMatch)},
 		{"malformed if-match", producerHeader, sameLot, `"abc"`, farmStageBody, http.StatusBadRequest, string(exception.CodeLotInvalidIfMatch)},
 		{"stale if-match", producerHeader, sameLot, `"2"`, farmStageBody, http.StatusConflict, string(exception.CodeLotVersionConflict)},
-		{"skipped stage", producerHeader, sameLot, `"1"`, roastingStageBody, http.StatusConflict, string(exception.CodeLotStageOutOfOrder)},
+		{"stage of another role", producerHeader, sameLot, `"1"`, roastingStageBody, http.StatusForbidden, "FORBIDDEN"},
 		{"unknown stage", producerHeader, sameLot, `"1"`, `{"stage":"drying","event_date":"2026-02-01","details":{}}`, http.StatusBadRequest, string(exception.CodeLotInvalidStage)},
 		{"stage none", producerHeader, sameLot, `"1"`, `{"stage":"none","event_date":"2026-02-01","details":{}}`, http.StatusBadRequest, string(exception.CodeLotInvalidStage)},
 		{"invalid event date", producerHeader, sameLot, `"1"`, strings.Replace(farmStageBody, "2026-02-01", "01/02/2026", 1), http.StatusBadRequest, string(exception.CodeLotInvalidEventDate)},
@@ -748,7 +863,7 @@ func TestRegisterStageEndToEndRejectsAStaleVersionAfterAnotherRegistration(t *te
 	created := mustCreateLot(t, mux, "LOT-001")
 	mustRegisterStage(t, mux, created.ID, `"1"`, farmStageBody)
 
-	rec := postStage(mux, producerHeader, created.ID, `"1"`, roastingStageBody)
+	rec := postStage(mux, producerHeader, created.ID, `"1"`, farmStageBody)
 
 	assertErrorCode(t, rec, http.StatusConflict, string(exception.CodeLotVersionConflict))
 }
@@ -761,4 +876,623 @@ func TestRegisterStageEndToEndDoesNotAdvanceTheSameStageTwice(t *testing.T) {
 	rec := postStage(mux, producerHeader, created.ID, etag, farmStageBody)
 
 	assertErrorCode(t, rec, http.StatusConflict, string(exception.CodeLotStageOutOfOrder))
+}
+
+func lotWithFarmStage(t *testing.T, mux http.Handler) (lotView, string) {
+	t.Helper()
+
+	created := mustCreateLot(t, mux, "LOT-001")
+	_, etag := mustRegisterStage(t, mux, created.ID, `"1"`, farmStageBody)
+	return created, etag
+}
+
+func TestTransferLotEndToEndErrors(t *testing.T) {
+	tests := []struct {
+		name     string
+		actorID  string
+		lotID    func(created lotView) string
+		ifMatch  string
+		body     string
+		want     int
+		wantCode string
+	}{
+		{"missing actor", "", sameLot, `"2"`, transferBody(roasterHeader), http.StatusUnauthorized, "UNAUTHORIZED"},
+		{"unknown actor", uuid.NewString(), sameLot, `"2"`, transferBody(roasterHeader), http.StatusNotFound, string(exception.CodeActorNotFound)},
+		{"unknown lot", producerHeader, otherLot, `"2"`, transferBody(roasterHeader), http.StatusNotFound, string(exception.CodeLotNotFound)},
+		{"malformed lot id", producerHeader, malformedLot, `"2"`, transferBody(roasterHeader), http.StatusNotFound, string(exception.CodeLotNotFound)},
+		{"not the custodian", roasterHeader, sameLot, `"2"`, transferBody(brandHeader), http.StatusForbidden, "FORBIDDEN"},
+		{"missing if-match", producerHeader, sameLot, "", transferBody(roasterHeader), http.StatusBadRequest, string(exception.CodeLotInvalidIfMatch)},
+		{"stale if-match", producerHeader, sameLot, `"1"`, transferBody(roasterHeader), http.StatusConflict, string(exception.CodeLotVersionConflict)},
+		{"malformed target", producerHeader, sameLot, `"2"`, transferBody("not-a-uuid"), http.StatusNotFound, string(exception.CodeActorNotFound)},
+		{"unknown target", producerHeader, sameLot, `"2"`, transferBody(uuid.NewString()), http.StatusNotFound, string(exception.CodeActorNotFound)},
+		{"target without the required role", producerHeader, sameLot, `"2"`, transferBody(brandHeader), http.StatusBadRequest, string(exception.CodeLotInvalidTransferTarget)},
+		{"target is the custodian", producerHeader, sameLot, `"2"`, transferBody(producerHeader), http.StatusBadRequest, string(exception.CodeLotInvalidTransferTarget)},
+		{"unknown json field", producerHeader, sameLot, `"2"`, `{"target_actor_id":"` + roasterHeader + `","lot_id":"x"}`, http.StatusBadRequest, "INVALID_REQUEST_BODY"},
+		{"empty body", producerHeader, sameLot, `"2"`, ``, http.StatusBadRequest, "INVALID_REQUEST_BODY"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mux, logs := newTestServer(t)
+			created, _ := lotWithFarmStage(t, mux)
+
+			rec := postTransfer(mux, tt.actorID, tt.lotID(created), tt.ifMatch, tt.body)
+
+			assertErrorCode(t, rec, tt.want, tt.wantCode)
+			if rec.Header().Get("ETag") != "" {
+				t.Error("a failed request must not set an ETag")
+			}
+			if strings.Contains(logs.String(), `"event_type":"lot.transferred"`) {
+				t.Error("a failed request must not publish an event")
+			}
+
+			after := get(mux, producerHeader, "/lots/"+created.ID)
+			if after.Header().Get("ETag") != `"2"` {
+				t.Errorf("the lot must stay untouched, ETag %q", after.Header().Get("ETag"))
+			}
+		})
+	}
+}
+
+func TestTransferLotEndToEndRequiresARegisteredStage(t *testing.T) {
+	mux, _ := newTestServer(t)
+	created := mustCreateLot(t, mux, "LOT-001")
+
+	rec := postTransfer(mux, producerHeader, created.ID, `"1"`, transferBody(roasterHeader))
+
+	assertErrorCode(t, rec, http.StatusConflict, string(exception.CodeLotNotTransferable))
+}
+
+func TestTransferLotEndToEndTheBrandCannotTransfer(t *testing.T) {
+	mux, _ := newTestServer(t)
+	created, farmETag := lotWithFarmStage(t, mux)
+	_, toRoasterETag := mustTransfer(t, mux, producerHeader, created.ID, farmETag, roasterHeader)
+	_, roastingETag := mustRegisterStageAs(t, mux, roasterHeader, created.ID, toRoasterETag, roastingStageBody)
+	_, toBrandETag := mustTransfer(t, mux, roasterHeader, created.ID, roastingETag, brandHeader)
+	_, packagingETag := mustRegisterStageAs(t, mux, brandHeader, created.ID, toBrandETag, packagingStageBody)
+
+	rec := postTransfer(mux, brandHeader, created.ID, packagingETag, transferBody(producerHeader))
+
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("status: got %d, want %d (%s)", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+}
+
+func TestTransferLotEndToEndTheFormerCustodianCanNoLongerRegisterStages(t *testing.T) {
+	mux, _ := newTestServer(t)
+	created, farmETag := lotWithFarmStage(t, mux)
+	_, toRoasterETag := mustTransfer(t, mux, producerHeader, created.ID, farmETag, roasterHeader)
+
+	rec := postStage(mux, producerHeader, created.ID, toRoasterETag, roastingStageBody)
+
+	assertErrorCode(t, rec, http.StatusForbidden, "FORBIDDEN")
+}
+
+func TestTransferLotEndToEndTheFormerCustodianKeepsReadingTheLot(t *testing.T) {
+	mux, _ := newTestServer(t)
+	created, farmETag := lotWithFarmStage(t, mux)
+	mustTransfer(t, mux, producerHeader, created.ID, farmETag, roasterHeader)
+
+	rec := get(mux, producerHeader, "/lots/"+created.ID)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("status: got %d, want %d", rec.Code, http.StatusOK)
+	}
+}
+
+func getActors(mux http.Handler, actorID, query string) *httptest.ResponseRecorder {
+	return get(mux, actorID, "/actors"+query)
+}
+
+func TestListActorsEndToEnd(t *testing.T) {
+	mux, _ := newTestServer(t)
+
+	t.Run("returns the active actors of the requested type", func(t *testing.T) {
+		rec := getActors(mux, producerHeader, "?type=roaster")
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status: got %d (%s)", rec.Code, rec.Body.String())
+		}
+		var body struct {
+			Items []map[string]any `json:"items"`
+		}
+		if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+			t.Fatalf("body is not JSON: %v", err)
+		}
+		if len(body.Items) != 1 || body.Items[0]["id"] != roasterHeader || body.Items[0]["type"] != "roaster" {
+			t.Errorf("unexpected items: %v", body.Items)
+		}
+	})
+
+	t.Run("does not expose the email", func(t *testing.T) {
+		rec := getActors(mux, producerHeader, "?type=brand")
+
+		if strings.Contains(rec.Body.String(), "email") || strings.Contains(rec.Body.String(), "@") {
+			t.Errorf("the list must not expose private data: %s", rec.Body.String())
+		}
+	})
+
+	t.Run("lists the seeded organization", func(t *testing.T) {
+		rec := getActors(mux, producerHeader, "?type=organization")
+
+		if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), orgHeader) {
+			t.Errorf("got %d %s, want the seeded organization", rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("any role can list", func(t *testing.T) {
+		for _, header := range []string{roasterHeader, brandHeader} {
+			if rec := getActors(mux, header, "?type=producer"); rec.Code != http.StatusOK {
+				t.Errorf("actor %s: got %d", header, rec.Code)
+			}
+		}
+	})
+}
+
+func TestListActorsEndToEndErrors(t *testing.T) {
+	tests := []struct {
+		name     string
+		actorID  string
+		query    string
+		want     int
+		wantCode string
+	}{
+		{"missing actor", "", "?type=roaster", http.StatusUnauthorized, "UNAUTHORIZED"},
+		{"unknown actor", uuid.NewString(), "?type=roaster", http.StatusNotFound, string(exception.CodeActorNotFound)},
+		{"missing type", producerHeader, "", http.StatusBadRequest, string(exception.CodeActorInvalidType)},
+		{"unknown type", producerHeader, "?type=barista", http.StatusBadRequest, string(exception.CodeActorInvalidType)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mux, _ := newTestServer(t)
+
+			rec := getActors(mux, tt.actorID, tt.query)
+
+			assertErrorCode(t, rec, tt.want, tt.wantCode)
+		})
+	}
+}
+
+type historyView struct {
+	Items []struct {
+		Sequence      int    `json:"sequence"`
+		Type          string `json:"type"`
+		Stage         string `json:"stage"`
+		TargetActorID string `json:"target_actor_id"`
+		PreviousHash  string `json:"previous_hash"`
+		Hash          string `json:"hash"`
+	} `json:"items"`
+	ChainValid bool `json:"chain_valid"`
+}
+
+func decodeHistory(t *testing.T, rec *httptest.ResponseRecorder) historyView {
+	t.Helper()
+
+	var view historyView
+	if err := json.Unmarshal(rec.Body.Bytes(), &view); err != nil {
+		t.Fatalf("decode history: %v (%s)", err, rec.Body.String())
+	}
+	return view
+}
+
+func TestListLotEventsEndToEnd(t *testing.T) {
+	mux, _ := newTestServer(t)
+	created, farmETag := lotWithFarmStage(t, mux)
+	mustTransfer(t, mux, producerHeader, created.ID, farmETag, roasterHeader)
+
+	for _, actorID := range []string{producerHeader, roasterHeader, brandHeader} {
+		rec := get(mux, actorID, "/lots/"+created.ID+"/events")
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status: got %d, want %d (%s)", rec.Code, http.StatusOK, rec.Body.String())
+		}
+		view := decodeHistory(t, rec)
+		if len(view.Items) != 2 || !view.ChainValid {
+			t.Fatalf("got %d events and chain valid %v, want 2 and true", len(view.Items), view.ChainValid)
+		}
+		first, second := view.Items[0], view.Items[1]
+		if first.Sequence != 1 || first.Type != "stage" || first.PreviousHash != genesisHash {
+			t.Errorf("unexpected first event %+v", first)
+		}
+		if second.Sequence != 2 || second.Type != "transfer" || second.TargetActorID != roasterHeader || second.PreviousHash != first.Hash {
+			t.Errorf("unexpected second event %+v", second)
+		}
+	}
+}
+
+func TestListLotEventsEndToEndOfALotWithoutEvents(t *testing.T) {
+	mux, _ := newTestServer(t)
+	created := mustCreateLot(t, mux, "LOT-001")
+
+	rec := get(mux, producerHeader, "/lots/"+created.ID+"/events")
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: got %d, want %d", rec.Code, http.StatusOK)
+	}
+	view := decodeHistory(t, rec)
+	if view.Items == nil || len(view.Items) != 0 || !view.ChainValid {
+		t.Errorf("got %+v, want no items and a valid chain", view)
+	}
+}
+
+func TestListLotEventsEndToEndErrors(t *testing.T) {
+	tests := []struct {
+		name     string
+		actorID  string
+		lotID    func(created lotView) string
+		want     int
+		wantCode string
+	}{
+		{"missing actor", "", sameLot, http.StatusUnauthorized, "UNAUTHORIZED"},
+		{"unknown actor", uuid.NewString(), sameLot, http.StatusNotFound, string(exception.CodeActorNotFound)},
+		{"unknown lot", producerHeader, otherLot, http.StatusNotFound, string(exception.CodeLotNotFound)},
+		{"malformed lot id", producerHeader, malformedLot, http.StatusNotFound, string(exception.CodeLotNotFound)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mux, _ := newTestServer(t)
+			created, _ := lotWithFarmStage(t, mux)
+
+			rec := get(mux, tt.actorID, "/lots/"+tt.lotID(created)+"/events")
+
+			assertErrorCode(t, rec, tt.want, tt.wantCode)
+		})
+	}
+}
+
+func allowedActions(t *testing.T, mux http.Handler, actorID, lotID string) []string {
+	t.Helper()
+
+	rec := get(mux, actorID, "/lots/"+lotID)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("get lot: status %d (%s)", rec.Code, rec.Body.String())
+	}
+
+	var body struct {
+		AllowedActions []string `json:"allowed_actions"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode lot: %v (%s)", err, rec.Body.String())
+	}
+	if body.AllowedActions == nil {
+		t.Fatalf("allowed_actions must be present: %s", rec.Body.String())
+	}
+	return body.AllowedActions
+}
+
+func assertActions(t *testing.T, label string, got []string, want ...string) {
+	t.Helper()
+
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("%s: got %v, want %v", label, got, want)
+	}
+}
+
+func TestGetLotEndToEndAllowedActionsFollowTheCustodyAndTheStage(t *testing.T) {
+	mux, _ := newTestServer(t)
+	created := mustCreateLot(t, mux, "LOT-001")
+
+	assertActions(t, "producer on a new lot", allowedActions(t, mux, producerHeader, created.ID), "lot:register_stage")
+	assertActions(t, "roaster on a new lot", allowedActions(t, mux, roasterHeader, created.ID))
+
+	mustRegisterStage(t, mux, created.ID, `"1"`, farmStageBody)
+	assertActions(t, "producer after the farm stage", allowedActions(t, mux, producerHeader, created.ID), "lot:transfer")
+
+	mustTransfer(t, mux, producerHeader, created.ID, `"2"`, roasterHeader)
+	assertActions(t, "former custodian", allowedActions(t, mux, producerHeader, created.ID))
+	assertActions(t, "roaster after receiving the lot", allowedActions(t, mux, roasterHeader, created.ID), "lot:register_stage", "lot:transfer")
+
+	mustRegisterStageAs(t, mux, roasterHeader, created.ID, `"3"`, roastingStageBody)
+	mustTransfer(t, mux, roasterHeader, created.ID, `"4"`, brandHeader)
+	assertActions(t, "brand after receiving the roasted lot", allowedActions(t, mux, brandHeader, created.ID), "lot:register_stage")
+
+	mustRegisterStageAs(t, mux, brandHeader, created.ID, `"5"`, packagingStageBody)
+	assertActions(t, "brand with the packaged lot", allowedActions(t, mux, brandHeader, created.ID), "qr:generate")
+	assertActions(t, "roaster with the packaged lot", allowedActions(t, mux, roasterHeader, created.ID))
+}
+
+type lotSummary struct {
+	ID        string `json:"id"`
+	Stage     string `json:"stage"`
+	Status    string `json:"status"`
+	Completed bool   `json:"completed"`
+}
+
+func listLotSummaries(t *testing.T, mux http.Handler, query string) []lotSummary {
+	t.Helper()
+
+	rec := get(mux, producerHeader, "/lots"+query)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list lots%s: status %d (%s)", query, rec.Code, rec.Body.String())
+	}
+
+	var page struct {
+		Items []lotSummary `json:"items"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &page); err != nil {
+		t.Fatalf("decode page: %v (%s)", err, rec.Body.String())
+	}
+	return page.Items
+}
+
+func TestListLotsEndToEndFiltersByStatusAndStageAndReportsCompletion(t *testing.T) {
+	mux, _ := newTestServer(t)
+	fresh := mustCreateLot(t, mux, "LOT-001")
+	packaged := mustCreateLot(t, mux, "LOT-002")
+
+	mustRegisterStage(t, mux, packaged.ID, `"1"`, farmStageBody)
+	mustTransfer(t, mux, producerHeader, packaged.ID, `"2"`, roasterHeader)
+	mustRegisterStageAs(t, mux, roasterHeader, packaged.ID, `"3"`, roastingStageBody)
+	mustTransfer(t, mux, roasterHeader, packaged.ID, `"4"`, brandHeader)
+	mustRegisterStageAs(t, mux, brandHeader, packaged.ID, `"5"`, packagingStageBody)
+
+	t.Run("by stage", func(t *testing.T) {
+		items := listLotSummaries(t, mux, "?stage=packaging")
+		if len(items) != 1 || items[0].ID != packaged.ID {
+			t.Errorf("got %+v, want only the packaged lot", items)
+		}
+		none := listLotSummaries(t, mux, "?stage=none")
+		if len(none) != 1 || none[0].ID != fresh.ID {
+			t.Errorf("got %+v, want only the new lot", none)
+		}
+	})
+
+	t.Run("by status", func(t *testing.T) {
+		if got := len(listLotSummaries(t, mux, "?status=active")); got != 2 {
+			t.Errorf("active: got %d, want 2", got)
+		}
+		if got := len(listLotSummaries(t, mux, "?status=voided")); got != 0 {
+			t.Errorf("voided: got %d, want 0", got)
+		}
+	})
+
+	t.Run("combines the filters with the farm", func(t *testing.T) {
+		items := listLotSummaries(t, mux, "?farm_id="+seedFarmID.String()+"&status=active&stage=packaging")
+		if len(items) != 1 || items[0].ID != packaged.ID {
+			t.Errorf("got %+v, want only the packaged lot", items)
+		}
+	})
+
+	t.Run("reports completion", func(t *testing.T) {
+		for _, item := range listLotSummaries(t, mux, "") {
+			if want := item.ID == packaged.ID; item.Completed != want {
+				t.Errorf("lot %s: completed %v, want %v", item.ID, item.Completed, want)
+			}
+		}
+	})
+
+	t.Run("the lot detail reports completion too", func(t *testing.T) {
+		var detail lotSummary
+		rec := get(mux, producerHeader, "/lots/"+packaged.ID)
+		if err := json.Unmarshal(rec.Body.Bytes(), &detail); err != nil || !detail.Completed {
+			t.Errorf("got %+v (%v), want a completed lot", detail, err)
+		}
+	})
+}
+
+func TestListLotsEndToEndRejectsInvalidFilters(t *testing.T) {
+	mux, _ := newTestServer(t)
+
+	tests := []struct {
+		name     string
+		query    string
+		wantCode string
+	}{
+		{"unknown status", "?status=archived", string(exception.CodeLotInvalidStatus)},
+		{"unknown stage", "?stage=shipping", string(exception.CodeLotInvalidStage)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assertErrorCode(t, get(mux, producerHeader, "/lots"+tt.query), http.StatusBadRequest, tt.wantCode)
+		})
+	}
+}
+
+func postVoid(mux http.Handler, actorID, lotID, ifMatch, body string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodPost, "/lots/"+lotID+"/void", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	if actorID != "" {
+		req.Header.Set("X-Actor-ID", actorID)
+	}
+	if ifMatch != "" {
+		req.Header.Set("If-Match", ifMatch)
+	}
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	return rec
+}
+
+const voidBody = `{"reason":"Registered by mistake"}`
+
+func TestVoidLotEndToEnd(t *testing.T) {
+	mux, logs := newTestServer(t)
+	created, farmETag := lotWithFarmStage(t, mux)
+
+	rec := postVoid(mux, orgHeader, created.ID, farmETag, voidBody)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: got %d, want %d (%s)", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if got := rec.Header().Get("ETag"); got != `"3"` {
+		t.Errorf("ETag: got %q, want \"3\"", got)
+	}
+	var voided struct {
+		ID         string `json:"id"`
+		Status     string `json:"status"`
+		VoidReason string `json:"void_reason"`
+		Completed  bool   `json:"completed"`
+		Version    int    `json:"version"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &voided); err != nil {
+		t.Fatalf("decode: %v (%s)", err, rec.Body.String())
+	}
+	if voided.ID != created.ID || voided.Status != "voided" || voided.VoidReason != "Registered by mistake" || voided.Version != 3 {
+		t.Errorf("unexpected lot %+v", voided)
+	}
+	if !strings.Contains(logs.String(), `"event_type":"lot.voided"`) {
+		t.Error("expected the lot.voided event to be published")
+	}
+
+	t.Run("every role still reads the voided lot with no actions offered", func(t *testing.T) {
+		for _, actorID := range []string{producerHeader, roasterHeader, brandHeader, orgHeader} {
+			rec := get(mux, actorID, "/lots/"+created.ID)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("actor %s: status %d", actorID, rec.Code)
+			}
+			assertActions(t, "actions of "+actorID, allowedActions(t, mux, actorID, created.ID))
+		}
+	})
+
+	t.Run("the voided lot can be filtered by status", func(t *testing.T) {
+		items := listLotSummaries(t, mux, "?status=voided")
+		if len(items) != 1 || items[0].ID != created.ID {
+			t.Errorf("got %+v, want only the voided lot", items)
+		}
+	})
+
+	t.Run("the custody and stages are frozen", func(t *testing.T) {
+		stage := postStage(mux, producerHeader, created.ID, `"3"`, roastingStageBody)
+		assertErrorCode(t, stage, http.StatusForbidden, "FORBIDDEN")
+
+		transfer := postTransfer(mux, producerHeader, created.ID, `"3"`, transferBody(roasterHeader))
+		assertErrorCode(t, transfer, http.StatusConflict, string(exception.CodeLotVoided))
+	})
+
+	t.Run("voiding twice is rejected", func(t *testing.T) {
+		again := postVoid(mux, orgHeader, created.ID, `"3"`, voidBody)
+		assertErrorCode(t, again, http.StatusConflict, string(exception.CodeLotVoided))
+	})
+}
+
+func TestVoidLotEndToEndErrors(t *testing.T) {
+	tests := []struct {
+		name     string
+		actorID  string
+		lotID    func(created lotView) string
+		ifMatch  string
+		body     string
+		want     int
+		wantCode string
+	}{
+		{"missing actor", "", sameLot, `"2"`, voidBody, http.StatusUnauthorized, "UNAUTHORIZED"},
+		{"unknown actor", uuid.NewString(), sameLot, `"2"`, voidBody, http.StatusNotFound, string(exception.CodeActorNotFound)},
+		{"unknown lot", orgHeader, otherLot, `"2"`, voidBody, http.StatusNotFound, string(exception.CodeLotNotFound)},
+		{"malformed lot id", orgHeader, malformedLot, `"2"`, voidBody, http.StatusNotFound, string(exception.CodeLotNotFound)},
+		{"the producer custodian cannot void", producerHeader, sameLot, `"2"`, voidBody, http.StatusForbidden, "FORBIDDEN"},
+		{"the roaster cannot void", roasterHeader, sameLot, `"2"`, voidBody, http.StatusForbidden, "FORBIDDEN"},
+		{"the brand cannot void", brandHeader, sameLot, `"2"`, voidBody, http.StatusForbidden, "FORBIDDEN"},
+		{"missing if-match", orgHeader, sameLot, "", voidBody, http.StatusBadRequest, string(exception.CodeLotInvalidIfMatch)},
+		{"stale if-match", orgHeader, sameLot, `"1"`, voidBody, http.StatusConflict, string(exception.CodeLotVersionConflict)},
+		{"empty reason", orgHeader, sameLot, `"2"`, `{"reason":"  "}`, http.StatusBadRequest, string(exception.CodeLotEmptyVoidReason)},
+		{"unknown json field", orgHeader, sameLot, `"2"`, `{"reason":"x","lot_id":"y"}`, http.StatusBadRequest, "INVALID_REQUEST_BODY"},
+		{"empty body", orgHeader, sameLot, `"2"`, ``, http.StatusBadRequest, "INVALID_REQUEST_BODY"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mux, logs := newTestServer(t)
+			created, _ := lotWithFarmStage(t, mux)
+
+			rec := postVoid(mux, tt.actorID, tt.lotID(created), tt.ifMatch, tt.body)
+
+			assertErrorCode(t, rec, tt.want, tt.wantCode)
+			if rec.Header().Get("ETag") != "" {
+				t.Error("a failed request must not set an ETag")
+			}
+			if strings.Contains(logs.String(), `"event_type":"lot.voided"`) {
+				t.Error("a failed request must not publish an event")
+			}
+
+			after := get(mux, producerHeader, "/lots/"+created.ID)
+			if !strings.Contains(after.Body.String(), `"status":"active"`) {
+				t.Errorf("the lot must stay active, got %s", after.Body.String())
+			}
+		})
+	}
+}
+
+func TestVoidLotEndToEndOfALotWithoutEvents(t *testing.T) {
+	mux, _ := newTestServer(t)
+	created := mustCreateLot(t, mux, "LOT-001")
+
+	rec := postVoid(mux, orgHeader, created.ID, `"1"`, voidBody)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: got %d, want %d (%s)", rec.Code, http.StatusOK, rec.Body.String())
+	}
+}
+
+func deleteFarmRequest(mux http.Handler, actorID, farmID string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodDelete, "/farms/"+farmID, nil)
+	if actorID != "" {
+		req.Header.Set("X-Actor-ID", actorID)
+	}
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	return rec
+}
+
+func TestDeleteFarmEndToEnd(t *testing.T) {
+	mux, _ := newTestServer(t)
+	created := mustCreateFarm(t, mux, "El Mirador")
+
+	rec := deleteFarmRequest(mux, producerHeader, created.ID)
+
+	if rec.Code != http.StatusNoContent || rec.Body.Len() != 0 {
+		t.Fatalf("status: got %d with body %q, want %d and no body", rec.Code, rec.Body.String(), http.StatusNoContent)
+	}
+	list := decodeFarms(t, get(mux, producerHeader, "/farms"))
+	if len(list.Items) != 1 || list.Items[0].ID != seedFarmID.String() {
+		t.Errorf("got %+v, want only the seeded farm", list.Items)
+	}
+
+	again := deleteFarmRequest(mux, producerHeader, created.ID)
+	assertErrorCode(t, again, http.StatusNotFound, string(exception.CodeFarmNotFound))
+}
+
+func TestDeleteFarmEndToEndRefusesAFarmWithLots(t *testing.T) {
+	mux, _ := newTestServer(t)
+	mustCreateLot(t, mux, "LOT-001")
+
+	rec := deleteFarmRequest(mux, producerHeader, seedFarmID.String())
+
+	assertErrorCode(t, rec, http.StatusConflict, string(exception.CodeFarmHasLots))
+	list := decodeFarms(t, get(mux, producerHeader, "/farms"))
+	if len(list.Items) != 1 {
+		t.Errorf("the farm must stay, got %+v", list.Items)
+	}
+}
+
+func TestDeleteFarmEndToEndErrors(t *testing.T) {
+	tests := []struct {
+		name     string
+		actorID  string
+		farmID   func(created farmView) string
+		want     int
+		wantCode string
+	}{
+		{"missing actor", "", func(c farmView) string { return c.ID }, http.StatusUnauthorized, "UNAUTHORIZED"},
+		{"unknown actor", uuid.NewString(), func(c farmView) string { return c.ID }, http.StatusNotFound, string(exception.CodeActorNotFound)},
+		{"unknown farm", producerHeader, func(farmView) string { return uuid.NewString() }, http.StatusNotFound, string(exception.CodeFarmNotFound)},
+		{"malformed farm id", producerHeader, func(farmView) string { return "not-a-uuid" }, http.StatusNotFound, string(exception.CodeFarmNotFound)},
+		{"the roaster cannot delete", roasterHeader, func(c farmView) string { return c.ID }, http.StatusForbidden, "FORBIDDEN"},
+		{"the brand cannot delete", brandHeader, func(c farmView) string { return c.ID }, http.StatusForbidden, "FORBIDDEN"},
+		{"the organization cannot delete", orgHeader, func(c farmView) string { return c.ID }, http.StatusForbidden, "FORBIDDEN"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mux, _ := newTestServer(t)
+			created := mustCreateFarm(t, mux, "El Mirador")
+
+			assertErrorCode(t, deleteFarmRequest(mux, tt.actorID, tt.farmID(created)), tt.want, tt.wantCode)
+
+			if list := decodeFarms(t, get(mux, producerHeader, "/farms")); len(list.Items) != 2 {
+				t.Errorf("no farm may be deleted, got %+v", list.Items)
+			}
+		})
+	}
 }

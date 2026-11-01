@@ -91,6 +91,12 @@ func (r *fakeLots) FindByID(_ context.Context, id uuid.UUID) (*lot.Lot, error) {
 	return lot.Default(), nil
 }
 
+func (r *fakeLots) UpdateStatus(_ context.Context, _ *lot.Lot, _ int) error { return nil }
+
+func (r *fakeLots) UpdateCustodian(_ context.Context, _ *lot.Lot, _ int) error {
+	return nil
+}
+
 func (r *fakeLots) UpdateStage(ctx context.Context, l *lot.Lot, expectedVersion int) error {
 	if r.updateErr != nil {
 		return r.updateErr
@@ -368,7 +374,7 @@ func TestRegisterStageSuccess(t *testing.T) {
 		if a.subject.ActorID != s.producer.ID() || a.subject.Role != actor.TypeProducer {
 			t.Error("unexpected subject")
 		}
-		if a.resource.Type != ports.ResourceLot || a.resource.ID != s.lot.ID() || a.resource.CustodianID != s.lot.CustodianID() {
+		if a.resource.Type != ports.ResourceLot || a.resource.ID != s.lot.ID() || a.resource.CustodianID != s.lot.CustodianID() || a.resource.Stage != cmd.Stage {
 			t.Error("unexpected resource")
 		}
 	})
@@ -761,6 +767,10 @@ func TestRegisterStageDoesNotOpenTransactionOnEarlyFailures(t *testing.T) {
 	if s.tx.calls != 0 {
 		t.Errorf("got %d transactions, want 0", s.tx.calls)
 	}
+}
+
+func (r fakeActors) ListByType(_ context.Context, _ actor.Type) ([]*actor.Actor, error) {
+	return nil, nil
 }
 
 func (r fakeActors) FindByUserID(_ context.Context, _ string) (*actor.Actor, error) {

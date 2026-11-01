@@ -22,3 +22,8 @@ QR_REDIRECT_INVALID_RULE: "La regla de redirección no es válida."
 QR_REDIRECT_NOT_FOUND: "Ninguna regla de redirección coincide con la ruta escaneada."
 
 QR_EVENT_INVALID_PAYLOAD: "La carga útil del evento no es válida."
+
+QR_ACTOR_VIEW_INVALID_ID: "El actor debe tener un identificador válido."
+QR_ACTOR_VIEW_INVALID_USER: "El actor debe tener un usuario."
+QR_ACTOR_VIEW_INVALID_ROLE: "El rol debe ser organization, producer, roaster o brand."
+QR_ACTOR_VIEW_NOT_FOUND: "El actor aún no está registrado en este servicio."

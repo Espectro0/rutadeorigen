@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 
 	"rutadeorigen/traceability/internal/application/input/dto/request"
@@ -29,7 +30,10 @@ func doGet(mux http.Handler, target string) *httptest.ResponseRecorder {
 
 func TestGetLot(t *testing.T) {
 	t.Run("returns the lot with its version as ETag", func(t *testing.T) {
-		get := &fakeGetLotPort{result: response.Lot{ID: "lot-1", Code: "LOT-001", Status: "active", Version: 3}}
+		get := &fakeGetLotPort{result: response.LotDetail{
+			Lot:            response.Lot{ID: "lot-1", Code: "LOT-001", Status: "active", Version: 3},
+			AllowedActions: []string{"lot:register_stage", "lot:void"},
+		}}
 
 		rec := doGet(newReadMux(t, get, &fakeListLotsPort{}, passThrough), "/lots/lot-1")
 
@@ -43,11 +47,11 @@ func TestGetLot(t *testing.T) {
 			t.Errorf("Content-Type: got %q", got)
 		}
 
-		var body response.Lot
+		var body response.LotDetail
 		if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
 			t.Fatalf("body is not JSON: %v", err)
 		}
-		if body != get.result {
+		if !reflect.DeepEqual(body, get.result) {
 			t.Errorf("body: got %+v, want %+v", body, get.result)
 		}
 		if get.received.ID != "lot-1" {
@@ -96,7 +100,7 @@ func TestListLots(t *testing.T) {
 		}}
 
 		rec := doGet(newReadMux(t, &fakeGetLotPort{}, list, passThrough),
-			"/lots?farm_id=farm-1&custodian_id=actor-1&cursor=abc&limit=5")
+			"/lots?farm_id=farm-1&custodian_id=actor-1&status=active&stage=farm&cursor=abc&limit=5")
 
 		if rec.Code != http.StatusOK {
 			t.Fatalf("status: got %d, want %d (%s)", rec.Code, http.StatusOK, rec.Body.String())
@@ -110,7 +114,7 @@ func TestListLots(t *testing.T) {
 			t.Errorf("body: got %+v", body)
 		}
 
-		want := request.ListLots{FarmID: "farm-1", CustodianID: "actor-1", Cursor: "abc", Limit: "5"}
+		want := request.ListLots{FarmID: "farm-1", CustodianID: "actor-1", Status: "active", Stage: "farm", Cursor: "abc", Limit: "5"}
 		if list.received != want {
 			t.Errorf("port received %+v, want %+v", list.received, want)
 		}

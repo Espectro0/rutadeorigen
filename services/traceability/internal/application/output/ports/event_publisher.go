@@ -13,12 +13,16 @@ const (
 	EventLotCreated         EventType = "lot.created"
 	EventAccessDenied       EventType = "security.access_denied"
 	EventLotStageRegistered EventType = "lot.stage_registered"
+	EventLotTransferred     EventType = "lot.transferred"
+	EventLotVoided          EventType = "lot.voided"
+	EventActorRegistered    EventType = "actor.registered"
 )
 
 type AggregateType string
 
 const (
-	AggregateLot AggregateType = "lot"
+	AggregateLot   AggregateType = "lot"
+	AggregateActor AggregateType = "actor"
 )
 
 type Event struct {

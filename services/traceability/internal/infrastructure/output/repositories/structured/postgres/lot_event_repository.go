@@ -38,7 +38,7 @@ func (r *LotEventRepository) Save(ctx context.Context, e *lot.Event) error {
 
 	_, err = conn(ctx, r.pool).Exec(ctx, insertLotEvent,
 		row.ID, row.LotID, row.Sequence, row.Type, row.Stage, row.EventDate, row.Note, row.ActorID,
-		row.ActorRole, row.Details, row.PreviousHash, row.Hash, row.RegisteredAt,
+		row.ActorRole, row.TargetActorID, row.Details, row.PreviousHash, row.Hash, row.RegisteredAt,
 	)
 	if isUniqueViolation(err, lotEventSequenceConstraint) {
 		return exception.New(exception.CodeLotVersionConflict)

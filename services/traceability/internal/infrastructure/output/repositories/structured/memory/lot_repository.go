@@ -56,6 +56,18 @@ func (r *LotRepository) Save(_ context.Context, l *lot.Lot) error {
 }
 
 func (r *LotRepository) UpdateStage(_ context.Context, l *lot.Lot, expectedVersion int) error {
+	return r.replace(l, expectedVersion)
+}
+
+func (r *LotRepository) UpdateCustodian(_ context.Context, l *lot.Lot, expectedVersion int) error {
+	return r.replace(l, expectedVersion)
+}
+
+func (r *LotRepository) UpdateStatus(_ context.Context, l *lot.Lot, expectedVersion int) error {
+	return r.replace(l, expectedVersion)
+}
+
+func (r *LotRepository) replace(l *lot.Lot, expectedVersion int) error {
 	if l.IsDefault() {
 		return exception.New(exception.CodeInternal).WithTechnical("cannot update a default lot")
 	}
@@ -92,10 +104,7 @@ func (r *LotRepository) List(_ context.Context, f lot.Filter, after lot.Cursor, 
 
 	matches := make([]*lot.Lot, 0, len(r.lots))
 	for _, l := range r.lots {
-		if f.HasFarm() && l.FarmID() != f.FarmID {
-			continue
-		}
-		if f.HasCustodian() && l.CustodianID() != f.CustodianID {
+		if !f.Matches(l) {
 			continue
 		}
 		if !after.IsDefault() && !comesAfter(l, after) {

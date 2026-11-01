@@ -27,6 +27,14 @@ func listLotsQuery(f lot.Filter, after lot.Cursor, limit int) (string, []any) {
 		args = append(args, f.CustodianID)
 		fmt.Fprintf(&sb, " AND custodian_id = $%d", len(args))
 	}
+	if f.HasStatus() {
+		args = append(args, string(f.Status))
+		fmt.Fprintf(&sb, " AND status = $%d", len(args))
+	}
+	if f.HasStage() {
+		args = append(args, string(f.Stage))
+		fmt.Fprintf(&sb, " AND current_stage = $%d", len(args))
+	}
 	if !after.IsDefault() {
 		args = append(args, after.CreatedAt, after.ID)
 		fmt.Fprintf(&sb, " AND (created_at, id) < ($%d, $%d)", len(args)-1, len(args))

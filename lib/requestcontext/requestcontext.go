@@ -22,6 +22,7 @@ const (
 	emailKey
 	firstNameKey
 	lastNameKey
+	actorRoleKey
 )
 
 func WithActorID(ctx context.Context, id uuid.UUID) context.Context {
@@ -86,6 +87,17 @@ func WithLastName(ctx context.Context, name string) context.Context {
 func LastName(ctx context.Context) string {
 	if name, ok := ctx.Value(lastNameKey).(string); ok {
 		return name
+	}
+	return ""
+}
+
+func WithActorRole(ctx context.Context, role string) context.Context {
+	return context.WithValue(ctx, actorRoleKey, role)
+}
+
+func ActorRole(ctx context.Context) string {
+	if role, ok := ctx.Value(actorRoleKey).(string); ok {
+		return role
 	}
 	return ""
 }

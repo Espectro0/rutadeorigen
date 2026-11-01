@@ -37,18 +37,18 @@ func (f *fakeCreateLotPort) Execute(ctx context.Context, input request.CreateLot
 }
 
 type fakeGetLotPort struct {
-	result response.Lot
+	result response.LotDetail
 	err    error
 
 	calls    int
 	received request.GetLot
 }
 
-func (f *fakeGetLotPort) Execute(_ context.Context, input request.GetLot) (response.Lot, error) {
+func (f *fakeGetLotPort) Execute(_ context.Context, input request.GetLot) (response.LotDetail, error) {
 	f.calls++
 	f.received = input
 	if f.err != nil {
-		return response.Lot{}, f.err
+		return response.LotDetail{}, f.err
 	}
 	return f.result, nil
 }

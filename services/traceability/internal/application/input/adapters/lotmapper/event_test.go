@@ -145,13 +145,13 @@ func TestToEventResponse(t *testing.T) {
 		}
 	})
 
-	t.Run("an event without details serializes them as null", func(t *testing.T) {
+	t.Run("an event without details serializes them as an empty object", func(t *testing.T) {
 		e, _ := restoredEvent(nil)
 
 		got := lotmapper.ToEventResponse(e)
 
-		if string(got.Details) != "null" {
-			t.Errorf("got %s, want null", got.Details)
+		if string(got.Details) != "{}" {
+			t.Errorf("got %s, want {}", got.Details)
 		}
 	})
 

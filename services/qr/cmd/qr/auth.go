@@ -13,6 +13,7 @@ import (
 	libmiddleware "rutadeorigen/lib/httpserver/middleware"
 	"rutadeorigen/lib/resilience"
 	"rutadeorigen/lib/session"
+	"rutadeorigen/qr/internal/application/input/ports"
 	"rutadeorigen/qr/internal/infrastructure/input/controllers"
 )
 
@@ -28,6 +29,7 @@ const (
 type authn struct {
 	mode          authMode
 	authenticator libmiddleware.Authenticator
+	resolver      ports.ResolveActorPort
 }
 
 func loadAuth(log *slog.Logger, storage string) (authn, error) {
@@ -90,12 +92,12 @@ func loadOIDC(log *slog.Logger) (authn, error) {
 func (a authn) requireActor(errs *controllers.ErrorResponder) controllers.Middleware {
 	if a.mode == authModeDevHeader {
 		return func(next http.Handler) http.Handler {
-			return controllers.RequireActorHeader(errs, next)
+			return controllers.RequireActorHeader(errs, a.resolver, next)
 		}
 	}
 
 	authenticate := libmiddleware.Authenticate(a.authenticator, controllers.RejectSession(errs))
 	return func(next http.Handler) http.Handler {
-		return authenticate(controllers.ActorFromSession(errs, next))
+		return authenticate(controllers.ActorFromSession(errs, a.resolver, next))
 	}
 }

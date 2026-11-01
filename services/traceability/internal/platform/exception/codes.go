@@ -31,8 +31,11 @@ const (
 	CodeLotVersionConflict          Code = "TRACEABILITY_LOT_VERSION_CONFLICT"
 	CodeLotInvalidIfMatch           Code = "TRACEABILITY_LOT_INVALID_IF_MATCH"
 	CodeLotInvalidStage             Code = "TRACEABILITY_LOT_INVALID_STAGE"
+	CodeLotInvalidStatus            Code = "TRACEABILITY_LOT_INVALID_STATUS"
 	CodeLotInvalidEventDate         Code = "TRACEABILITY_LOT_INVALID_EVENT_DATE"
 	CodeLotInvalidNote              Code = "TRACEABILITY_LOT_INVALID_NOTE"
+	CodeLotNotTransferable          Code = "TRACEABILITY_LOT_NOT_TRANSFERABLE"
+	CodeLotInvalidTransferTarget    Code = "TRACEABILITY_LOT_INVALID_TRANSFER_TARGET"
 	CodeStageInvalidDetails         Code = "TRACEABILITY_STAGE_INVALID_DETAILS"
 
 	CodeActorInvalidUserID Code = "TRACEABILITY_ACTOR_INVALID_USER_ID"
@@ -46,6 +49,7 @@ const (
 	CodeFarmInvalidName     Code = "TRACEABILITY_FARM_INVALID_NAME"
 	CodeFarmInvalidAltitude Code = "TRACEABILITY_FARM_INVALID_ALTITUDE"
 	CodeFarmNotFound        Code = "TRACEABILITY_FARM_NOT_FOUND"
+	CodeFarmHasLots         Code = "TRACEABILITY_FARM_HAS_LOTS"
 
 	CodeStageInvalidDryingMethod    Code = "TRACEABILITY_STAGE_INVALID_DRYING_METHOD"
 	CodeStageInvalidDryingDays      Code = "TRACEABILITY_STAGE_INVALID_DRYING_DAYS"
@@ -90,8 +94,11 @@ var kindByCode = map[Code]Kind{
 	CodeLotVersionConflict:          KindConflict,
 	CodeLotInvalidIfMatch:           KindValidation,
 	CodeLotInvalidStage:             KindValidation,
+	CodeLotInvalidStatus:            KindValidation,
 	CodeLotInvalidEventDate:         KindValidation,
 	CodeLotInvalidNote:              KindValidation,
+	CodeLotNotTransferable:          KindConflict,
+	CodeLotInvalidTransferTarget:    KindValidation,
 	CodeStageInvalidDetails:         KindValidation,
 
 	CodeActorInvalidUserID: KindValidation,
@@ -105,6 +112,7 @@ var kindByCode = map[Code]Kind{
 	CodeFarmInvalidName:     KindValidation,
 	CodeFarmInvalidAltitude: KindValidation,
 	CodeFarmNotFound:        KindNotFound,
+	CodeFarmHasLots:         KindConflict,
 
 	CodeStageInvalidDryingMethod:    KindValidation,
 	CodeStageInvalidDryingDays:      KindValidation,

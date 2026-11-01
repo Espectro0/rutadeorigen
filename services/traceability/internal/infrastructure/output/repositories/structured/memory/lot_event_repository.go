@@ -94,18 +94,19 @@ func (r *LotEventRepository) insert(e *lot.Event) error {
 
 func cloneEvent(e *lot.Event) *lot.Event {
 	return lot.RestoreEvent(lot.RestoreEventParams{
-		ID:           e.ID(),
-		LotID:        e.LotID(),
-		Sequence:     e.Sequence(),
-		EventType:    e.Type(),
-		Stage:        e.Stage(),
-		EventDate:    e.EventDate(),
-		Note:         e.Note(),
-		ActorID:      e.ActorID(),
-		ActorRole:    e.ActorRole(),
-		Details:      e.Details(),
-		PreviousHash: e.PreviousHash(),
-		Hash:         e.Hash(),
-		RegisteredAt: e.RegisteredAt(),
+		ID:            e.ID(),
+		LotID:         e.LotID(),
+		Sequence:      e.Sequence(),
+		EventType:     e.Type(),
+		Stage:         e.Stage(),
+		EventDate:     e.EventDate(),
+		Note:          e.Note(),
+		ActorID:       e.ActorID(),
+		ActorRole:     e.ActorRole(),
+		TargetActorID: e.TargetActorID(),
+		Details:       e.Details(),
+		PreviousHash:  e.PreviousHash(),
+		Hash:          e.Hash(),
+		RegisteredAt:  e.RegisteredAt(),
 	})
 }

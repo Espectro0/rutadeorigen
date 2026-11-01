@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"rutadeorigen/traceability/internal/domain/actor"
 	"rutadeorigen/traceability/internal/platform/exception"
 	"rutadeorigen/traceability/internal/platform/helper"
 )
@@ -135,6 +136,9 @@ func Restore(p RestoreParams) *Lot {
 
 func (l *Lot) IsActive() bool  { return l.status == StatusActive }
 func (l *Lot) HasEvents() bool { return l.currentStage != StageNone }
+func (l *Lot) IsCompleted() bool {
+	return l.IsActive() && l.currentStage == StagePackaging
+}
 func (l *Lot) AdvanceTo(stage Stage) error {
 	if !l.IsActive() {
 		return exception.New(exception.CodeLotVoided)
@@ -144,6 +148,25 @@ func (l *Lot) AdvanceTo(stage Stage) error {
 	}
 
 	l.currentStage = stage
+	l.version++
+
+	return nil
+}
+
+func (l *Lot) TransferTo(targetID uuid.UUID, targetRole actor.Type) error {
+	if !l.IsActive() {
+		return exception.New(exception.CodeLotVoided)
+	}
+
+	next := l.currentStage.Next()
+	if !l.HasEvents() || next == StageUnknown {
+		return exception.New(exception.CodeLotNotTransferable)
+	}
+	if helper.IsDefaultUUID(targetID) || targetID == l.custodianID || targetRole != next.ResponsibleRole() {
+		return exception.New(exception.CodeLotInvalidTransferTarget)
+	}
+
+	l.custodianID = targetID
 	l.version++
 
 	return nil
