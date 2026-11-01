@@ -22,15 +22,20 @@ func New(useCase getlotuc.UseCase) *Adapter {
 	return &Adapter{useCase: useCase}
 }
 
-func (a *Adapter) Execute(ctx context.Context, input request.GetLot) (response.Lot, error) {
+func (a *Adapter) Execute(ctx context.Context, input request.GetLot) (response.LotDetail, error) {
 	id := helper.ParseUUID(input.ID)
 	if helper.IsDefaultUUID(id) {
-		return response.Lot{}, exception.New(exception.CodeLotNotFound)
+		return response.LotDetail{}, exception.New(exception.CodeLotNotFound)
 	}
 
-	l, err := a.useCase.Execute(ctx, id)
+	res, err := a.useCase.Execute(ctx, id)
 	if err != nil {
-		return response.Lot{}, err
+		return response.LotDetail{}, err
 	}
-	return lotmapper.ToResponse(l), nil
+
+	actions := make([]string, 0, len(res.AllowedActions))
+	for _, action := range res.AllowedActions {
+		actions = append(actions, string(action))
+	}
+	return response.LotDetail{Lot: lotmapper.ToResponse(res.Lot), AllowedActions: actions}, nil
 }

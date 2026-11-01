@@ -21,6 +21,7 @@ const (
 	ActionTransferLot   Action = "lot:transfer"
 	ActionVoidLot       Action = "lot:void"
 	ActionReadActor     Action = "actor:read"
+	ActionGenerateQR    Action = "qr:generate"
 )
 
 type Subject struct {

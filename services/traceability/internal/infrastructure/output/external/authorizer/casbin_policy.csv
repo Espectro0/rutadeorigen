@@ -10,3 +10,4 @@ p, brand, lot, lot:register_stage, packaging, custodian
 p, producer, lot, lot:transfer, *, custodian
 p, roaster, lot, lot:transfer, *, custodian
 p, organization, lot, lot:void, *, any
+p, brand, lot, qr:generate, packaging, custodian

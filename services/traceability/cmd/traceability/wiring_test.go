@@ -1123,3 +1123,54 @@ func TestListLotEventsEndToEndErrors(t *testing.T) {
 		})
 	}
 }
+
+func allowedActions(t *testing.T, mux http.Handler, actorID, lotID string) []string {
+	t.Helper()
+
+	rec := get(mux, actorID, "/lots/"+lotID)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("get lot: status %d (%s)", rec.Code, rec.Body.String())
+	}
+
+	var body struct {
+		AllowedActions []string `json:"allowed_actions"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode lot: %v (%s)", err, rec.Body.String())
+	}
+	if body.AllowedActions == nil {
+		t.Fatalf("allowed_actions must be present: %s", rec.Body.String())
+	}
+	return body.AllowedActions
+}
+
+func assertActions(t *testing.T, label string, got []string, want ...string) {
+	t.Helper()
+
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("%s: got %v, want %v", label, got, want)
+	}
+}
+
+func TestGetLotEndToEndAllowedActionsFollowTheCustodyAndTheStage(t *testing.T) {
+	mux, _ := newTestServer(t)
+	created := mustCreateLot(t, mux, "LOT-001")
+
+	assertActions(t, "producer on a new lot", allowedActions(t, mux, producerHeader, created.ID), "lot:register_stage")
+	assertActions(t, "roaster on a new lot", allowedActions(t, mux, roasterHeader, created.ID))
+
+	mustRegisterStage(t, mux, created.ID, `"1"`, farmStageBody)
+	assertActions(t, "producer after the farm stage", allowedActions(t, mux, producerHeader, created.ID), "lot:transfer")
+
+	mustTransfer(t, mux, producerHeader, created.ID, `"2"`, roasterHeader)
+	assertActions(t, "former custodian", allowedActions(t, mux, producerHeader, created.ID))
+	assertActions(t, "roaster after receiving the lot", allowedActions(t, mux, roasterHeader, created.ID), "lot:register_stage", "lot:transfer")
+
+	mustRegisterStageAs(t, mux, roasterHeader, created.ID, `"3"`, roastingStageBody)
+	mustTransfer(t, mux, roasterHeader, created.ID, `"4"`, brandHeader)
+	assertActions(t, "brand after receiving the roasted lot", allowedActions(t, mux, brandHeader, created.ID), "lot:register_stage")
+
+	mustRegisterStageAs(t, mux, brandHeader, created.ID, `"5"`, packagingStageBody)
+	assertActions(t, "brand with the packaged lot", allowedActions(t, mux, brandHeader, created.ID), "qr:generate")
+	assertActions(t, "roaster with the packaged lot", allowedActions(t, mux, roasterHeader, created.ID))
+}

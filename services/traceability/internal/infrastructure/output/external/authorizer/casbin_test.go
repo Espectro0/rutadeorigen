@@ -167,6 +167,27 @@ func TestCasbinVoidLot(t *testing.T) {
 	}
 }
 
+func TestCasbinGenerateQR(t *testing.T) {
+	c := newCasbin(t)
+
+	for _, role := range roles {
+		custodian := uuid.New()
+		packaged := ports.Resource{Type: ports.ResourceLot, ID: uuid.New(), CustodianID: custodian, Stage: lot.StagePackaging}
+		roasted := ports.Resource{Type: ports.ResourceLot, ID: uuid.New(), CustodianID: custodian, Stage: lot.StageRoasting}
+
+		wantPackaged := role == actor.TypeBrand
+		if got := decide(t, c, ports.Subject{ActorID: custodian, Role: role}, ports.ActionGenerateQR, packaged); got != wantPackaged {
+			t.Errorf("role %s as custodian of a packaged lot: got %v, want %v", role, got, wantPackaged)
+		}
+		if decide(t, c, ports.Subject{ActorID: custodian, Role: role}, ports.ActionGenerateQR, roasted) {
+			t.Errorf("role %s must not generate the QR before packaging", role)
+		}
+		if decide(t, c, ports.Subject{ActorID: uuid.New(), Role: role}, ports.ActionGenerateQR, packaged) {
+			t.Errorf("role %s as non custodian must be denied", role)
+		}
+	}
+}
+
 func TestCasbinDeniesByDefault(t *testing.T) {
 	c := newCasbin(t)
 	id := uuid.New()

@@ -10,23 +10,25 @@ import (
 
 	"rutadeorigen/traceability/internal/application/input/adapters/getlot"
 	"rutadeorigen/traceability/internal/application/input/dto/request"
+	"rutadeorigen/traceability/internal/application/output/ports"
+	getlotuc "rutadeorigen/traceability/internal/application/usecases/getlot"
 	"rutadeorigen/traceability/internal/domain/lot"
 	"rutadeorigen/traceability/internal/platform/exception"
 )
 
 type fakeUseCase struct {
-	result *lot.Lot
+	result getlotuc.Result
 	err    error
 
 	calls    int
 	received uuid.UUID
 }
 
-func (f *fakeUseCase) Execute(_ context.Context, id uuid.UUID) (*lot.Lot, error) {
+func (f *fakeUseCase) Execute(_ context.Context, id uuid.UUID) (getlotuc.Result, error) {
 	f.calls++
 	f.received = id
 	if f.err != nil {
-		return lot.Default(), f.err
+		return getlotuc.Result{Lot: lot.Default()}, f.err
 	}
 	return f.result, nil
 }
@@ -52,7 +54,7 @@ func TestAdapterExecute(t *testing.T) {
 
 	t.Run("sends the parsed id to the use case and maps the lot", func(t *testing.T) {
 		l := existingLot()
-		uc := &fakeUseCase{result: l}
+		uc := &fakeUseCase{result: getlotuc.Result{Lot: l, AllowedActions: []ports.Action{ports.ActionRegisterStage, ports.ActionVoidLot}}}
 
 		got, err := getlot.New(uc).Execute(ctx, request.GetLot{ID: " " + l.ID().String() + " "})
 
@@ -65,11 +67,27 @@ func TestAdapterExecute(t *testing.T) {
 		if got.ID != l.ID().String() || got.Code != "LOT-001" || got.Version != 4 || got.Stage != "roasting" {
 			t.Errorf("got %+v", got)
 		}
+		if len(got.AllowedActions) != 2 || got.AllowedActions[0] != "lot:register_stage" || got.AllowedActions[1] != "lot:void" {
+			t.Errorf("allowed actions: got %v", got.AllowedActions)
+		}
+	})
+
+	t.Run("serializes no allowed actions as an empty list", func(t *testing.T) {
+		uc := &fakeUseCase{result: getlotuc.Result{Lot: existingLot()}}
+
+		got, err := getlot.New(uc).Execute(ctx, request.GetLot{ID: uuid.NewString()})
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.AllowedActions == nil || len(got.AllowedActions) != 0 {
+			t.Errorf("allowed actions: got %#v, want an empty non nil list", got.AllowedActions)
+		}
 	})
 
 	t.Run("reports a malformed id as not found without calling the use case", func(t *testing.T) {
 		for _, id := range []string{"", "not-a-uuid", "00000000-0000-0000-0000-000000000000"} {
-			uc := &fakeUseCase{result: existingLot()}
+			uc := &fakeUseCase{result: getlotuc.Result{Lot: existingLot()}}
 
 			_, err := getlot.New(uc).Execute(ctx, request.GetLot{ID: id})
 

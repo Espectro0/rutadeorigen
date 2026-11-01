@@ -6,5 +6,5 @@ import (
 )
 
 type GetLotPort interface {
-	InputPort[request.GetLot, response.Lot]
+	InputPort[request.GetLot, response.LotDetail]
 }
