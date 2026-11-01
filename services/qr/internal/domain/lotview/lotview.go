@@ -143,6 +143,53 @@ func (v *LotView) ApplyStage(stage Stage, version int, at time.Time) (*LotView, 
 	return &updated, nil
 }
 
+func (v *LotView) ApplyTransfer(custodianID uuid.UUID, version int, at time.Time) (*LotView, error) {
+	if v.IsDefault() {
+		return Default(), exception.New(exception.CodeLotViewNotFound)
+	}
+	if helper.IsDefaultUUID(custodianID) {
+		return Default(), exception.New(exception.CodeLotViewInvalidCustodian)
+	}
+	if !v.IsActive() {
+		return Default(), exception.New(exception.CodeLotViewVoided)
+	}
+	if version <= v.version {
+		return Default(), exception.New(exception.CodeLotViewInvalidVersion)
+	}
+
+	updated := *v
+	updated.custodianID = custodianID
+	updated.version = version
+	updated.updatedAt = updateTime(at)
+	return &updated, nil
+}
+
+func (v *LotView) ApplyVoid(reason string, version int, at time.Time) (*LotView, error) {
+	if v.IsDefault() {
+		return Default(), exception.New(exception.CodeLotViewNotFound)
+	}
+	if !v.IsActive() {
+		return Default(), exception.New(exception.CodeLotViewVoided)
+	}
+	if version <= v.version {
+		return Default(), exception.New(exception.CodeLotViewInvalidVersion)
+	}
+
+	updated := *v
+	updated.status = StatusVoided
+	updated.voidReason = helper.ApplyTrim(reason)
+	updated.version = version
+	updated.updatedAt = updateTime(at)
+	return &updated, nil
+}
+
+func updateTime(at time.Time) time.Time {
+	if helper.IsDefaultDate(at) {
+		return time.Now().UTC()
+	}
+	return at.UTC()
+}
+
 func validateNewParams(p NewParams, code, variety, farmName, producerName string) error {
 	if helper.IsDefaultUUID(p.LotID) {
 		return exception.New(exception.CodeLotViewInvalidID)

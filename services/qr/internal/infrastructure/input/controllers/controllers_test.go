@@ -242,3 +242,84 @@ func TestErrorResponderMapsValidation(t *testing.T) {
 		t.Fatalf("expected 400, got %d", rec.Code)
 	}
 }
+
+type statsFake struct {
+	got   request.GetScanStats
+	res   response.ScanStats
+	err   error
+	actor uuid.UUID
+}
+
+func (f *statsFake) Execute(ctx context.Context, in request.GetScanStats) (response.ScanStats, error) {
+	f.got = in
+	f.actor = requestcontext.ActorID(ctx)
+	return f.res, f.err
+}
+
+func statsMux(fake *statsFake) *http.ServeMux {
+	errs := newErrs()
+	mux := http.NewServeMux()
+	controllers.NewScanStatsController(fake, errs, discardLog()).Register(mux, func(next http.Handler) http.Handler {
+		return controllers.RequireActorHeader(errs, nil, next)
+	})
+	return mux
+}
+
+func statsRequest(target string, actor string) *http.Request {
+	req := httptest.NewRequest(http.MethodGet, target, nil)
+	if actor != "" {
+		req.Header.Set(controllers.ActorIDHeader, actor)
+	}
+	return req
+}
+
+func TestScanStatsControllerReturnsTheStats(t *testing.T) {
+	fake := &statsFake{res: response.ScanStats{LotID: "abc", Total: 4, Days: 7, Daily: []response.DailyScans{{Date: "2026-10-01", Count: 4}}}}
+	actor := uuid.New()
+
+	rec := serve(statsMux(fake), statsRequest("/lots/abc/scans/stats?days=7", actor.String()))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	if fake.got != (request.GetScanStats{LotID: "abc", Days: "7"}) || fake.actor != actor {
+		t.Errorf("unexpected input %+v actor %v", fake.got, fake.actor)
+	}
+	if rec.Header().Get("Cache-Control") != "private, no-store" || rec.Header().Get("Content-Type") != "application/json" {
+		t.Errorf("unexpected headers %v", rec.Header())
+	}
+	var body response.ScanStats
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil || body.Total != 4 || len(body.Daily) != 1 {
+		t.Errorf("unexpected body %+v %v", body, err)
+	}
+}
+
+func TestScanStatsControllerRequiresAnActor(t *testing.T) {
+	fake := &statsFake{}
+
+	rec := serve(statsMux(fake), statsRequest("/lots/abc/scans/stats", ""))
+
+	if rec.Code != http.StatusUnauthorized || fake.got != (request.GetScanStats{}) {
+		t.Fatalf("expected 401 without calling the port, got %d", rec.Code)
+	}
+}
+
+func TestScanStatsControllerMapsErrors(t *testing.T) {
+	tests := map[string]struct {
+		err  error
+		want int
+	}{
+		"forbidden":    {exception.New(exception.CodeForbidden), http.StatusForbidden},
+		"not found":    {exception.New(exception.CodeLotViewNotFound), http.StatusNotFound},
+		"invalid days": {exception.New(exception.CodeStatsInvalidDays), http.StatusBadRequest},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			rec := serve(statsMux(&statsFake{err: tt.err}), statsRequest("/lots/abc/scans/stats", uuid.NewString()))
+
+			if rec.Code != tt.want {
+				t.Errorf("expected %d, got %d", tt.want, rec.Code)
+			}
+		})
+	}
+}

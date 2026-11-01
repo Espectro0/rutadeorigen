@@ -11,17 +11,23 @@ import (
 	"rutadeorigen/lib/catalog"
 	getpubliclotadapter "rutadeorigen/qr/internal/application/input/adapters/getpubliclot"
 	getqrimageadapter "rutadeorigen/qr/internal/application/input/adapters/getqrimage"
+	getscanstatsadapter "rutadeorigen/qr/internal/application/input/adapters/getscanstats"
 	projectactorregisteredadapter "rutadeorigen/qr/internal/application/input/adapters/projectactorregistered"
 	projectlotcreatedadapter "rutadeorigen/qr/internal/application/input/adapters/projectlotcreated"
 	projectlotstageadapter "rutadeorigen/qr/internal/application/input/adapters/projectlotstage"
+	projectlottransferredadapter "rutadeorigen/qr/internal/application/input/adapters/projectlottransferred"
+	projectlotvoidedadapter "rutadeorigen/qr/internal/application/input/adapters/projectlotvoided"
 	resolveactoradapter "rutadeorigen/qr/internal/application/input/adapters/resolveactor"
 	resolvescanadapter "rutadeorigen/qr/internal/application/input/adapters/resolvescan"
 	"rutadeorigen/qr/internal/application/output/ports"
 	getpubliclotuc "rutadeorigen/qr/internal/application/usecases/getpubliclot"
 	getqrimageuc "rutadeorigen/qr/internal/application/usecases/getqrimage"
+	getscanstatsuc "rutadeorigen/qr/internal/application/usecases/getscanstats"
 	projectactorregistereduc "rutadeorigen/qr/internal/application/usecases/projectactorregistered"
 	projectlotcreateduc "rutadeorigen/qr/internal/application/usecases/projectlotcreated"
 	projectlotstageuc "rutadeorigen/qr/internal/application/usecases/projectlotstage"
+	projectlottransferreduc "rutadeorigen/qr/internal/application/usecases/projectlottransferred"
+	projectlotvoideduc "rutadeorigen/qr/internal/application/usecases/projectlotvoided"
 	resolveactoruc "rutadeorigen/qr/internal/application/usecases/resolveactor"
 	resolvescanuc "rutadeorigen/qr/internal/application/usecases/resolvescan"
 	"rutadeorigen/qr/internal/domain/redirect"
@@ -55,24 +61,31 @@ type outputs struct {
 
 func registerRoutes(mux *http.ServeMux, log *slog.Logger, catalog *catalog.Catalog, deps dependencies, authn authn) *inmessaging.LotEventsHandler {
 	out := newOutputs(deps)
-	auth := authorizer.NewAllowAll()
+	auth := authorizer.MustNewCasbin()
 	errs := controllers.NewErrorResponder(log, catalog)
 
 	projectLotCreated := projectlotcreatedadapter.New(projectlotcreateduc.New(out.views, out.processed, out.cache, out.tx))
 	projectLotStaged := projectlotstageadapter.New(projectlotstageuc.New(out.views, out.processed, out.cache, out.tx))
 	projectActorRegistered := projectactorregisteredadapter.New(projectactorregistereduc.New(out.actors, out.processed, out.tx))
+	projectLotTransferred := projectlottransferredadapter.New(projectlottransferreduc.New(out.views, out.processed, out.cache, out.tx))
+	projectLotVoided := projectlotvoidedadapter.New(projectlotvoideduc.New(out.views, out.processed, out.cache, out.tx))
 	getPublicLot := getpubliclotadapter.New(getpubliclotuc.New(out.views, out.cache))
 	resolveScan := resolvescanadapter.New(resolvescanuc.New(out.rules, out.views, out.cache, out.scans))
 	getQRImage := getqrimageadapter.New(getqrimageuc.New(out.views, out.cache, out.codes, renderer.NewGoQRCodeRenderer(), auth, deps.publicBaseURL))
 
+	getScanStats := getscanstatsadapter.New(getscanstatsuc.New(out.views, out.cache, out.scans, auth))
 	authn.resolver = resolveactoradapter.New(resolveactoruc.New(out.actors))
 	requireActor := authn.requireActor(errs)
 
 	controllers.NewLotController(getPublicLot, errs, log).Register(mux)
 	controllers.NewScanController(resolveScan, errs).Register(mux)
 	controllers.NewQRImageController(getQRImage, errs).Register(mux, requireActor)
+	controllers.NewScanStatsController(getScanStats, errs, log).Register(mux, requireActor)
 
-	return inmessaging.NewLotEventsHandler(projectLotCreated, projectLotStaged).WithActorRegistered(projectActorRegistered)
+	return inmessaging.NewLotEventsHandler(projectLotCreated, projectLotStaged).
+		WithActorRegistered(projectActorRegistered).
+		WithLotTransferred(projectLotTransferred).
+		WithLotVoided(projectLotVoided)
 }
 
 func newOutputs(deps dependencies) outputs {

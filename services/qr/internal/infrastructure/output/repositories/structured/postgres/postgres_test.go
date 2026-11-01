@@ -29,6 +29,20 @@ func (r *recordingTx) Exec(_ context.Context, sql string, args ...any) (pgconn.C
 	return r.tag, r.err
 }
 
+func (r *recordingTx) Query(_ context.Context, sql string, args ...any) (pgx.Rows, error) {
+	r.sql, r.args = sql, args
+	return nil, r.err
+}
+
+func (r *recordingTx) QueryRow(_ context.Context, sql string, args ...any) pgx.Row {
+	r.sql, r.args = sql, args
+	return errRow{err: r.err}
+}
+
+type errRow struct{ err error }
+
+func (e errRow) Scan(...any) error { return e.err }
+
 func inTx(tx *recordingTx) context.Context {
 	return context.WithValue(context.Background(), txKey{}, pgx.Tx(tx))
 }
@@ -173,4 +187,15 @@ func TestProcessedEventRepositoryWrapsErrors(t *testing.T) {
 		t.Error("expected false on error")
 	}
 	assertInternal(t, err)
+}
+
+func TestScanRepositoryStatsWrapsDatabaseErrors(t *testing.T) {
+	tx := &recordingTx{err: errors.New("boom")}
+
+	_, err := NewScanRepository(nil).StatsByLot(inTx(tx), uuid.New(), time.Now())
+
+	assertInternal(t, err)
+	if tx.sql != selectScanTotals {
+		t.Errorf("expected the totals query to run first, got %q", tx.sql)
+	}
 }

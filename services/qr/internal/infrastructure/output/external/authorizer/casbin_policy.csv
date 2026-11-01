@@ -1,0 +1,2 @@
+p, brand, lot, qr:image:read, *, custodian
+p, organization, lot, qr:stats:read, *, any

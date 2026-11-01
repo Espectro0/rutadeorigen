@@ -11,6 +11,7 @@ import (
 	"rutadeorigen/lib/requestcontext"
 	"rutadeorigen/qr/internal/application/output/ports"
 	"rutadeorigen/qr/internal/application/usecases/getqrimage"
+	"rutadeorigen/qr/internal/domain/actorview"
 	"rutadeorigen/qr/internal/domain/lotview"
 	"rutadeorigen/qr/internal/domain/qrcode"
 	"rutadeorigen/qr/internal/platform/exception"
@@ -150,7 +151,7 @@ func newFixture(t *testing.T, view *lotview.LotView) *fixture {
 		view:     view,
 		actorID:  uuid.New(),
 	}
-	f.ctx = requestcontext.WithActorID(context.Background(), f.actorID)
+	f.ctx = requestcontext.WithActorRole(requestcontext.WithActorID(context.Background(), f.actorID), "brand")
 	f.uc = getqrimage.New(fakeViews{view: view}, fakeCache{}, f.codes, f.renderer, f.auth, baseURL)
 	return f
 }
@@ -247,10 +248,10 @@ func TestGetQRImageExecute(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		if f.auth.action != ports.ActionReadQRImage || f.auth.subject.ActorID != f.actorID {
+		if f.auth.action != ports.ActionReadQRImage || f.auth.subject.ActorID != f.actorID || f.auth.subject.Role != actorview.RoleBrand {
 			t.Errorf("unexpected action %q or subject %+v", f.auth.action, f.auth.subject)
 		}
-		wantResource := ports.Resource{Type: ports.ResourceLot, ID: f.view.LotID(), CustodianID: f.view.CustodianID()}
+		wantResource := ports.Resource{Type: ports.ResourceLot, ID: f.view.LotID(), CustodianID: f.view.CustodianID(), Stage: lotview.StagePackaging}
 		if f.auth.resource != wantResource {
 			t.Errorf("resource: got %+v, want %+v", f.auth.resource, wantResource)
 		}

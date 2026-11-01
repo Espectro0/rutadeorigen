@@ -8,6 +8,7 @@ import (
 	"rutadeorigen/lib/requestcontext"
 	"rutadeorigen/qr/internal/application/output/ports"
 	"rutadeorigen/qr/internal/application/usecases/validators"
+	"rutadeorigen/qr/internal/domain/actorview"
 	"rutadeorigen/qr/internal/domain/lotview"
 	"rutadeorigen/qr/internal/domain/qrcode"
 	"rutadeorigen/qr/internal/platform/exception"
@@ -84,9 +85,9 @@ func (uc *GetQRImage) Execute(ctx context.Context, query Query) (*qrcode.Image, 
 
 func (uc *GetQRImage) authorize(ctx context.Context, actorID uuid.UUID, view *lotview.LotView) error {
 	allowed, err := uc.auth.IsAllowed(ctx,
-		ports.Subject{ActorID: actorID},
+		ports.Subject{ActorID: actorID, Role: actorview.ParseRole(requestcontext.ActorRole(ctx))},
 		ports.ActionReadQRImage,
-		ports.Resource{Type: ports.ResourceLot, ID: view.LotID(), CustodianID: view.CustodianID()})
+		ports.Resource{Type: ports.ResourceLot, ID: view.LotID(), CustodianID: view.CustodianID(), Stage: view.CurrentStage()})
 	if err != nil {
 		return exception.Wrap(err, "evaluate read qr image policy")
 	}

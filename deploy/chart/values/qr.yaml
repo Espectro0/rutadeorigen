@@ -12,3 +12,5 @@ services:
       min: 2
       max: 8
       cpu: 70
+    apiRegexps:
+      - '^/api/lots/[^/]+/scans/stats$'

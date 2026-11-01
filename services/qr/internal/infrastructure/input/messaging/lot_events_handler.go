@@ -15,6 +15,8 @@ import (
 const (
 	LotCreatedType         = "lot.created"
 	LotStageRegisteredType = "lot.stage_registered"
+	LotTransferredType     = "lot.transferred"
+	LotVoidedType          = "lot.voided"
 	ActorRegisteredType    = "actor.registered"
 )
 
@@ -38,6 +40,8 @@ type LotEventsHandler struct {
 	created         ports.ProjectLotCreatedPort
 	staged          ports.ProjectLotStagePort
 	actorRegistered ports.ProjectActorRegisteredPort
+	transferred     ports.ProjectLotTransferredPort
+	voided          ports.ProjectLotVoidedPort
 }
 
 func NewLotEventsHandler(created ports.ProjectLotCreatedPort, staged ports.ProjectLotStagePort) *LotEventsHandler {
@@ -49,12 +53,26 @@ func (h *LotEventsHandler) WithActorRegistered(port ports.ProjectActorRegistered
 	return h
 }
 
+func (h *LotEventsHandler) WithLotTransferred(port ports.ProjectLotTransferredPort) *LotEventsHandler {
+	h.transferred = port
+	return h
+}
+
+func (h *LotEventsHandler) WithLotVoided(port ports.ProjectLotVoidedPort) *LotEventsHandler {
+	h.voided = port
+	return h
+}
+
 func (h *LotEventsHandler) handles(eventType string) bool {
 	switch eventType {
 	case LotCreatedType, LotStageRegisteredType:
 		return true
 	case ActorRegisteredType:
 		return h.actorRegistered != nil
+	case LotTransferredType:
+		return h.transferred != nil
+	case LotVoidedType:
+		return h.voided != nil
 	default:
 		return false
 	}
@@ -87,6 +105,10 @@ func (h *LotEventsHandler) Handle(ctx context.Context, d libmessaging.Delivery) 
 		return h.projectCreated(ctx, meta, env.Data)
 	case ActorRegisteredType:
 		return h.projectActorRegistered(ctx, meta, env.Data)
+	case LotTransferredType:
+		return h.projectTransferred(ctx, meta, env.Data)
+	case LotVoidedType:
+		return h.projectVoided(ctx, meta, env.Data)
 	default:
 		return h.projectStage(ctx, meta, env.Data)
 	}
@@ -131,6 +153,38 @@ func (h *LotEventsHandler) projectStage(ctx context.Context, meta metadata, raw 
 	}
 
 	_, err = h.staged.Execute(ctx, request.ProjectLotStage{
+		MessageID:  meta.messageID,
+		EventType:  meta.eventType,
+		Version:    meta.version,
+		OccurredAt: meta.occurredAt,
+		Data:       data,
+	})
+	return classify(err)
+}
+
+func (h *LotEventsHandler) projectTransferred(ctx context.Context, meta metadata, raw json.RawMessage) error {
+	data, err := decodeData[request.LotTransferredData](raw)
+	if err != nil {
+		return err
+	}
+
+	_, err = h.transferred.Execute(ctx, request.ProjectLotTransferred{
+		MessageID:  meta.messageID,
+		EventType:  meta.eventType,
+		Version:    meta.version,
+		OccurredAt: meta.occurredAt,
+		Data:       data,
+	})
+	return classify(err)
+}
+
+func (h *LotEventsHandler) projectVoided(ctx context.Context, meta metadata, raw json.RawMessage) error {
+	data, err := decodeData[request.LotVoidedData](raw)
+	if err != nil {
+		return err
+	}
+
+	_, err = h.voided.Execute(ctx, request.ProjectLotVoided{
 		MessageID:  meta.messageID,
 		EventType:  meta.eventType,
 		Version:    meta.version,

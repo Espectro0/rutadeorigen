@@ -86,9 +86,10 @@ func TestOIDCQRImageRequiresASession(t *testing.T) {
 
 func TestOIDCQRImageIsServedToAnAuthenticatedUser(t *testing.T) {
 	h := newOIDCHarness(t)
-	h.publishActor(t, "user_01", uuid.New(), "brand")
+	brandID := uuid.New()
+	h.publishActor(t, "user_01", brandID, "brand")
 	lotID := uuid.New()
-	if err := h.publish(t, uuid.New(), lotID, "packaging"); err != nil {
+	if err := h.publishWithCustodian(t, uuid.New(), lotID, "packaging", brandID); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -104,9 +105,10 @@ func TestOIDCQRImageIsServedToAnAuthenticatedUser(t *testing.T) {
 
 func TestOIDCQRImageStillAppliesTheLotRules(t *testing.T) {
 	h := newOIDCHarness(t)
-	h.publishActor(t, "user_01", uuid.New(), "brand")
+	brandID := uuid.New()
+	h.publishActor(t, "user_01", brandID, "brand")
 	early := uuid.New()
-	if err := h.publish(t, uuid.New(), early, "roasting"); err != nil {
+	if err := h.publishWithCustodian(t, uuid.New(), early, "roasting", brandID); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -153,8 +155,9 @@ func TestOIDCPublicRoutesDoNotNeedASession(t *testing.T) {
 
 func TestOIDCQRImageRejectsAUserWhoseActorIsNotProjectedYet(t *testing.T) {
 	h := newOIDCHarness(t)
+	brandID := uuid.New()
 	lotID := uuid.New()
-	if err := h.publish(t, uuid.New(), lotID, "packaging"); err != nil {
+	if err := h.publishWithCustodian(t, uuid.New(), lotID, "packaging", brandID); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -164,9 +167,25 @@ func TestOIDCQRImageRejectsAUserWhoseActorIsNotProjectedYet(t *testing.T) {
 		t.Errorf("expected 403 until actor.registered arrives, got %d", rec.Code)
 	}
 
-	h.publishActor(t, "user_01", uuid.New(), "brand")
+	h.publishActor(t, "user_01", brandID, "brand")
 
 	if rec := h.getWithSession("/public/lots/"+lotID.String()+"/qr?format=png", sealedValid, nil); rec.Code != http.StatusOK {
 		t.Errorf("expected 200 once the actor is projected, got %d", rec.Code)
+	}
+}
+
+func TestOIDCQRImageIsDeniedToAUserWithAnotherRole(t *testing.T) {
+	h := newOIDCHarness(t)
+	producerID := uuid.New()
+	h.publishActor(t, "user_01", producerID, "producer")
+	lotID := uuid.New()
+	if err := h.publishWithCustodian(t, uuid.New(), lotID, "packaging", producerID); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	rec := h.getWithSession("/public/lots/"+lotID.String()+"/qr?format=png", sealedValid, nil)
+
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("only the brand may read the image, got %d", rec.Code)
 	}
 }
