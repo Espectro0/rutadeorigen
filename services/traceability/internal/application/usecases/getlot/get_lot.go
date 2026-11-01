@@ -38,7 +38,7 @@ func (uc *GetLot) Execute(ctx context.Context, id uuid.UUID) (Result, error) {
 		return failed, err
 	}
 
-	allowed, err := uc.isAllowed(ctx, a, ports.ActionReadLot, resourceOf(l, lot.StageNone))
+	allowed, err := uc.isAllowed(ctx, a, ports.ActionReadLot, resourceOf(l, ""))
 	if err != nil {
 		return failed, err
 	}

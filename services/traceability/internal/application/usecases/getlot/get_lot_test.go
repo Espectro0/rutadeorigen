@@ -80,8 +80,8 @@ func (a *fakeAuthorizer) IsAllowed(_ context.Context, s ports.Subject, act ports
 	if a.err != nil {
 		return false, a.err
 	}
-	if a.only != nil && act != ports.ActionReadLot {
-		return a.only[act], nil
+	if a.only != nil {
+		return act == ports.ActionReadLot || a.only[act], nil
 	}
 	return a.allowed, nil
 }
