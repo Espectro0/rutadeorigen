@@ -11,6 +11,7 @@ import (
 	"rutadeorigen/lib/catalog"
 	getpubliclotadapter "rutadeorigen/qr/internal/application/input/adapters/getpubliclot"
 	getqrimageadapter "rutadeorigen/qr/internal/application/input/adapters/getqrimage"
+	getscanstatsadapter "rutadeorigen/qr/internal/application/input/adapters/getscanstats"
 	projectactorregisteredadapter "rutadeorigen/qr/internal/application/input/adapters/projectactorregistered"
 	projectlotcreatedadapter "rutadeorigen/qr/internal/application/input/adapters/projectlotcreated"
 	projectlotstageadapter "rutadeorigen/qr/internal/application/input/adapters/projectlotstage"
@@ -21,6 +22,7 @@ import (
 	"rutadeorigen/qr/internal/application/output/ports"
 	getpubliclotuc "rutadeorigen/qr/internal/application/usecases/getpubliclot"
 	getqrimageuc "rutadeorigen/qr/internal/application/usecases/getqrimage"
+	getscanstatsuc "rutadeorigen/qr/internal/application/usecases/getscanstats"
 	projectactorregistereduc "rutadeorigen/qr/internal/application/usecases/projectactorregistered"
 	projectlotcreateduc "rutadeorigen/qr/internal/application/usecases/projectlotcreated"
 	projectlotstageuc "rutadeorigen/qr/internal/application/usecases/projectlotstage"
@@ -71,12 +73,14 @@ func registerRoutes(mux *http.ServeMux, log *slog.Logger, catalog *catalog.Catal
 	resolveScan := resolvescanadapter.New(resolvescanuc.New(out.rules, out.views, out.cache, out.scans))
 	getQRImage := getqrimageadapter.New(getqrimageuc.New(out.views, out.cache, out.codes, renderer.NewGoQRCodeRenderer(), auth, deps.publicBaseURL))
 
+	getScanStats := getscanstatsadapter.New(getscanstatsuc.New(out.views, out.cache, out.scans, auth))
 	authn.resolver = resolveactoradapter.New(resolveactoruc.New(out.actors))
 	requireActor := authn.requireActor(errs)
 
 	controllers.NewLotController(getPublicLot, errs, log).Register(mux)
 	controllers.NewScanController(resolveScan, errs).Register(mux)
 	controllers.NewQRImageController(getQRImage, errs).Register(mux, requireActor)
+	controllers.NewScanStatsController(getScanStats, errs, log).Register(mux, requireActor)
 
 	return inmessaging.NewLotEventsHandler(projectLotCreated, projectLotStaged).
 		WithActorRegistered(projectActorRegistered).

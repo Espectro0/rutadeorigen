@@ -239,3 +239,43 @@ func TestActorViewRepositoryFindsByID(t *testing.T) {
 		t.Error("an unknown id must return the default view")
 	}
 }
+
+func TestScanRepositoryStatsByLot(t *testing.T) {
+	ctx := context.Background()
+	repo := memory.NewScanRepository()
+	lotID, otherLot := uuid.New(), uuid.New()
+	day := time.Date(2026, 10, 10, 12, 0, 0, 0, time.UTC)
+	for _, s := range []*scan.Scan{
+		scan.Restore(lotID, day.AddDate(0, 0, -40)),
+		scan.Restore(lotID, day),
+		scan.Restore(lotID, day.Add(2*time.Hour)),
+		scan.Restore(lotID, day.AddDate(0, 0, 2)),
+		scan.Restore(otherLot, day),
+	} {
+		_ = repo.Save(ctx, s)
+	}
+
+	got, err := repo.StatsByLot(ctx, lotID, day.AddDate(0, 0, -5))
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.LotID() != lotID || got.Total() != 4 {
+		t.Errorf("unexpected total %d for %s", got.Total(), got.LotID())
+	}
+	if !got.FirstScanAt().Equal(day.AddDate(0, 0, -40)) || !got.LastScanAt().Equal(day.AddDate(0, 0, 2)) {
+		t.Errorf("unexpected first/last %v %v", got.FirstScanAt(), got.LastScanAt())
+	}
+	daily := got.Daily()
+	if len(daily) != 2 || daily[0].Count != 2 || daily[1].Count != 1 || !daily[0].Day.Before(daily[1].Day) {
+		t.Errorf("unexpected daily counts %+v", daily)
+	}
+}
+
+func TestScanRepositoryStatsOfALotWithoutScans(t *testing.T) {
+	got, err := memory.NewScanRepository().StatsByLot(context.Background(), uuid.New(), time.Now().AddDate(0, 0, -30))
+
+	if err != nil || got.HasScans() || got.Daily() == nil || len(got.Daily()) != 0 {
+		t.Errorf("expected empty stats, got %+v and %v", got, err)
+	}
+}

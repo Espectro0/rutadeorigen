@@ -58,6 +58,10 @@ type fakeScans struct {
 	saved []*scan.Scan
 }
 
+func (s *fakeScans) StatsByLot(_ context.Context, lotID uuid.UUID, _ time.Time) (*scan.Stats, error) {
+	return scan.NewStats(lotID, 0, time.Time{}, time.Time{}, nil), nil
+}
+
 func (s *fakeScans) Save(_ context.Context, sc *scan.Scan) error {
 	if s.err != nil {
 		return s.err

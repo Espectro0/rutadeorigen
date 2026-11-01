@@ -38,6 +38,8 @@ const (
 	CodeQRCodeInvalidFormat          Code = "QR_CODE_INVALID_FORMAT"
 	CodeQRCodeInvalidErrorCorrection Code = "QR_CODE_INVALID_ERROR_CORRECTION"
 
+	CodeStatsInvalidDays Code = "QR_STATS_INVALID_DAYS"
+
 	CodeRedirectInvalidRule Code = "QR_REDIRECT_INVALID_RULE"
 	CodeRedirectNotFound    Code = "QR_REDIRECT_NOT_FOUND"
 
@@ -76,6 +78,8 @@ var kindByCode = map[Code]Kind{
 	CodeQRCodeInvalidSize:            KindValidation,
 	CodeQRCodeInvalidFormat:          KindValidation,
 	CodeQRCodeInvalidErrorCorrection: KindValidation,
+
+	CodeStatsInvalidDays: KindValidation,
 
 	CodeRedirectInvalidRule: KindValidation,
 	CodeRedirectNotFound:    KindNotFound,

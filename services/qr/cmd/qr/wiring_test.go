@@ -388,3 +388,97 @@ func TestQRImageFollowsTheCustodianAfterATransfer(t *testing.T) {
 		t.Errorf("new custodian: expected 200, got %d", rec.Code)
 	}
 }
+
+type statsBody struct {
+	LotID       string  `json:"lot_id"`
+	Total       int     `json:"total"`
+	FirstScanAt *string `json:"first_scan_at"`
+	LastScanAt  *string `json:"last_scan_at"`
+	Days        int     `json:"days"`
+	Daily       []struct {
+		Date  string `json:"date"`
+		Count int    `json:"count"`
+	} `json:"daily"`
+}
+
+func TestScanStatsAreOnlyForTheOrganization(t *testing.T) {
+	h := newHarness(t)
+	_, organization := h.registerActor(t, "org_user", "organization")
+	brandID, brand := h.registerActor(t, "brand_user", "brand")
+	_, producer := h.registerActor(t, "producer_user", "producer")
+	lotID := uuid.New()
+	if err := h.publishWithCustodian(t, uuid.New(), lotID, "packaging", brandID); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for i := 0; i < 3; i++ {
+		if rec := h.get("/l/"+lotID.String(), nil); rec.Code != http.StatusMovedPermanently {
+			t.Fatalf("scan %d: expected 301, got %d", i, rec.Code)
+		}
+	}
+	path := "/lots/" + lotID.String() + "/scans/stats"
+
+	if rec := h.get(path, nil); rec.Code != http.StatusUnauthorized {
+		t.Errorf("without actor: expected 401, got %d", rec.Code)
+	}
+	for name, headers := range map[string]map[string]string{"brand custodian": brand, "producer": producer} {
+		if rec := h.get(path, headers); rec.Code != http.StatusForbidden {
+			t.Errorf("%s: expected 403, got %d", name, rec.Code)
+		}
+	}
+
+	rec := h.get(path, organization)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("organization: expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var body statsBody
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("invalid json: %v", err)
+	}
+	if body.LotID != lotID.String() || body.Total != 3 || body.Days != 30 || body.FirstScanAt == nil || body.LastScanAt == nil {
+		t.Errorf("unexpected body %+v", body)
+	}
+	if len(body.Daily) != 1 || body.Daily[0].Count != 3 {
+		t.Errorf("expected the three scans on one day, got %+v", body.Daily)
+	}
+}
+
+func TestScanStatsOfALotWithoutScans(t *testing.T) {
+	h := newHarness(t)
+	_, organization := h.registerActor(t, "org_user", "organization")
+	lotID := uuid.New()
+	if err := h.publish(t, uuid.New(), lotID, "farm"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	rec := h.get("/lots/"+lotID.String()+"/scans/stats?days=7", organization)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	var body statsBody
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("invalid json: %v", err)
+	}
+	if body.Total != 0 || body.Days != 7 || body.FirstScanAt != nil || body.LastScanAt != nil || body.Daily == nil || len(body.Daily) != 0 {
+		t.Errorf("unexpected body %+v", body)
+	}
+}
+
+func TestScanStatsValidateDaysAndLot(t *testing.T) {
+	h := newHarness(t)
+	_, organization := h.registerActor(t, "org_user", "organization")
+	lotID := uuid.New()
+	if err := h.publish(t, uuid.New(), lotID, "farm"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if rec := h.get("/lots/"+lotID.String()+"/scans/stats?days=0", organization); rec.Code != http.StatusBadRequest {
+		t.Errorf("invalid days: expected 400, got %d", rec.Code)
+	}
+	if rec := h.get("/lots/"+lotID.String()+"/scans/stats?days=400", organization); rec.Code != http.StatusBadRequest {
+		t.Errorf("too many days: expected 400, got %d", rec.Code)
+	}
+	if rec := h.get("/lots/"+uuid.NewString()+"/scans/stats", organization); rec.Code != http.StatusNotFound {
+		t.Errorf("unknown lot: expected 404, got %d", rec.Code)
+	}
+}
