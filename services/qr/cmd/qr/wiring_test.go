@@ -247,3 +247,76 @@ func (h harness) publishActor(t *testing.T, userID string, actorID uuid.UUID, ro
 		t.Fatalf("publish actor: %v", err)
 	}
 }
+
+func (h harness) publishLotEvent(t *testing.T, eventType string, lotID uuid.UUID, version int, data map[string]any) error {
+	t.Helper()
+
+	messageID := uuid.New()
+	data["lot_id"] = lotID.String()
+	body, err := json.Marshal(map[string]any{
+		"id":      messageID.String(),
+		"type":    eventType,
+		"version": version,
+		"data":    data,
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	return h.lotCreated.Handle(context.Background(), libmessaging.Delivery{
+		ID:         messageID.String(),
+		Type:       eventType,
+		Version:    version,
+		OccurredAt: time.Now().UTC(),
+		Body:       body,
+	})
+}
+
+func TestLotVoidedEventBlocksTheQRImage(t *testing.T) {
+	h := newHarness(t)
+	lotID := uuid.New()
+	if err := h.publish(t, uuid.New(), lotID, "packaging"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	actor := map[string]string{controllers.ActorIDHeader: uuid.NewString()}
+	path := "/public/lots/" + lotID.String() + "/qr?format=png"
+	if rec := h.get(path, actor); rec.Code != http.StatusOK {
+		t.Fatalf("before the void: expected 200, got %d", rec.Code)
+	}
+
+	err := h.publishLotEvent(t, "lot.voided", lotID, 2, map[string]any{"reason": "Lote contaminado", "status": "voided"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if rec := h.get(path, actor); rec.Code != http.StatusConflict {
+		t.Errorf("after the void: expected 409, got %d", rec.Code)
+	}
+}
+
+func TestLotTransferredEventIsProjected(t *testing.T) {
+	h := newHarness(t)
+	lotID := uuid.New()
+	if err := h.publish(t, uuid.New(), lotID, "packaging"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	err := h.publishLotEvent(t, "lot.transferred", lotID, 2, map[string]any{"custodian_id": uuid.NewString(), "stage": "packaging"})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if rec := h.get("/public/lots/"+lotID.String(), nil); rec.Code != http.StatusOK {
+		t.Errorf("the lot must still be readable, got %d", rec.Code)
+	}
+}
+
+func TestTransferOfAnUnknownLotIsRetried(t *testing.T) {
+	h := newHarness(t)
+
+	err := h.publishLotEvent(t, "lot.transferred", uuid.New(), 2, map[string]any{"custodian_id": uuid.NewString()})
+
+	if err == nil || libmessaging.IsPermanent(err) {
+		t.Errorf("expected a retryable error until lot.created arrives, got %v", err)
+	}
+}

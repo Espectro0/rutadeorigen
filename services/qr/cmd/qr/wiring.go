@@ -14,6 +14,8 @@ import (
 	projectactorregisteredadapter "rutadeorigen/qr/internal/application/input/adapters/projectactorregistered"
 	projectlotcreatedadapter "rutadeorigen/qr/internal/application/input/adapters/projectlotcreated"
 	projectlotstageadapter "rutadeorigen/qr/internal/application/input/adapters/projectlotstage"
+	projectlottransferredadapter "rutadeorigen/qr/internal/application/input/adapters/projectlottransferred"
+	projectlotvoidedadapter "rutadeorigen/qr/internal/application/input/adapters/projectlotvoided"
 	resolveactoradapter "rutadeorigen/qr/internal/application/input/adapters/resolveactor"
 	resolvescanadapter "rutadeorigen/qr/internal/application/input/adapters/resolvescan"
 	"rutadeorigen/qr/internal/application/output/ports"
@@ -22,6 +24,8 @@ import (
 	projectactorregistereduc "rutadeorigen/qr/internal/application/usecases/projectactorregistered"
 	projectlotcreateduc "rutadeorigen/qr/internal/application/usecases/projectlotcreated"
 	projectlotstageuc "rutadeorigen/qr/internal/application/usecases/projectlotstage"
+	projectlottransferreduc "rutadeorigen/qr/internal/application/usecases/projectlottransferred"
+	projectlotvoideduc "rutadeorigen/qr/internal/application/usecases/projectlotvoided"
 	resolveactoruc "rutadeorigen/qr/internal/application/usecases/resolveactor"
 	resolvescanuc "rutadeorigen/qr/internal/application/usecases/resolvescan"
 	"rutadeorigen/qr/internal/domain/redirect"
@@ -61,6 +65,8 @@ func registerRoutes(mux *http.ServeMux, log *slog.Logger, catalog *catalog.Catal
 	projectLotCreated := projectlotcreatedadapter.New(projectlotcreateduc.New(out.views, out.processed, out.cache, out.tx))
 	projectLotStaged := projectlotstageadapter.New(projectlotstageuc.New(out.views, out.processed, out.cache, out.tx))
 	projectActorRegistered := projectactorregisteredadapter.New(projectactorregistereduc.New(out.actors, out.processed, out.tx))
+	projectLotTransferred := projectlottransferredadapter.New(projectlottransferreduc.New(out.views, out.processed, out.cache, out.tx))
+	projectLotVoided := projectlotvoidedadapter.New(projectlotvoideduc.New(out.views, out.processed, out.cache, out.tx))
 	getPublicLot := getpubliclotadapter.New(getpubliclotuc.New(out.views, out.cache))
 	resolveScan := resolvescanadapter.New(resolvescanuc.New(out.rules, out.views, out.cache, out.scans))
 	getQRImage := getqrimageadapter.New(getqrimageuc.New(out.views, out.cache, out.codes, renderer.NewGoQRCodeRenderer(), auth, deps.publicBaseURL))
@@ -72,7 +78,10 @@ func registerRoutes(mux *http.ServeMux, log *slog.Logger, catalog *catalog.Catal
 	controllers.NewScanController(resolveScan, errs).Register(mux)
 	controllers.NewQRImageController(getQRImage, errs).Register(mux, requireActor)
 
-	return inmessaging.NewLotEventsHandler(projectLotCreated, projectLotStaged).WithActorRegistered(projectActorRegistered)
+	return inmessaging.NewLotEventsHandler(projectLotCreated, projectLotStaged).
+		WithActorRegistered(projectActorRegistered).
+		WithLotTransferred(projectLotTransferred).
+		WithLotVoided(projectLotVoided)
 }
 
 func newOutputs(deps dependencies) outputs {

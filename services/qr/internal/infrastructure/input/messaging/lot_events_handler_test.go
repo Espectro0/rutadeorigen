@@ -425,3 +425,140 @@ func TestHandleActorRegisteredErrorsAreClassified(t *testing.T) {
 		t.Errorf("an infrastructure error must be retried, got %v", err)
 	}
 }
+
+type transferFake struct {
+	calls int
+	got   request.ProjectLotTransferred
+	err   error
+}
+
+func (f *transferFake) Execute(_ context.Context, in request.ProjectLotTransferred) (response.Empty, error) {
+	f.calls++
+	f.got = in
+	return response.Empty{}, f.err
+}
+
+type voidFake struct {
+	calls int
+	got   request.ProjectLotVoided
+	err   error
+}
+
+func (f *voidFake) Execute(_ context.Context, in request.ProjectLotVoided) (response.Empty, error) {
+	f.calls++
+	f.got = in
+	return response.Empty{}, f.err
+}
+
+func transferDelivery() libmessaging.Delivery {
+	return libmessaging.Delivery{
+		ID:      "msg-4",
+		Type:    "lot.transferred",
+		Version: 6,
+		Body: []byte(`{"occurred_at":"2026-10-02T09:00:00Z","data":{"lot_id":"lot-1","from_actor_id":"a1",` +
+			`"custodian_id":"c2","stage":"roasting","status":"active","event_id":"ev","sequence":3,"event_date":"2026-10-01"}}`),
+	}
+}
+
+func voidDelivery() libmessaging.Delivery {
+	return libmessaging.Delivery{
+		ID:      "msg-5",
+		Type:    "lot.voided",
+		Version: 7,
+		Body: []byte(`{"occurred_at":"2026-10-03T10:00:00Z","data":{"lot_id":"lot-1","voided_by":"org",` +
+			`"reason":"Lote contaminado","custodian_id":"c2","stage":"roasting","status":"voided"}}`),
+	}
+}
+
+func TestHandleLotTransferredMapsDeliveryToRequest(t *testing.T) {
+	created, staged, transferred := &createdFake{}, &stageFake{}, &transferFake{}
+	handler := newHandler(created, staged).WithLotTransferred(transferred)
+
+	if err := handler.Handle(context.Background(), transferDelivery()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if transferred.calls != 1 {
+		t.Fatalf("transfer use case calls: got %d, want 1", transferred.calls)
+	}
+	if transferred.got.MessageID != "msg-4" || transferred.got.EventType != "lot.transferred" || transferred.got.Version != 6 ||
+		transferred.got.OccurredAt != "2026-10-02T09:00:00Z" {
+		t.Errorf("unexpected metadata %+v", transferred.got)
+	}
+	if transferred.got.Data.LotID != "lot-1" || transferred.got.Data.CustodianID != "c2" || transferred.got.Data.FromActorID != "a1" {
+		t.Errorf("unexpected data %+v", transferred.got.Data)
+	}
+	if created.calls != 0 || staged.calls != 0 {
+		t.Error("the other use cases must not run")
+	}
+}
+
+func TestHandleLotVoidedMapsDeliveryToRequest(t *testing.T) {
+	voided := &voidFake{}
+	handler := newHandler(&createdFake{}, &stageFake{}).WithLotVoided(voided)
+
+	if err := handler.Handle(context.Background(), voidDelivery()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if voided.calls != 1 {
+		t.Fatalf("void use case calls: got %d, want 1", voided.calls)
+	}
+	if voided.got.MessageID != "msg-5" || voided.got.EventType != "lot.voided" || voided.got.Version != 7 ||
+		voided.got.OccurredAt != "2026-10-03T10:00:00Z" {
+		t.Errorf("unexpected metadata %+v", voided.got)
+	}
+	if voided.got.Data.LotID != "lot-1" || voided.got.Data.Reason != "Lote contaminado" {
+		t.Errorf("unexpected data %+v", voided.got.Data)
+	}
+}
+
+func TestHandleIgnoresTransferAndVoidWhenNoUseCaseIsWired(t *testing.T) {
+	handler := newHandler(&createdFake{}, &stageFake{})
+
+	for _, d := range []libmessaging.Delivery{transferDelivery(), voidDelivery()} {
+		if err := handler.Handle(context.Background(), d); err != nil {
+			t.Errorf("%s: unexpected error: %v", d.Type, err)
+		}
+	}
+}
+
+func TestHandleTransferAndVoidErrorsAreClassified(t *testing.T) {
+	backend := errors.New("backend is down")
+	validation := exception.New(exception.CodeLotViewInvalidCustodian)
+
+	err := newHandler(&createdFake{}, &stageFake{}).WithLotTransferred(&transferFake{err: validation}).Handle(context.Background(), transferDelivery())
+	if !libmessaging.IsPermanent(err) {
+		t.Errorf("a validation error on transfer must be permanent, got %v", err)
+	}
+
+	err = newHandler(&createdFake{}, &stageFake{}).WithLotTransferred(&transferFake{err: backend}).Handle(context.Background(), transferDelivery())
+	if libmessaging.IsPermanent(err) || !errors.Is(err, backend) {
+		t.Errorf("an infrastructure error on transfer must be retried, got %v", err)
+	}
+
+	err = newHandler(&createdFake{}, &stageFake{}).WithLotVoided(&voidFake{err: validation}).Handle(context.Background(), voidDelivery())
+	if !libmessaging.IsPermanent(err) {
+		t.Errorf("a validation error on void must be permanent, got %v", err)
+	}
+
+	err = newHandler(&createdFake{}, &stageFake{}).WithLotVoided(&voidFake{err: backend}).Handle(context.Background(), voidDelivery())
+	if libmessaging.IsPermanent(err) || !errors.Is(err, backend) {
+		t.Errorf("an infrastructure error on void must be retried, got %v", err)
+	}
+}
+
+func TestHandleTransferAndVoidMalformedDataArePermanent(t *testing.T) {
+	transferred, voided := &transferFake{}, &voidFake{}
+	handler := newHandler(&createdFake{}, &stageFake{}).WithLotTransferred(transferred).WithLotVoided(voided)
+
+	for _, typ := range []string{"lot.transferred", "lot.voided"} {
+		err := handler.Handle(context.Background(), libmessaging.Delivery{ID: "m", Type: typ, Body: []byte(`{"data":"nope"}`)})
+		if !libmessaging.IsPermanent(err) {
+			t.Errorf("%s: expected a permanent error, got %v", typ, err)
+		}
+	}
+	if transferred.calls != 0 || voided.calls != 0 {
+		t.Error("no use case must run with malformed data")
+	}
+}
