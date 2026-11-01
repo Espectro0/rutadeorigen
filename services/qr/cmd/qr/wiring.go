@@ -59,7 +59,7 @@ type outputs struct {
 
 func registerRoutes(mux *http.ServeMux, log *slog.Logger, catalog *catalog.Catalog, deps dependencies, authn authn) *inmessaging.LotEventsHandler {
 	out := newOutputs(deps)
-	auth := authorizer.NewAllowAll()
+	auth := authorizer.MustNewCasbin()
 	errs := controllers.NewErrorResponder(log, catalog)
 
 	projectLotCreated := projectlotcreatedadapter.New(projectlotcreateduc.New(out.views, out.processed, out.cache, out.tx))

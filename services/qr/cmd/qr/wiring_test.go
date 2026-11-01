@@ -50,6 +50,12 @@ func newHarnessWith(t *testing.T, auth authn) harness {
 func (h harness) publish(t *testing.T, messageID uuid.UUID, lotID uuid.UUID, stage string) error {
 	t.Helper()
 
+	return h.publishWithCustodian(t, messageID, lotID, stage, uuid.New())
+}
+
+func (h harness) publishWithCustodian(t *testing.T, messageID uuid.UUID, lotID uuid.UUID, stage string, custodianID uuid.UUID) error {
+	t.Helper()
+
 	body, err := json.Marshal(map[string]any{
 		"id":      messageID.String(),
 		"type":    "lot.created",
@@ -58,7 +64,7 @@ func (h harness) publish(t *testing.T, messageID uuid.UUID, lotID uuid.UUID, sta
 			"lot_id":       lotID.String(),
 			"farm":         map[string]any{"id": uuid.NewString(), "name": "La Esperanza", "altitude": 1800},
 			"producer":     map[string]any{"id": uuid.NewString(), "name": "Maria Lopez"},
-			"custodian_id": uuid.NewString(),
+			"custodian_id": custodianID.String(),
 			"code":         "LT-001",
 			"variety":      "Castillo",
 			"process":      "washed",
@@ -169,16 +175,24 @@ func TestScanRedirectsToLotPage(t *testing.T) {
 	}
 }
 
+func (h harness) registerActor(t *testing.T, userID, role string) (uuid.UUID, map[string]string) {
+	t.Helper()
+
+	id := uuid.New()
+	h.publishActor(t, userID, id, role)
+	return id, map[string]string{controllers.ActorIDHeader: id.String()}
+}
+
 func TestQRImageOnlyForPackagedLots(t *testing.T) {
 	h := newHarness(t)
+	brandID, actor := h.registerActor(t, "brand_user", "brand")
 	packaged, early := uuid.New(), uuid.New()
-	if err := h.publish(t, uuid.New(), packaged, "packaging"); err != nil {
+	if err := h.publishWithCustodian(t, uuid.New(), packaged, "packaging", brandID); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if err := h.publish(t, uuid.New(), early, "roasting"); err != nil {
+	if err := h.publishWithCustodian(t, uuid.New(), early, "roasting", brandID); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	actor := map[string]string{controllers.ActorIDHeader: uuid.NewString()}
 
 	if rec := h.get("/public/lots/"+packaged.String()+"/qr", nil); rec.Code != http.StatusUnauthorized {
 		t.Errorf("without actor: expected 401, got %d", rec.Code)
@@ -274,11 +288,11 @@ func (h harness) publishLotEvent(t *testing.T, eventType string, lotID uuid.UUID
 
 func TestLotVoidedEventBlocksTheQRImage(t *testing.T) {
 	h := newHarness(t)
+	brandID, actor := h.registerActor(t, "brand_user", "brand")
 	lotID := uuid.New()
-	if err := h.publish(t, uuid.New(), lotID, "packaging"); err != nil {
+	if err := h.publishWithCustodian(t, uuid.New(), lotID, "packaging", brandID); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	actor := map[string]string{controllers.ActorIDHeader: uuid.NewString()}
 	path := "/public/lots/" + lotID.String() + "/qr?format=png"
 	if rec := h.get(path, actor); rec.Code != http.StatusOK {
 		t.Fatalf("before the void: expected 200, got %d", rec.Code)
@@ -318,5 +332,59 @@ func TestTransferOfAnUnknownLotIsRetried(t *testing.T) {
 
 	if err == nil || libmessaging.IsPermanent(err) {
 		t.Errorf("expected a retryable error until lot.created arrives, got %v", err)
+	}
+}
+
+func TestQRImageIsDeniedToEveryoneButTheCustodianBrand(t *testing.T) {
+	h := newHarness(t)
+	brandID, brand := h.registerActor(t, "brand_user", "brand")
+	_, otherBrand := h.registerActor(t, "other_brand", "brand")
+	_, producer := h.registerActor(t, "producer_user", "producer")
+	_, organization := h.registerActor(t, "org_user", "organization")
+	unknown := map[string]string{controllers.ActorIDHeader: uuid.NewString()}
+	lotID := uuid.New()
+	if err := h.publishWithCustodian(t, uuid.New(), lotID, "packaging", brandID); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	path := "/public/lots/" + lotID.String() + "/qr?format=png"
+
+	if rec := h.get(path, brand); rec.Code != http.StatusOK {
+		t.Errorf("custodian brand: expected 200, got %d", rec.Code)
+	}
+	for name, headers := range map[string]map[string]string{
+		"brand that is not the custodian": otherBrand,
+		"producer":                        producer,
+		"organization":                    organization,
+		"actor without projection":        unknown,
+	} {
+		if rec := h.get(path, headers); rec.Code != http.StatusForbidden {
+			t.Errorf("%s: expected 403, got %d", name, rec.Code)
+		}
+	}
+}
+
+func TestQRImageFollowsTheCustodianAfterATransfer(t *testing.T) {
+	h := newHarness(t)
+	firstID, first := h.registerActor(t, "first_brand", "brand")
+	secondID, second := h.registerActor(t, "second_brand", "brand")
+	lotID := uuid.New()
+	if err := h.publishWithCustodian(t, uuid.New(), lotID, "packaging", firstID); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	path := "/public/lots/" + lotID.String() + "/qr?format=png"
+	if rec := h.get(path, first); rec.Code != http.StatusOK {
+		t.Fatalf("before the transfer: expected 200, got %d", rec.Code)
+	}
+
+	err := h.publishLotEvent(t, "lot.transferred", lotID, 2, map[string]any{"custodian_id": secondID.String(), "stage": "packaging"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if rec := h.get(path, first); rec.Code != http.StatusForbidden {
+		t.Errorf("previous custodian: expected 403, got %d", rec.Code)
+	}
+	if rec := h.get(path, second); rec.Code != http.StatusOK {
+		t.Errorf("new custodian: expected 200, got %d", rec.Code)
 	}
 }
