@@ -34,20 +34,20 @@ func (LotEvent) ToDomain(e entity.LotEvent) (*lot.Event, error) {
 	}
 
 	return lot.RestoreEvent(lot.RestoreEventParams{
-		ID:           e.ID,
-		LotID:        e.LotID,
-		Sequence:     e.Sequence,
-		EventType:    eventType,
-		Stage:        lot.ParseStage(e.Stage),
-		EventDate:    e.EventDate.UTC(),
-		Note:         e.Note,
-		ActorID:      e.ActorID,
-		ActorRole:    e.ActorRole,
+		ID:            e.ID,
+		LotID:         e.LotID,
+		Sequence:      e.Sequence,
+		EventType:     eventType,
+		Stage:         lot.ParseStage(e.Stage),
+		EventDate:     e.EventDate.UTC(),
+		Note:          e.Note,
+		ActorID:       e.ActorID,
+		ActorRole:     e.ActorRole,
 		TargetActorID: target,
-		Details:      details,
-		PreviousHash: e.PreviousHash,
-		Hash:         e.Hash,
-		RegisteredAt: e.RegisteredAt.UTC(),
+		Details:       details,
+		PreviousHash:  e.PreviousHash,
+		Hash:          e.Hash,
+		RegisteredAt:  e.RegisteredAt.UTC(),
 	}), nil
 }
 
@@ -67,20 +67,20 @@ func (LotEvent) ToEntity(e *lot.Event) (entity.LotEvent, error) {
 	}
 
 	return entity.LotEvent{
-		ID:           e.ID(),
-		LotID:        e.LotID(),
-		Sequence:     e.Sequence(),
-		Type:         e.Type().String(),
-		Stage:        e.Stage().String(),
-		EventDate:    e.EventDate().UTC(),
-		Note:         e.Note(),
-		ActorID:      e.ActorID(),
-		ActorRole:    e.ActorRole(),
+		ID:            e.ID(),
+		LotID:         e.LotID(),
+		Sequence:      e.Sequence(),
+		Type:          e.Type().String(),
+		Stage:         e.Stage().String(),
+		EventDate:     e.EventDate().UTC(),
+		Note:          e.Note(),
+		ActorID:       e.ActorID(),
+		ActorRole:     e.ActorRole(),
 		TargetActorID: target,
-		Details:      details,
-		PreviousHash: e.PreviousHash(),
-		Hash:         e.Hash(),
-		RegisteredAt: e.RegisteredAt().UTC(),
+		Details:       details,
+		PreviousHash:  e.PreviousHash(),
+		Hash:          e.Hash(),
+		RegisteredAt:  e.RegisteredAt().UTC(),
 	}, nil
 }
 

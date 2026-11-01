@@ -555,20 +555,20 @@ const (
 
 type stageView struct {
 	Event struct {
-		ID           string          `json:"id"`
-		LotID        string          `json:"lot_id"`
-		Sequence     int             `json:"sequence"`
-		Type         string          `json:"type"`
-		Stage        string          `json:"stage"`
-		EventDate    string          `json:"event_date"`
-		Note         string          `json:"note"`
-		ActorID      string          `json:"actor_id"`
-		ActorRole    string          `json:"actor_role"`
-		TargetActorID string         `json:"target_actor_id"`
-		Details      json.RawMessage `json:"details"`
-		PreviousHash string          `json:"previous_hash"`
-		Hash         string          `json:"hash"`
-		RegisteredAt string          `json:"registered_at"`
+		ID            string          `json:"id"`
+		LotID         string          `json:"lot_id"`
+		Sequence      int             `json:"sequence"`
+		Type          string          `json:"type"`
+		Stage         string          `json:"stage"`
+		EventDate     string          `json:"event_date"`
+		Note          string          `json:"note"`
+		ActorID       string          `json:"actor_id"`
+		ActorRole     string          `json:"actor_role"`
+		TargetActorID string          `json:"target_actor_id"`
+		Details       json.RawMessage `json:"details"`
+		PreviousHash  string          `json:"previous_hash"`
+		Hash          string          `json:"hash"`
+		RegisteredAt  string          `json:"registered_at"`
 	} `json:"event"`
 	LotVersion int `json:"lot_version"`
 }
@@ -1030,6 +1030,94 @@ func TestListActorsEndToEndErrors(t *testing.T) {
 			mux, _ := newTestServer(t)
 
 			rec := getActors(mux, tt.actorID, tt.query)
+
+			assertErrorCode(t, rec, tt.want, tt.wantCode)
+		})
+	}
+}
+
+type historyView struct {
+	Items []struct {
+		Sequence      int    `json:"sequence"`
+		Type          string `json:"type"`
+		Stage         string `json:"stage"`
+		TargetActorID string `json:"target_actor_id"`
+		PreviousHash  string `json:"previous_hash"`
+		Hash          string `json:"hash"`
+	} `json:"items"`
+	ChainValid bool `json:"chain_valid"`
+}
+
+func decodeHistory(t *testing.T, rec *httptest.ResponseRecorder) historyView {
+	t.Helper()
+
+	var view historyView
+	if err := json.Unmarshal(rec.Body.Bytes(), &view); err != nil {
+		t.Fatalf("decode history: %v (%s)", err, rec.Body.String())
+	}
+	return view
+}
+
+func TestListLotEventsEndToEnd(t *testing.T) {
+	mux, _ := newTestServer(t)
+	created, farmETag := lotWithFarmStage(t, mux)
+	mustTransfer(t, mux, producerHeader, created.ID, farmETag, roasterHeader)
+
+	for _, actorID := range []string{producerHeader, roasterHeader, brandHeader} {
+		rec := get(mux, actorID, "/lots/"+created.ID+"/events")
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status: got %d, want %d (%s)", rec.Code, http.StatusOK, rec.Body.String())
+		}
+		view := decodeHistory(t, rec)
+		if len(view.Items) != 2 || !view.ChainValid {
+			t.Fatalf("got %d events and chain valid %v, want 2 and true", len(view.Items), view.ChainValid)
+		}
+		first, second := view.Items[0], view.Items[1]
+		if first.Sequence != 1 || first.Type != "stage" || first.PreviousHash != genesisHash {
+			t.Errorf("unexpected first event %+v", first)
+		}
+		if second.Sequence != 2 || second.Type != "transfer" || second.TargetActorID != roasterHeader || second.PreviousHash != first.Hash {
+			t.Errorf("unexpected second event %+v", second)
+		}
+	}
+}
+
+func TestListLotEventsEndToEndOfALotWithoutEvents(t *testing.T) {
+	mux, _ := newTestServer(t)
+	created := mustCreateLot(t, mux, "LOT-001")
+
+	rec := get(mux, producerHeader, "/lots/"+created.ID+"/events")
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: got %d, want %d", rec.Code, http.StatusOK)
+	}
+	view := decodeHistory(t, rec)
+	if view.Items == nil || len(view.Items) != 0 || !view.ChainValid {
+		t.Errorf("got %+v, want no items and a valid chain", view)
+	}
+}
+
+func TestListLotEventsEndToEndErrors(t *testing.T) {
+	tests := []struct {
+		name     string
+		actorID  string
+		lotID    func(created lotView) string
+		want     int
+		wantCode string
+	}{
+		{"missing actor", "", sameLot, http.StatusUnauthorized, "UNAUTHORIZED"},
+		{"unknown actor", uuid.NewString(), sameLot, http.StatusNotFound, string(exception.CodeActorNotFound)},
+		{"unknown lot", producerHeader, otherLot, http.StatusNotFound, string(exception.CodeLotNotFound)},
+		{"malformed lot id", producerHeader, malformedLot, http.StatusNotFound, string(exception.CodeLotNotFound)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mux, _ := newTestServer(t)
+			created, _ := lotWithFarmStage(t, mux)
+
+			rec := get(mux, tt.actorID, "/lots/"+tt.lotID(created)+"/events")
 
 			assertErrorCode(t, rec, tt.want, tt.wantCode)
 		})
