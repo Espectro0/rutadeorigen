@@ -108,3 +108,11 @@ export async function transferLot(lotId: string, version: number, input: LotTran
         body: JSON.stringify({ target_actor_id: input.targetActorId, note: input.note }),
     });
 }
+
+export async function voidLot(lotId: string, version: number, reason: string): Promise<void> {
+    await request<unknown>(`/lots/${encodeURIComponent(lotId)}/void`, {
+        method: "POST",
+        headers: { "If-Match": `"${version}"` },
+        body: JSON.stringify({ reason }),
+    });
+}

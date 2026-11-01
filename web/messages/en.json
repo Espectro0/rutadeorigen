@@ -207,6 +207,13 @@
       "note": "Note (optional)",
       "submit": "Transfer",
       "cancel": "Cancel"
+    },
+    "voidDialog": {
+      "title": "Void lot",
+      "warning": "This action cannot be undone. The lot will be voided, it can no longer be modified, and its QR will stop working. The history is kept.",
+      "reason": "Reason for voiding",
+      "submit": "Void lot",
+      "cancel": "Cancel"
     }
   }
 }
