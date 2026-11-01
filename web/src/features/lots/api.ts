@@ -1,5 +1,5 @@
 import { request } from "@/lib/http-client";
-import { parseLotProcess, parseLotStage, parseLotStatus, type Lot, type LotPage } from "./types";
+import { parseLotActions, parseLotProcess, parseLotStage, parseLotStatus, type Lot, type LotPage } from "./types";
 
 type LotDto = Readonly<{
     id: string;
@@ -14,6 +14,7 @@ type LotDto = Readonly<{
     status: string;
     void_reason?: string;
     created_at: string;
+    allowed_actions?: string[] | null;
 }>;
 
 type LotPageDto = Readonly<{
@@ -35,6 +36,7 @@ function toLot(dto: LotDto): Lot {
         status: parseLotStatus(dto.status),
         voidReason: dto.void_reason ?? "",
         createdAt: dto.created_at,
+        allowedActions: parseLotActions(dto.allowed_actions),
     };
 }
 

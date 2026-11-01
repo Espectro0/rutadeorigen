@@ -26,6 +26,13 @@ export function parseLotProcess(value: string): LotProcess {
         : "unknown";
 }
 
+export const LOT_ACTIONS = ["lot:register_stage", "lot:transfer", "lot:void", "qr:generate"] as const;
+export type LotAction = (typeof LOT_ACTIONS)[number];
+
+export function parseLotActions(values: readonly string[] | null | undefined): readonly LotAction[] {
+    return LOT_ACTIONS.filter((action) => (values ?? []).includes(action));
+}
+
 export type Lot = Readonly<{
     id: string;
     version: number;
@@ -39,6 +46,7 @@ export type Lot = Readonly<{
     status: LotStatus;
     voidReason: string;
     createdAt: string;
+    allowedActions: readonly LotAction[];
 }>;
 
 export type LotPage = Readonly<{

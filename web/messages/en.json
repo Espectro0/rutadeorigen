@@ -157,6 +157,14 @@
       "harvestDate": "Harvest date",
       "submit": "Save",
       "cancel": "Cancel"
+    },
+    "actions": {
+      "title": "Lot actions",
+      "registerStage": "Register stage",
+      "transfer": "Transfer",
+      "generateQr": "Generate QR",
+      "void": "Void lot",
+      "soon": "Coming soon"
     }
   }
 }

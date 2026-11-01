@@ -157,6 +157,14 @@
       "harvestDate": "Fecha de cosecha",
       "submit": "Guardar",
       "cancel": "Cancelar"
+    },
+    "actions": {
+      "title": "Acciones del lote",
+      "registerStage": "Registrar etapa",
+      "transfer": "Transferir",
+      "generateQr": "Generar QR",
+      "void": "Anular lote",
+      "soon": "Disponible pronto"
     }
   }
 }

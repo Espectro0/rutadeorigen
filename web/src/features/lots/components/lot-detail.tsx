@@ -10,6 +10,7 @@ import { useDescribeError } from "@/lib/use-describe-error";
 import { useRemote } from "@/lib/use-remote";
 import { getLot } from "../api";
 import { LOT_STAGES, type Lot } from "../types";
+import { LotActions } from "./lot-actions";
 import { LotStatusBadge } from "./lot-status-badge";
 
 const PROGRESS_STAGES = LOT_STAGES.filter((stage) => stage !== "none");
@@ -74,6 +75,8 @@ export function LotDetail({ id }: Readonly<{ id: string }>) {
                 <h1 className="text-2xl font-semibold tracking-tight">{data.code}</h1>
                 <LotStatusBadge status={data.status} label={t(`status.${data.status}`)} />
             </div>
+
+            <LotActions allowed={data.allowedActions} />
 
             {data.status === "voided" && data.voidReason !== "" && (
                 <p role="status" className="rounded-lg bg-terracotta/15 p-4 text-sm text-terracotta">
