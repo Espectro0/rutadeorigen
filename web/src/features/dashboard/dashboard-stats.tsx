@@ -47,8 +47,8 @@ export function DashboardStats() {
     return (
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {cards.map((card) => (
-                <div key={card.label} className="rounded-lg bg-white p-5 shadow-sm dark:bg-zinc-900">
-                    <p className="text-sm text-zinc-500">{card.label}</p>
+                <div key={card.label} className="card p-5">
+                    <p className="text-sm text-ink-dim">{card.label}</p>
                     <p className="mt-2 text-3xl font-semibold tabular-nums">{card.value ?? "…"}</p>
                 </div>
             ))}
