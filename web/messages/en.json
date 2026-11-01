@@ -86,6 +86,14 @@
       "name": "Name",
       "altitude": "Altitude",
       "createdAt": "Registered"
+    },
+    "new": "New farm",
+    "form": {
+      "title": "New farm",
+      "name": "Name",
+      "altitude": "Altitude (masl)",
+      "submit": "Save",
+      "cancel": "Cancel"
     }
   },
   "Lots": {
@@ -135,6 +143,18 @@
       "custodian": "Custodian",
       "id": "ID",
       "version": "Version"
+    },
+    "new": "New lot",
+    "form": {
+      "title": "New lot",
+      "farm": "Farm",
+      "farmPlaceholder": "Select a farm",
+      "code": "Code",
+      "variety": "Variety",
+      "process": "Process",
+      "harvestDate": "Harvest date",
+      "submit": "Save",
+      "cancel": "Cancel"
     }
   }
 }

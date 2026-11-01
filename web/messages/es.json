@@ -86,6 +86,14 @@
       "name": "Nombre",
       "altitude": "Altitud",
       "createdAt": "Registrada"
+    },
+    "new": "Nueva finca",
+    "form": {
+      "title": "Nueva finca",
+      "name": "Nombre",
+      "altitude": "Altitud (msnm)",
+      "submit": "Guardar",
+      "cancel": "Cancelar"
     }
   },
   "Lots": {
@@ -135,6 +143,18 @@
       "custodian": "Custodio",
       "id": "ID",
       "version": "Versión"
+    },
+    "new": "Nuevo lote",
+    "form": {
+      "title": "Nuevo lote",
+      "farm": "Finca",
+      "farmPlaceholder": "Selecciona una finca",
+      "code": "Código",
+      "variety": "Variedad",
+      "process": "Proceso",
+      "harvestDate": "Fecha de cosecha",
+      "submit": "Guardar",
+      "cancel": "Cancelar"
     }
   }
 }
