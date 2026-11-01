@@ -47,5 +47,18 @@ spec:
         - name: {{ $name }}
           port: 80
     {{- end }}
+    {{- if $svc.apiRegexps }}
+    - kind: Rule
+      priority: 900
+      match: Host(`{{ $.Values.ingress.host }}`) && ({{ range $i, $re := $svc.apiRegexps }}{{ if $i }} || {{ end }}PathRegexp(`{{ $re }}`){{ end }})
+      middlewares:
+        - name: strip-api
+        {{- if and $rl.enabled $limited }}
+        - name: rate-limit
+        {{- end }}
+      services:
+        - name: {{ $name }}
+          port: 80
+    {{- end }}
     {{- end }}
 {{- end }}
