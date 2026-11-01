@@ -34,10 +34,10 @@ func (r fakeActors) FindByID(_ context.Context, id uuid.UUID) (*actor.Actor, err
 }
 
 type fakeFarms struct {
-	byProducer map[uuid.UUID][]*farm.Farm
-	listErr    error
-	nilList    bool
-	askedFor   uuid.UUID
+	all     []*farm.Farm
+	listErr error
+	nilList bool
+	calls   int
 }
 
 func (r *fakeFarms) FindByID(_ context.Context, _ uuid.UUID) (*farm.Farm, error) {
@@ -48,15 +48,15 @@ func (r *fakeFarms) Save(_ context.Context, _ *farm.Farm) error {
 	return nil
 }
 
-func (r *fakeFarms) ListByProducer(_ context.Context, producerID uuid.UUID) ([]*farm.Farm, error) {
-	r.askedFor = producerID
+func (r *fakeFarms) List(_ context.Context) ([]*farm.Farm, error) {
+	r.calls++
 	if r.listErr != nil {
 		return nil, r.listErr
 	}
 	if r.nilList {
 		return nil, nil
 	}
-	return r.byProducer[producerID], nil
+	return r.all, nil
 }
 
 type fakeAuthorizer struct {
@@ -74,7 +74,7 @@ func (a *fakeAuthorizer) IsAllowed(_ context.Context, s ports.Subject, act ports
 
 type scenario struct {
 	producer   *actor.Actor
-	own        []*farm.Farm
+	farmsOfAll []*farm.Farm
 	actors     fakeActors
 	farms      *fakeFarms
 	authorizer *fakeAuthorizer
@@ -96,17 +96,17 @@ func newScenario(t *testing.T) *scenario {
 	if err != nil {
 		t.Fatal(err)
 	}
-	other := uuid.New()
-	own := []*farm.Farm{newFarm(t, producer.ID(), "La Esperanza"), newFarm(t, producer.ID(), "El Mirador")}
+	all := []*farm.Farm{
+		newFarm(t, producer.ID(), "La Esperanza"),
+		newFarm(t, producer.ID(), "El Mirador"),
+		newFarm(t, uuid.New(), "La Otra Finca"),
+	}
 
 	return &scenario{
-		producer: producer,
-		own:      own,
-		actors:   fakeActors{byID: map[uuid.UUID]*actor.Actor{producer.ID(): producer}},
-		farms: &fakeFarms{byProducer: map[uuid.UUID][]*farm.Farm{
-			producer.ID(): own,
-			other:         {newFarm(t, other, "La Otra Finca")},
-		}},
+		producer:   producer,
+		farmsOfAll: all,
+		actors:     fakeActors{byID: map[uuid.UUID]*actor.Actor{producer.ID(): producer}},
+		farms:      &fakeFarms{all: all},
 		authorizer: &fakeAuthorizer{allowed: true},
 	}
 }
@@ -151,24 +151,24 @@ func TestListFarmsSuccess(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	t.Run("returns only the farms of the actor", func(t *testing.T) {
-		if len(got) != 2 || got[0].ID() != s.own[0].ID() || got[1].ID() != s.own[1].ID() {
-			t.Errorf("got %d farms, want the 2 farms of the actor", len(got))
+	t.Run("returns the farms of every producer", func(t *testing.T) {
+		if len(got) != 3 {
+			t.Fatalf("got %d farms, want 3", len(got))
 		}
-		for _, f := range got {
-			if f.ProducerID() != s.producer.ID() {
-				t.Error("a farm of another producer was returned")
+		for i, f := range got {
+			if f.ID() != s.farmsOfAll[i].ID() {
+				t.Errorf("farm %d: got %s, want %s", i, f.ID(), s.farmsOfAll[i].ID())
 			}
 		}
 	})
 
-	t.Run("asks the repository for the actor farms", func(t *testing.T) {
-		if s.farms.askedFor != s.producer.ID() {
-			t.Errorf("got producer %s, want %s", s.farms.askedFor, s.producer.ID())
+	t.Run("asks the repository once", func(t *testing.T) {
+		if s.farms.calls != 1 {
+			t.Errorf("got %d repository calls, want 1", s.farms.calls)
 		}
 	})
 
-	t.Run("asks ABAC to read farms owned by the actor", func(t *testing.T) {
+	t.Run("asks ABAC to read farms without an owner", func(t *testing.T) {
 		a := s.authorizer
 		if a.action != ports.ActionReadFarm {
 			t.Errorf("action: got %v, want %v", a.action, ports.ActionReadFarm)
@@ -176,15 +176,17 @@ func TestListFarmsSuccess(t *testing.T) {
 		if a.subject.ActorID != s.producer.ID() || a.subject.Role != actor.TypeProducer {
 			t.Error("unexpected subject")
 		}
-		if a.resource.Type != ports.ResourceFarm || a.resource.OwnerID != s.producer.ID() {
+		if a.resource != (ports.Resource{Type: ports.ResourceFarm}) {
 			t.Error("unexpected resource")
 		}
 	})
 }
 
 func TestListFarmsEmpty(t *testing.T) {
-	t.Run("an actor without farms gets an empty list", func(t *testing.T) {
+	t.Run("without farms the list is empty", func(t *testing.T) {
 		s := newScenario(t)
+		s.farms.all = nil
+		s.farms.nilList = false
 		roaster, err := actor.New("user_02", actor.TypeRoaster, "Tostadora del Oriente", "user_02@example.com")
 		if err != nil {
 			t.Fatal(err)
@@ -246,7 +248,7 @@ func TestListFarmsAuthorization(t *testing.T) {
 
 		got, err := s.useCase().Execute(s.ctx(), listfarm.Query{})
 		assertFailed(t, got, err, exception.New(exception.CodeForbidden))
-		if s.farms.askedFor != uuid.Nil {
+		if s.farms.calls != 0 {
 			t.Error("the repository must not be asked when access is denied")
 		}
 	})

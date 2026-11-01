@@ -505,6 +505,20 @@ func TestListFarmsEndToEnd(t *testing.T) {
 		}
 	})
 
+	t.Run("every role sees the farms of every producer", func(t *testing.T) {
+		for _, actorID := range []string{roasterHeader, brandHeader} {
+			rec := get(mux, actorID, "/farms")
+
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status: got %d, want %d (%s)", rec.Code, http.StatusOK, rec.Body.String())
+			}
+			list := decodeFarms(t, rec)
+			if len(list.Items) != 2 || list.Items[0].ID != created.ID || list.Items[1].ID != seedFarmID.String() {
+				t.Errorf("actor %s: got %+v, want the created and the seeded farms", actorID, list.Items)
+			}
+		}
+	})
+
 	t.Run("missing actor", func(t *testing.T) {
 		assertErrorCode(t, get(mux, "", "/farms"), http.StatusUnauthorized, "UNAUTHORIZED")
 	})

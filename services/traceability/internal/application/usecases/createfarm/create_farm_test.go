@@ -50,7 +50,7 @@ func (r *fakeFarms) Save(_ context.Context, f *farm.Farm) error {
 	return nil
 }
 
-func (r *fakeFarms) ListByProducer(_ context.Context, _ uuid.UUID) ([]*farm.Farm, error) {
+func (r *fakeFarms) List(_ context.Context) ([]*farm.Farm, error) {
 	return []*farm.Farm{}, nil
 }
 

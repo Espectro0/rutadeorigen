@@ -53,15 +53,13 @@ func (r *FarmRepository) Save(_ context.Context, f *farm.Farm) error {
 	return nil
 }
 
-func (r *FarmRepository) ListByProducer(_ context.Context, producerID uuid.UUID) ([]*farm.Farm, error) {
+func (r *FarmRepository) List(_ context.Context) ([]*farm.Farm, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	farms := make([]*farm.Farm, 0)
 	for _, f := range r.farms {
-		if f.ProducerID() == producerID {
-			farms = append(farms, f)
-		}
+		farms = append(farms, f)
 	}
 
 	sort.Slice(farms, func(i, j int) bool {

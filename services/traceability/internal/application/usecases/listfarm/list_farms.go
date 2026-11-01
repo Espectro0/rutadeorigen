@@ -31,7 +31,7 @@ func (uc *ListFarms) Execute(ctx context.Context, _ Query) ([]*farm.Farm, error)
 	allowed, err := uc.auth.IsAllowed(ctx,
 		ports.Subject{ActorID: a.ID(), Role: a.Type()},
 		ports.ActionReadFarm,
-		ports.Resource{Type: ports.ResourceFarm, OwnerID: a.ID()})
+		ports.Resource{Type: ports.ResourceFarm})
 	if err != nil {
 		return []*farm.Farm{}, exception.Wrap(err, "evaluate list farms policy")
 	}
@@ -39,9 +39,9 @@ func (uc *ListFarms) Execute(ctx context.Context, _ Query) ([]*farm.Farm, error)
 		return []*farm.Farm{}, exception.New(exception.CodeForbidden)
 	}
 
-	farms, err := uc.farms.ListByProducer(ctx, a.ID())
+	farms, err := uc.farms.List(ctx)
 	if err != nil {
-		return []*farm.Farm{}, exception.Wrap(err, "list farms by producer")
+		return []*farm.Farm{}, exception.Wrap(err, "list farms")
 	}
 	if farms == nil {
 		return []*farm.Farm{}, nil

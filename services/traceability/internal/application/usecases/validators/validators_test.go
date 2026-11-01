@@ -39,7 +39,7 @@ func (r fakeFarmRepository) Save(_ context.Context, _ *farm.Farm) error {
 	return nil
 }
 
-func (r fakeFarmRepository) ListByProducer(_ context.Context, _ uuid.UUID) ([]*farm.Farm, error) {
+func (r fakeFarmRepository) List(_ context.Context) ([]*farm.Farm, error) {
 	return []*farm.Farm{}, nil
 }
 

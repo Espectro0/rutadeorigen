@@ -23,10 +23,9 @@ const (
 		FROM farm
 		WHERE id = $1`
 
-	selectFarmsByProducer = `
+	selectFarms = `
 		SELECT id, producer_id, name, altitude, created_at
 		FROM farm
-		WHERE producer_id = $1
 		ORDER BY created_at DESC, id DESC`
 
 	insertFarm = `
@@ -74,10 +73,10 @@ func (r *FarmRepository) Save(ctx context.Context, f *farm.Farm) error {
 	return nil
 }
 
-func (r *FarmRepository) ListByProducer(ctx context.Context, producerID uuid.UUID) ([]*farm.Farm, error) {
-	rows, err := conn(ctx, r.pool).Query(ctx, selectFarmsByProducer, producerID)
+func (r *FarmRepository) List(ctx context.Context) ([]*farm.Farm, error) {
+	rows, err := conn(ctx, r.pool).Query(ctx, selectFarms)
 	if err != nil {
-		return []*farm.Farm{}, internalError("query farms by producer", err)
+		return []*farm.Farm{}, internalError("query farms", err)
 	}
 
 	entities, err := pgx.CollectRows(rows, pgx.RowToStructByName[entity.Farm])
