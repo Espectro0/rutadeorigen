@@ -1,6 +1,6 @@
 services:
   web:
-    tag: "38692f4701b3cad589f5947e35632acf33f309b5"
+    tag: "b07c612c6c66a737b00488a0c3862baf0f40500c"
     replicas: 1
     rateLimit: false
     paths:
