@@ -42,7 +42,8 @@
     "organization": "Organización",
     "producer": "Productor",
     "roaster": "Tostador",
-    "brand": "Marca"
+    "brand": "Marca",
+    "unknown": "Desconocido"
   },
   "Header": {
     "brand": "Ruta de Origen",
@@ -62,8 +63,9 @@
     "openMenu": "Abrir Menú"
   },
   "Dashboard": {
-    "title": "Tu panel",
-    "subtitle": "Aquí verás tus fincas y lotes.",
+    "welcome": "¡Bienvenido, {name}!",
+    "welcomeFallback": "¡Bienvenido!",
+    "subtitle": "Aquí tienes un resumen de tu actividad en Ruta De Origen.",
     "cards": {
       "farms": "Fincas",
       "lots": "Lotes"
