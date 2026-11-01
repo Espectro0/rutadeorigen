@@ -224,3 +224,18 @@ func TestActorViewRepositorySaveReplacesTheViewOfTheSameUser(t *testing.T) {
 		t.Errorf("expected the latest view, got %+v", got)
 	}
 }
+
+func TestActorViewRepositoryFindsByID(t *testing.T) {
+	ctx := context.Background()
+	repo := memory.NewActorViewRepository()
+	view, _ := actorview.New(actorview.NewParams{ActorID: uuid.New(), UserID: "user_01", Role: actorview.RoleRoaster})
+	_ = repo.Save(ctx, view)
+
+	got, err := repo.FindByID(ctx, view.ActorID())
+	if err != nil || got != view {
+		t.Errorf("expected the saved view, got %+v and %v", got, err)
+	}
+	if other, _ := repo.FindByID(ctx, uuid.New()); !other.IsDefault() {
+		t.Error("an unknown id must return the default view")
+	}
+}

@@ -221,3 +221,29 @@ func TestPackagedLotAdvertisesQR(t *testing.T) {
 		t.Errorf("expected qr_available, got %v %v", body, err)
 	}
 }
+
+func (h harness) publishActor(t *testing.T, userID string, actorID uuid.UUID, role string) {
+	t.Helper()
+
+	messageID := uuid.New()
+	body, err := json.Marshal(map[string]any{
+		"id":      messageID.String(),
+		"type":    "actor.registered",
+		"version": 1,
+		"data":    map[string]any{"actor_id": actorID.String(), "user_id": userID, "type": role},
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	err = h.lotCreated.Handle(context.Background(), libmessaging.Delivery{
+		ID:         messageID.String(),
+		Type:       "actor.registered",
+		Version:    1,
+		OccurredAt: time.Now().UTC(),
+		Body:       body,
+	})
+	if err != nil {
+		t.Fatalf("publish actor: %v", err)
+	}
+}

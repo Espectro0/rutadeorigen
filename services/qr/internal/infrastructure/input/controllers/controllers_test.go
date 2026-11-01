@@ -139,7 +139,7 @@ func imageMux(fake *imageFake) *http.ServeMux {
 	errs := newErrs()
 	mux := http.NewServeMux()
 	controllers.NewQRImageController(fake, errs).Register(mux, func(next http.Handler) http.Handler {
-		return controllers.RequireActorHeader(errs, next)
+		return controllers.RequireActorHeader(errs, nil, next)
 	})
 	return mux
 }

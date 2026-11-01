@@ -86,6 +86,7 @@ func TestOIDCQRImageRequiresASession(t *testing.T) {
 
 func TestOIDCQRImageIsServedToAnAuthenticatedUser(t *testing.T) {
 	h := newOIDCHarness(t)
+	h.publishActor(t, "user_01", uuid.New(), "brand")
 	lotID := uuid.New()
 	if err := h.publish(t, uuid.New(), lotID, "packaging"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -103,6 +104,7 @@ func TestOIDCQRImageIsServedToAnAuthenticatedUser(t *testing.T) {
 
 func TestOIDCQRImageStillAppliesTheLotRules(t *testing.T) {
 	h := newOIDCHarness(t)
+	h.publishActor(t, "user_01", uuid.New(), "brand")
 	early := uuid.New()
 	if err := h.publish(t, uuid.New(), early, "roasting"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -146,5 +148,25 @@ func TestOIDCPublicRoutesDoNotNeedASession(t *testing.T) {
 	}
 	if rec := h.getWithSession("/l/"+lotID.String(), "", nil); rec.Code != http.StatusMovedPermanently {
 		t.Errorf("scan: expected 301, got %d", rec.Code)
+	}
+}
+
+func TestOIDCQRImageRejectsAUserWhoseActorIsNotProjectedYet(t *testing.T) {
+	h := newOIDCHarness(t)
+	lotID := uuid.New()
+	if err := h.publish(t, uuid.New(), lotID, "packaging"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	rec := h.getWithSession("/public/lots/"+lotID.String()+"/qr", sealedValid, nil)
+
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("expected 403 until actor.registered arrives, got %d", rec.Code)
+	}
+
+	h.publishActor(t, "user_01", uuid.New(), "brand")
+
+	if rec := h.getWithSession("/public/lots/"+lotID.String()+"/qr?format=png", sealedValid, nil); rec.Code != http.StatusOK {
+		t.Errorf("expected 200 once the actor is projected, got %d", rec.Code)
 	}
 }

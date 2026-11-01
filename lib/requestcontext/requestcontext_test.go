@@ -195,3 +195,17 @@ func TestLastStoredNameWins(t *testing.T) {
 		t.Errorf("FirstName = %q, want %q", got, "Ana")
 	}
 }
+
+func TestActorRoleRoundTrips(t *testing.T) {
+	ctx := requestcontext.WithActorRole(context.Background(), "brand")
+
+	if got := requestcontext.ActorRole(ctx); got != "brand" {
+		t.Errorf("ActorRole = %q, want %q", got, "brand")
+	}
+}
+
+func TestActorRoleIsEmptyWhenMissing(t *testing.T) {
+	if got := requestcontext.ActorRole(context.Background()); got != "" {
+		t.Errorf("ActorRole = %q, want empty", got)
+	}
+}

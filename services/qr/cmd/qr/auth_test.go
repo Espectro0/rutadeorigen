@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -14,8 +15,11 @@ import (
 
 	"rutadeorigen/lib/requestcontext"
 	"rutadeorigen/lib/session"
+	"rutadeorigen/qr/internal/application/input/dto/request"
+	"rutadeorigen/qr/internal/application/input/dto/response"
 	"rutadeorigen/qr/internal/infrastructure/input/controllers"
 	"rutadeorigen/qr/internal/platform/catalog"
+	"rutadeorigen/qr/internal/platform/exception"
 )
 
 var authEnvKeys = []string{
@@ -236,16 +240,30 @@ func TestRequireActorInDevHeaderModeRejectsRequestsWithoutTheHeader(t *testing.T
 	}
 }
 
-func TestRequireActorInOIDCModeDerivesTheActorFromTheSession(t *testing.T) {
+type resolverFake struct {
+	byUser map[string]response.ResolvedActor
+}
+
+func (f resolverFake) Execute(_ context.Context, in request.ResolveActor) (response.ResolvedActor, error) {
+	if actor, ok := f.byUser[in.UserID]; ok {
+		return actor, nil
+	}
+	return response.ResolvedActor{}, exception.New(exception.CodeActorViewNotFound)
+}
+
+func TestRequireActorInOIDCModeTakesTheActorFromTheProjection(t *testing.T) {
 	fake := &authenticatorFake{identity: requestcontext.Identity{UserID: "user_01", Email: "producer@example.com"}}
+	projected := uuid.New()
+	resolver := resolverFake{byUser: map[string]response.ResolvedActor{"user_01": {ActorID: projected, Role: "producer"}}}
 	var seenActor uuid.UUID
-	var seenUser string
+	var seenUser, seenRole string
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		seenActor = requestcontext.ActorID(r.Context())
 		seenUser = requestcontext.UserID(r.Context())
+		seenRole = requestcontext.ActorRole(r.Context())
 		w.WriteHeader(http.StatusNoContent)
 	})
-	handler := authn{mode: authModeOIDC, authenticator: fake}.requireActor(newAuthErrors(t))(next)
+	handler := authn{mode: authModeOIDC, authenticator: fake, resolver: resolver}.requireActor(newAuthErrors(t))(next)
 	rec := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
@@ -253,11 +271,25 @@ func TestRequireActorInOIDCModeDerivesTheActorFromTheSession(t *testing.T) {
 	if rec.Code != http.StatusNoContent {
 		t.Fatalf("status: got %d, want %d", rec.Code, http.StatusNoContent)
 	}
-	if want := uuid.NewSHA1(uuid.NameSpaceURL, []byte("user_01")); seenActor != want {
-		t.Errorf("actor in context: got %s, want %s", seenActor, want)
+	if seenActor != projected || seenRole != "producer" {
+		t.Errorf("got actor %s role %q, want %s producer", seenActor, seenRole, projected)
 	}
 	if seenUser != "user_01" {
 		t.Errorf("user in context: got %q, want user_01", seenUser)
+	}
+}
+
+func TestRequireActorInOIDCModeRejectsAnUnknownActor(t *testing.T) {
+	fake := &authenticatorFake{identity: requestcontext.Identity{UserID: "user_99"}}
+	called := false
+	next := http.HandlerFunc(func(http.ResponseWriter, *http.Request) { called = true })
+	handler := authn{mode: authModeOIDC, authenticator: fake, resolver: resolverFake{}}.requireActor(newAuthErrors(t))(next)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	if called || rec.Code != http.StatusForbidden {
+		t.Errorf("got status %d and called %v, want 403 and false", rec.Code, called)
 	}
 }
 

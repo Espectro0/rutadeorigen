@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -17,6 +18,11 @@ import (
 var _ ports.ActorViewRepository = (*ActorViewRepository)(nil)
 
 const (
+	selectActorViewByID = `
+		SELECT actor_id, user_id, role, created_at
+		FROM actor_view
+		WHERE actor_id = $1`
+
 	selectActorViewByUser = `
 		SELECT actor_id, user_id, role, created_at
 		FROM actor_view
@@ -37,10 +43,18 @@ func NewActorViewRepository(pool *pgxpool.Pool) *ActorViewRepository {
 	return &ActorViewRepository{pool: pool, assembler: assembler.ActorView{}}
 }
 
+func (r *ActorViewRepository) FindByID(ctx context.Context, id uuid.UUID) (*actorview.ActorView, error) {
+	return r.find(ctx, selectActorViewByID, id)
+}
+
 func (r *ActorViewRepository) FindByUserID(ctx context.Context, userID string) (*actorview.ActorView, error) {
-	rows, err := conn(ctx, r.pool).Query(ctx, selectActorViewByUser, userID)
+	return r.find(ctx, selectActorViewByUser, userID)
+}
+
+func (r *ActorViewRepository) find(ctx context.Context, query string, arg any) (*actorview.ActorView, error) {
+	rows, err := conn(ctx, r.pool).Query(ctx, query, arg)
 	if err != nil {
-		return actorview.Default(), internalError("query actor view by user id", err)
+		return actorview.Default(), internalError("query actor view", err)
 	}
 
 	row, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[entity.ActorView])

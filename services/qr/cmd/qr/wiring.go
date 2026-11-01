@@ -14,6 +14,7 @@ import (
 	projectactorregisteredadapter "rutadeorigen/qr/internal/application/input/adapters/projectactorregistered"
 	projectlotcreatedadapter "rutadeorigen/qr/internal/application/input/adapters/projectlotcreated"
 	projectlotstageadapter "rutadeorigen/qr/internal/application/input/adapters/projectlotstage"
+	resolveactoradapter "rutadeorigen/qr/internal/application/input/adapters/resolveactor"
 	resolvescanadapter "rutadeorigen/qr/internal/application/input/adapters/resolvescan"
 	"rutadeorigen/qr/internal/application/output/ports"
 	getpubliclotuc "rutadeorigen/qr/internal/application/usecases/getpubliclot"
@@ -21,6 +22,7 @@ import (
 	projectactorregistereduc "rutadeorigen/qr/internal/application/usecases/projectactorregistered"
 	projectlotcreateduc "rutadeorigen/qr/internal/application/usecases/projectlotcreated"
 	projectlotstageuc "rutadeorigen/qr/internal/application/usecases/projectlotstage"
+	resolveactoruc "rutadeorigen/qr/internal/application/usecases/resolveactor"
 	resolvescanuc "rutadeorigen/qr/internal/application/usecases/resolvescan"
 	"rutadeorigen/qr/internal/domain/redirect"
 	"rutadeorigen/qr/internal/infrastructure/input/controllers"
@@ -63,6 +65,7 @@ func registerRoutes(mux *http.ServeMux, log *slog.Logger, catalog *catalog.Catal
 	resolveScan := resolvescanadapter.New(resolvescanuc.New(out.rules, out.views, out.cache, out.scans))
 	getQRImage := getqrimageadapter.New(getqrimageuc.New(out.views, out.cache, out.codes, renderer.NewGoQRCodeRenderer(), auth, deps.publicBaseURL))
 
+	authn.resolver = resolveactoradapter.New(resolveactoruc.New(out.actors))
 	requireActor := authn.requireActor(errs)
 
 	controllers.NewLotController(getPublicLot, errs, log).Register(mux)

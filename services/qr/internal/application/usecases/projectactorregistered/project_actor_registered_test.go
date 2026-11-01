@@ -34,6 +34,10 @@ type fakeActors struct {
 	usedOutside bool
 }
 
+func (a *fakeActors) FindByID(_ context.Context, _ uuid.UUID) (*actorview.ActorView, error) {
+	return actorview.Default(), nil
+}
+
 func (a *fakeActors) FindByUserID(_ context.Context, _ string) (*actorview.ActorView, error) {
 	return actorview.Default(), nil
 }
