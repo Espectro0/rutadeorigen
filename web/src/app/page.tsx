@@ -1,16 +1,9 @@
 import Image from "next/image";
-import { hasLocale } from "next-intl";
-import { getTranslations, setRequestLocale } from "next-intl/server";
-import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { SiteFooter } from "@/components/site-footer";
-import NextLink from "next/link";
-import { routing } from "@/i18n/routing";
-import {SiteHeader} from "@/components/site-header";
+import { SiteHeader } from "@/components/site-header";
 
-export default async function HomePage({ params }: PageProps<"/[locale]">) {
-    const { locale } = await params;
-    if (!hasLocale(routing.locales, locale)) notFound();
-    setRequestLocale(locale);
+export default async function HomePage() {
     const t = await getTranslations("Home");
 
     return (
@@ -22,10 +15,10 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
                     {t("title")}
                 </h1>
                 <p className="max-w-md text-lg text-ink-dim">{t("subtitle")}</p>
-                {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-                <NextLink href="/auth/login" className="btn-primary">
+                {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- /auth/login lo sirve el backend */}
+                <a href="/auth/login" className="btn-primary">
                     {t("login")}
-                </NextLink>
+                </a>
                 <p className="max-w-md text-lg text-ink-dim">{t("info")}</p>
             </main>
             <SiteFooter />

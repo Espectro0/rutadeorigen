@@ -1,14 +1,8 @@
-import { hasLocale } from "next-intl";
-import { getTranslations, setRequestLocale } from "next-intl/server";
-import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { OnboardingForm } from "@/features/session/components/onboarding-form";
 import { RequireSession } from "@/features/session/require-session";
-import { routing } from "@/i18n/routing";
 
-export default async function OnboardingPage({ params }: PageProps<"/[locale]/onboarding">) {
-    const { locale } = await params;
-    if (!hasLocale(routing.locales, locale)) notFound();
-    setRequestLocale(locale);
+export default async function OnboardingPage() {
     const t = await getTranslations("Onboarding");
 
     return (

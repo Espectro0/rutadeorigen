@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { getTranslations } from "next-intl/server";
 import { LocaleSwitcher } from "@/components/locale-switcher";
-import { Link } from "@/i18n/navigation";
+import Link from "next/link";
 
 export async function SiteHeader() {
     const t = await getTranslations("Header");

@@ -2,7 +2,7 @@
 
 import { useEffect, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { useRouter } from "@/i18n/navigation";
+import { useRouter } from "next/navigation";
 import { redirectTarget, type ExpectedStatus } from "./redirects";
 import { useSession } from "./session-provider";
 
