@@ -74,7 +74,7 @@ func registerRoutes(mux *http.ServeMux, log *slog.Logger, pool *pgxpool.Pool, ca
 	controllers.NewFarmDeleteController(deleteFarmAdapter, errs, log).Register(mux, requireActor)
 
 	if authenticated != nil {
-		registerActorAdapter := registeractoradapter.New(registeractoruc.New(actors))
+		registerActorAdapter := registeractoradapter.New(registeractoruc.New(actors, publisher, tx))
 		meAdapter := getmeadapter.New(resolver)
 		controllers.NewMeController(registerActorAdapter, meAdapter, errs, log).Register(mux, authenticated)
 		authn.routes.Register(mux)

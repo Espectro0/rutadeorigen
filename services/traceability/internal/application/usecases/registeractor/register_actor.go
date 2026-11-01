@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"rutadeorigen/traceability/internal/application/output/ports"
+	"rutadeorigen/traceability/internal/application/usecases/envelope"
 	"rutadeorigen/traceability/internal/domain/actor"
 	"rutadeorigen/traceability/internal/platform/exception"
 	"rutadeorigen/traceability/internal/platform/helper"
@@ -12,11 +13,13 @@ import (
 var _ UseCase = (*RegisterActor)(nil)
 
 type RegisterActor struct {
-	actors ports.ActorRepository
+	actors    ports.ActorRepository
+	publisher ports.EventPublisher
+	tx        ports.TxManager
 }
 
-func New(actors ports.ActorRepository) *RegisterActor {
-	return &RegisterActor{actors: actors}
+func New(actors ports.ActorRepository, publisher ports.EventPublisher, tx ports.TxManager) *RegisterActor {
+	return &RegisterActor{actors: actors, publisher: publisher, tx: tx}
 }
 
 func (uc *RegisterActor) Execute(ctx context.Context, cmd Command) (Result, error) {
@@ -38,14 +41,33 @@ func (uc *RegisterActor) Execute(ctx context.Context, cmd Command) (Result, erro
 		return Result{}, err
 	}
 
-	if err := uc.actors.Save(ctx, created); err != nil {
+	err = uc.tx.WithinTx(ctx, func(ctx context.Context) error {
+		return uc.register(ctx, created)
+	})
+	if err != nil {
 		if exception.HasCode(err, exception.CodeActorAlreadyExists) {
 			return uc.findAfterConflict(ctx, userID)
 		}
-		return Result{}, exception.Wrap(err, "save actor")
+		return Result{}, exception.Wrap(err, "register actor transaction")
 	}
 
 	return Result{Actor: created, Created: true}, nil
+}
+
+func (uc *RegisterActor) register(ctx context.Context, created *actor.Actor) error {
+	if err := uc.actors.Save(ctx, created); err != nil {
+		return err
+	}
+
+	event := envelope.New(ctx, created, ports.EventActorRegistered, ports.AggregateActor, created.ID(), 1, ActorRegisteredPayload{
+		ActorID: created.ID(),
+		UserID:  created.UserID(),
+		Type:    created.Type().String(),
+	})
+	if err := uc.publisher.Publish(ctx, event); err != nil {
+		return exception.Wrap(err, "publish actor registered")
+	}
+	return nil
 }
 
 func (uc *RegisterActor) findAfterConflict(ctx context.Context, userID string) (Result, error) {
