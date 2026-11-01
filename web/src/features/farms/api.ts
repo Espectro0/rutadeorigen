@@ -25,3 +25,13 @@ export async function listFarms(): Promise<readonly Farm[]> {
     const result = await request<FarmListDto>("/farms");
     return (result.items ?? []).map(toFarm);
 }
+
+export type NewFarm = Readonly<{ name: string; altitude: string }>;
+
+export async function createFarm(input: NewFarm): Promise<Farm> {
+    const dto = await request<FarmDto>("/farms", {
+        method: "POST",
+        body: JSON.stringify({ name: input.name, altitude: Number(input.altitude) }),
+    });
+    return toFarm(dto);
+}

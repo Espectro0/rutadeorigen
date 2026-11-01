@@ -53,3 +53,25 @@ export async function listLots(params: Readonly<{ limit: number; cursor: string 
 export async function getLot(id: string): Promise<Lot> {
     return toLot(await request<LotDto>(`/lots/${encodeURIComponent(id)}`));
 }
+
+export type NewLot = Readonly<{
+    farmId: string;
+    code: string;
+    variety: string;
+    process: string;
+    harvestDate: string;
+}>;
+
+export async function createLot(input: NewLot): Promise<Lot> {
+    const dto = await request<LotDto>("/lots", {
+        method: "POST",
+        body: JSON.stringify({
+            farm_id: input.farmId,
+            code: input.code,
+            variety: input.variety,
+            process: input.process,
+            harvest_date: input.harvestDate,
+        }),
+    });
+    return toLot(dto);
+}
