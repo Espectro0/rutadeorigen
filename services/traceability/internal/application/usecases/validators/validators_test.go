@@ -39,6 +39,8 @@ func (r fakeFarmRepository) Save(_ context.Context, _ *farm.Farm) error {
 	return nil
 }
 
+func (r fakeFarmRepository) Delete(_ context.Context, _ uuid.UUID) error { return nil }
+
 func (r fakeFarmRepository) List(_ context.Context) ([]*farm.Farm, error) {
 	return []*farm.Farm{}, nil
 }

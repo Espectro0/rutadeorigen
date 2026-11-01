@@ -28,6 +28,9 @@ const (
 		FROM farm
 		ORDER BY created_at DESC, id DESC`
 
+	deleteFarm = `
+		DELETE FROM farm WHERE id = $1`
+
 	insertFarm = `
 		INSERT INTO farm (id, producer_id, name, altitude, created_at)
 		VALUES ($1, $2, $3, $4, $5)`
@@ -69,6 +72,20 @@ func (r *FarmRepository) Save(ctx context.Context, f *farm.Farm) error {
 		e.ID, e.ProducerID, e.Name, e.Altitude, e.CreatedAt,
 	); err != nil {
 		return internalError("insert farm", err)
+	}
+	return nil
+}
+
+func (r *FarmRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	tag, err := conn(ctx, r.pool).Exec(ctx, deleteFarm, id)
+	if isForeignKeyViolation(err) {
+		return exception.New(exception.CodeFarmHasLots)
+	}
+	if err != nil {
+		return internalError("delete farm", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return exception.New(exception.CodeFarmNotFound)
 	}
 	return nil
 }

@@ -49,6 +49,7 @@ const (
 	CodeFarmInvalidName     Code = "TRACEABILITY_FARM_INVALID_NAME"
 	CodeFarmInvalidAltitude Code = "TRACEABILITY_FARM_INVALID_ALTITUDE"
 	CodeFarmNotFound        Code = "TRACEABILITY_FARM_NOT_FOUND"
+	CodeFarmHasLots         Code = "TRACEABILITY_FARM_HAS_LOTS"
 
 	CodeStageInvalidDryingMethod    Code = "TRACEABILITY_STAGE_INVALID_DRYING_METHOD"
 	CodeStageInvalidDryingDays      Code = "TRACEABILITY_STAGE_INVALID_DRYING_DAYS"
@@ -111,6 +112,7 @@ var kindByCode = map[Code]Kind{
 	CodeFarmInvalidName:     KindValidation,
 	CodeFarmInvalidAltitude: KindValidation,
 	CodeFarmNotFound:        KindNotFound,
+	CodeFarmHasLots:         KindConflict,
 
 	CodeStageInvalidDryingMethod:    KindValidation,
 	CodeStageInvalidDryingDays:      KindValidation,

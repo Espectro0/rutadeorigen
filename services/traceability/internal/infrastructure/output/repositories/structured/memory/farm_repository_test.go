@@ -139,3 +139,32 @@ func TestFarmRepositoryList(t *testing.T) {
 		}
 	})
 }
+
+func TestFarmRepositoryDelete(t *testing.T) {
+	ctx := context.Background()
+	kept := farm.Restore(uuid.New(), uuid.New(), "El Mirador", 1800, time.Now().UTC())
+	removed := farm.Restore(uuid.New(), uuid.New(), "La Esperanza", 1650, time.Now().UTC())
+
+	t.Run("removes only the given farm", func(t *testing.T) {
+		repo := memory.NewFarmRepository(kept, removed)
+
+		if err := repo.Delete(ctx, removed.ID()); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if found, _ := repo.FindByID(ctx, removed.ID()); !found.IsDefault() {
+			t.Error("the farm must be gone")
+		}
+		if found, _ := repo.FindByID(ctx, kept.ID()); found.IsDefault() {
+			t.Error("the other farm must stay")
+		}
+	})
+
+	t.Run("reports a missing farm", func(t *testing.T) {
+		err := memory.NewFarmRepository(kept).Delete(ctx, uuid.New())
+
+		if !exception.HasCode(err, exception.CodeFarmNotFound) {
+			t.Errorf("got %v, want code %q", err, exception.CodeFarmNotFound)
+		}
+	})
+}

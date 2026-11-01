@@ -34,6 +34,7 @@ TRACEABILITY_FARM_INVALID_PRODUCER: "La finca debe pertenecer a un productor."
 TRACEABILITY_FARM_INVALID_NAME: "El nombre de la finca debe tener entre {min} y {max} caracteres."
 TRACEABILITY_FARM_INVALID_ALTITUDE: "La altitud debe estar entre {min} y {max} metros sobre el nivel del mar."
 TRACEABILITY_FARM_NOT_FOUND: "No se encontró ninguna finca."
+TRACEABILITY_FARM_HAS_LOTS: "La finca tiene lotes y no puede eliminarse."
 
 TRACEABILITY_STAGE_INVALID_DRYING_METHOD: "El método de secado no es válido."
 TRACEABILITY_STAGE_INVALID_DRYING_DAYS: "Los días de secado deben estar entre {min} y {max} días."

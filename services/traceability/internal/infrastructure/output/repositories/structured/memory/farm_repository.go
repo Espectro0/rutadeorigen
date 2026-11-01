@@ -53,6 +53,17 @@ func (r *FarmRepository) Save(_ context.Context, f *farm.Farm) error {
 	return nil
 }
 
+func (r *FarmRepository) Delete(_ context.Context, id uuid.UUID) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if _, ok := r.farms[id]; !ok {
+		return exception.New(exception.CodeFarmNotFound)
+	}
+	delete(r.farms, id)
+	return nil
+}
+
 func (r *FarmRepository) List(_ context.Context) ([]*farm.Farm, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

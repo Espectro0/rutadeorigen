@@ -8,11 +8,19 @@ import (
 	"rutadeorigen/traceability/internal/platform/exception"
 )
 
-const uniqueViolation = "23505"
+const (
+	uniqueViolation     = "23505"
+	foreignKeyViolation = "23503"
+)
 
 func isUniqueViolation(err error, constraint string) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == uniqueViolation && pgErr.ConstraintName == constraint
+}
+
+func isForeignKeyViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == foreignKeyViolation
 }
 
 func internalError(technicalMessage string, cause error) error {

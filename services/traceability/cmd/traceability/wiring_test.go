@@ -1424,3 +1424,75 @@ func TestVoidLotEndToEndOfALotWithoutEvents(t *testing.T) {
 		t.Fatalf("status: got %d, want %d (%s)", rec.Code, http.StatusOK, rec.Body.String())
 	}
 }
+
+func deleteFarmRequest(mux http.Handler, actorID, farmID string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodDelete, "/farms/"+farmID, nil)
+	if actorID != "" {
+		req.Header.Set("X-Actor-ID", actorID)
+	}
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	return rec
+}
+
+func TestDeleteFarmEndToEnd(t *testing.T) {
+	mux, _ := newTestServer(t)
+	created := mustCreateFarm(t, mux, "El Mirador")
+
+	rec := deleteFarmRequest(mux, producerHeader, created.ID)
+
+	if rec.Code != http.StatusNoContent || rec.Body.Len() != 0 {
+		t.Fatalf("status: got %d with body %q, want %d and no body", rec.Code, rec.Body.String(), http.StatusNoContent)
+	}
+	list := decodeFarms(t, get(mux, producerHeader, "/farms"))
+	if len(list.Items) != 1 || list.Items[0].ID != seedFarmID.String() {
+		t.Errorf("got %+v, want only the seeded farm", list.Items)
+	}
+
+	again := deleteFarmRequest(mux, producerHeader, created.ID)
+	assertErrorCode(t, again, http.StatusNotFound, string(exception.CodeFarmNotFound))
+}
+
+func TestDeleteFarmEndToEndRefusesAFarmWithLots(t *testing.T) {
+	mux, _ := newTestServer(t)
+	mustCreateLot(t, mux, "LOT-001")
+
+	rec := deleteFarmRequest(mux, producerHeader, seedFarmID.String())
+
+	assertErrorCode(t, rec, http.StatusConflict, string(exception.CodeFarmHasLots))
+	list := decodeFarms(t, get(mux, producerHeader, "/farms"))
+	if len(list.Items) != 1 {
+		t.Errorf("the farm must stay, got %+v", list.Items)
+	}
+}
+
+func TestDeleteFarmEndToEndErrors(t *testing.T) {
+	tests := []struct {
+		name     string
+		actorID  string
+		farmID   func(created farmView) string
+		want     int
+		wantCode string
+	}{
+		{"missing actor", "", func(c farmView) string { return c.ID }, http.StatusUnauthorized, "UNAUTHORIZED"},
+		{"unknown actor", uuid.NewString(), func(c farmView) string { return c.ID }, http.StatusNotFound, string(exception.CodeActorNotFound)},
+		{"unknown farm", producerHeader, func(farmView) string { return uuid.NewString() }, http.StatusNotFound, string(exception.CodeFarmNotFound)},
+		{"malformed farm id", producerHeader, func(farmView) string { return "not-a-uuid" }, http.StatusNotFound, string(exception.CodeFarmNotFound)},
+		{"the roaster cannot delete", roasterHeader, func(c farmView) string { return c.ID }, http.StatusForbidden, "FORBIDDEN"},
+		{"the brand cannot delete", brandHeader, func(c farmView) string { return c.ID }, http.StatusForbidden, "FORBIDDEN"},
+		{"the organization cannot delete", orgHeader, func(c farmView) string { return c.ID }, http.StatusForbidden, "FORBIDDEN"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mux, _ := newTestServer(t)
+			created := mustCreateFarm(t, mux, "El Mirador")
+
+			assertErrorCode(t, deleteFarmRequest(mux, tt.actorID, tt.farmID(created)), tt.want, tt.wantCode)
+
+			if list := decodeFarms(t, get(mux, producerHeader, "/farms")); len(list.Items) != 2 {
+				t.Errorf("no farm may be deleted, got %+v", list.Items)
+			}
+		})
+	}
+}
