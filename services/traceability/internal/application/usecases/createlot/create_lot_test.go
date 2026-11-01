@@ -102,6 +102,8 @@ func (r *fakeLots) List(_ context.Context, _ lot.Filter, _ lot.Cursor, _ int) ([
 	return nil, nil
 }
 
+func (r *fakeLots) UpdateStatus(_ context.Context, _ *lot.Lot, _ int) error { return nil }
+
 func (r *fakeLots) UpdateCustodian(_ context.Context, _ *lot.Lot, _ int) error {
 	return nil
 }

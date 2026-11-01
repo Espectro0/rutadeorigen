@@ -21,6 +21,7 @@ const (
 	producerHeader = "11111111-1111-1111-1111-111111111111"
 	roasterHeader  = "33333333-3333-3333-3333-333333333333"
 	brandHeader    = "44444444-4444-4444-4444-444444444444"
+	orgHeader      = "55555555-5555-5555-5555-555555555555"
 )
 
 func newTestServer(t *testing.T) (*http.ServeMux, *bytes.Buffer) {
@@ -154,7 +155,7 @@ func TestSeedData(t *testing.T) {
 	actors := seedActors()
 	farms := seedFarms()
 
-	if len(actors) != 3 || actors[0].ID() != seedProducerID || !actors[0].IsActive() || !actors[0].IsProducer() {
+	if len(actors) != 4 || actors[0].ID() != seedProducerID || !actors[0].IsActive() || !actors[0].IsProducer() {
 		t.Errorf("seed must start with an active producer with the fixed id, got %+v", actors)
 	}
 	if actors[1].ID() != seedRoasterID || actors[1].Type() != actor.TypeRoaster || !actors[1].IsActive() {
@@ -162,6 +163,9 @@ func TestSeedData(t *testing.T) {
 	}
 	if actors[2].ID() != seedBrandID || actors[2].Type() != actor.TypeBrand || !actors[2].IsActive() {
 		t.Errorf("seed must contain an active brand with the fixed id, got %+v", actors[2])
+	}
+	if actors[3].ID() != seedOrgID || actors[3].Type() != actor.TypeOrganization || !actors[3].IsActive() {
+		t.Errorf("seed must contain an active organization with the fixed id, got %+v", actors[3])
 	}
 	if len(farms) != 1 || farms[0].ID() != seedFarmID || !farms[0].BelongsTo(seedProducerID) {
 		t.Errorf("seed must contain one farm owned by the producer, got %+v", farms)
@@ -1008,11 +1012,11 @@ func TestListActorsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("returns an empty list when nobody has the type", func(t *testing.T) {
+	t.Run("lists the seeded organization", func(t *testing.T) {
 		rec := getActors(mux, producerHeader, "?type=organization")
 
-		if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"items":[]`) {
-			t.Errorf("got %d %s, want an empty list", rec.Code, rec.Body.String())
+		if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), orgHeader) {
+			t.Errorf("got %d %s, want the seeded organization", rec.Code, rec.Body.String())
 		}
 	})
 
@@ -1284,5 +1288,139 @@ func TestListLotsEndToEndRejectsInvalidFilters(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assertErrorCode(t, get(mux, producerHeader, "/lots"+tt.query), http.StatusBadRequest, tt.wantCode)
 		})
+	}
+}
+
+func postVoid(mux http.Handler, actorID, lotID, ifMatch, body string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodPost, "/lots/"+lotID+"/void", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	if actorID != "" {
+		req.Header.Set("X-Actor-ID", actorID)
+	}
+	if ifMatch != "" {
+		req.Header.Set("If-Match", ifMatch)
+	}
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	return rec
+}
+
+const voidBody = `{"reason":"Registered by mistake"}`
+
+func TestVoidLotEndToEnd(t *testing.T) {
+	mux, logs := newTestServer(t)
+	created, farmETag := lotWithFarmStage(t, mux)
+
+	rec := postVoid(mux, orgHeader, created.ID, farmETag, voidBody)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: got %d, want %d (%s)", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if got := rec.Header().Get("ETag"); got != `"3"` {
+		t.Errorf("ETag: got %q, want \"3\"", got)
+	}
+	var voided struct {
+		ID         string `json:"id"`
+		Status     string `json:"status"`
+		VoidReason string `json:"void_reason"`
+		Completed  bool   `json:"completed"`
+		Version    int    `json:"version"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &voided); err != nil {
+		t.Fatalf("decode: %v (%s)", err, rec.Body.String())
+	}
+	if voided.ID != created.ID || voided.Status != "voided" || voided.VoidReason != "Registered by mistake" || voided.Version != 3 {
+		t.Errorf("unexpected lot %+v", voided)
+	}
+	if !strings.Contains(logs.String(), `"event_type":"lot.voided"`) {
+		t.Error("expected the lot.voided event to be published")
+	}
+
+	t.Run("every role still reads the voided lot with no actions offered", func(t *testing.T) {
+		for _, actorID := range []string{producerHeader, roasterHeader, brandHeader, orgHeader} {
+			rec := get(mux, actorID, "/lots/"+created.ID)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("actor %s: status %d", actorID, rec.Code)
+			}
+			assertActions(t, "actions of "+actorID, allowedActions(t, mux, actorID, created.ID))
+		}
+	})
+
+	t.Run("the voided lot can be filtered by status", func(t *testing.T) {
+		items := listLotSummaries(t, mux, "?status=voided")
+		if len(items) != 1 || items[0].ID != created.ID {
+			t.Errorf("got %+v, want only the voided lot", items)
+		}
+	})
+
+	t.Run("the custody and stages are frozen", func(t *testing.T) {
+		stage := postStage(mux, producerHeader, created.ID, `"3"`, roastingStageBody)
+		assertErrorCode(t, stage, http.StatusForbidden, "FORBIDDEN")
+
+		transfer := postTransfer(mux, producerHeader, created.ID, `"3"`, transferBody(roasterHeader))
+		assertErrorCode(t, transfer, http.StatusConflict, string(exception.CodeLotVoided))
+	})
+
+	t.Run("voiding twice is rejected", func(t *testing.T) {
+		again := postVoid(mux, orgHeader, created.ID, `"3"`, voidBody)
+		assertErrorCode(t, again, http.StatusConflict, string(exception.CodeLotVoided))
+	})
+}
+
+func TestVoidLotEndToEndErrors(t *testing.T) {
+	tests := []struct {
+		name     string
+		actorID  string
+		lotID    func(created lotView) string
+		ifMatch  string
+		body     string
+		want     int
+		wantCode string
+	}{
+		{"missing actor", "", sameLot, `"2"`, voidBody, http.StatusUnauthorized, "UNAUTHORIZED"},
+		{"unknown actor", uuid.NewString(), sameLot, `"2"`, voidBody, http.StatusNotFound, string(exception.CodeActorNotFound)},
+		{"unknown lot", orgHeader, otherLot, `"2"`, voidBody, http.StatusNotFound, string(exception.CodeLotNotFound)},
+		{"malformed lot id", orgHeader, malformedLot, `"2"`, voidBody, http.StatusNotFound, string(exception.CodeLotNotFound)},
+		{"the producer custodian cannot void", producerHeader, sameLot, `"2"`, voidBody, http.StatusForbidden, "FORBIDDEN"},
+		{"the roaster cannot void", roasterHeader, sameLot, `"2"`, voidBody, http.StatusForbidden, "FORBIDDEN"},
+		{"the brand cannot void", brandHeader, sameLot, `"2"`, voidBody, http.StatusForbidden, "FORBIDDEN"},
+		{"missing if-match", orgHeader, sameLot, "", voidBody, http.StatusBadRequest, string(exception.CodeLotInvalidIfMatch)},
+		{"stale if-match", orgHeader, sameLot, `"1"`, voidBody, http.StatusConflict, string(exception.CodeLotVersionConflict)},
+		{"empty reason", orgHeader, sameLot, `"2"`, `{"reason":"  "}`, http.StatusBadRequest, string(exception.CodeLotEmptyVoidReason)},
+		{"unknown json field", orgHeader, sameLot, `"2"`, `{"reason":"x","lot_id":"y"}`, http.StatusBadRequest, "INVALID_REQUEST_BODY"},
+		{"empty body", orgHeader, sameLot, `"2"`, ``, http.StatusBadRequest, "INVALID_REQUEST_BODY"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mux, logs := newTestServer(t)
+			created, _ := lotWithFarmStage(t, mux)
+
+			rec := postVoid(mux, tt.actorID, tt.lotID(created), tt.ifMatch, tt.body)
+
+			assertErrorCode(t, rec, tt.want, tt.wantCode)
+			if rec.Header().Get("ETag") != "" {
+				t.Error("a failed request must not set an ETag")
+			}
+			if strings.Contains(logs.String(), `"event_type":"lot.voided"`) {
+				t.Error("a failed request must not publish an event")
+			}
+
+			after := get(mux, producerHeader, "/lots/"+created.ID)
+			if !strings.Contains(after.Body.String(), `"status":"active"`) {
+				t.Errorf("the lot must stay active, got %s", after.Body.String())
+			}
+		})
+	}
+}
+
+func TestVoidLotEndToEndOfALotWithoutEvents(t *testing.T) {
+	mux, _ := newTestServer(t)
+	created := mustCreateLot(t, mux, "LOT-001")
+
+	rec := postVoid(mux, orgHeader, created.ID, `"1"`, voidBody)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: got %d, want %d (%s)", rec.Code, http.StatusOK, rec.Body.String())
 	}
 }

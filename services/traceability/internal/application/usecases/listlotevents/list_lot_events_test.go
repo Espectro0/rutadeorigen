@@ -58,6 +58,8 @@ func (f fakeLots) List(_ context.Context, _ lot.Filter, _ lot.Cursor, _ int) ([]
 
 func (f fakeLots) UpdateStage(_ context.Context, _ *lot.Lot, _ int) error { return nil }
 
+func (f fakeLots) UpdateStatus(_ context.Context, _ *lot.Lot, _ int) error { return nil }
+
 func (f fakeLots) UpdateCustodian(_ context.Context, _ *lot.Lot, _ int) error { return nil }
 
 func (f fakeLots) FindByID(_ context.Context, _ uuid.UUID) (*lot.Lot, error) {

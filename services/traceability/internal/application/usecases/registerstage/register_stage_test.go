@@ -91,6 +91,8 @@ func (r *fakeLots) FindByID(_ context.Context, id uuid.UUID) (*lot.Lot, error) {
 	return lot.Default(), nil
 }
 
+func (r *fakeLots) UpdateStatus(_ context.Context, _ *lot.Lot, _ int) error { return nil }
+
 func (r *fakeLots) UpdateCustodian(_ context.Context, _ *lot.Lot, _ int) error {
 	return nil
 }

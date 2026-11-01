@@ -19,6 +19,7 @@ import (
 	registerstageadapter "rutadeorigen/traceability/internal/application/input/adapters/registerstage"
 	resolveactoradapter "rutadeorigen/traceability/internal/application/input/adapters/resolveactor"
 	transferlotadapter "rutadeorigen/traceability/internal/application/input/adapters/transferlot"
+	voidlotadapter "rutadeorigen/traceability/internal/application/input/adapters/voidlot"
 	"rutadeorigen/traceability/internal/application/output/ports"
 	createfarmuc "rutadeorigen/traceability/internal/application/usecases/createfarm"
 	createlotuc "rutadeorigen/traceability/internal/application/usecases/createlot"
@@ -31,6 +32,7 @@ import (
 	registerstageuc "rutadeorigen/traceability/internal/application/usecases/registerstage"
 	resolveactoruc "rutadeorigen/traceability/internal/application/usecases/resolveactor"
 	transferlotuc "rutadeorigen/traceability/internal/application/usecases/transferlot"
+	voidlotuc "rutadeorigen/traceability/internal/application/usecases/voidlot"
 	"rutadeorigen/traceability/internal/infrastructure/input/controllers"
 	"rutadeorigen/traceability/internal/infrastructure/output/external/authorizer"
 	"rutadeorigen/traceability/internal/infrastructure/output/messaging"
@@ -54,6 +56,7 @@ func registerRoutes(mux *http.ServeMux, log *slog.Logger, pool *pgxpool.Pool, ca
 	transferLotAdapter := transferlotadapter.New(transferlotuc.New(actors, lots, events, auth, publisher, tx))
 	listActorsAdapter := listactorsadapter.New(listactorsuc.New(actors, auth))
 	listLotEventsAdapter := listlotseventsadapter.New(listlotseventsuc.New(actors, lots, events, auth))
+	voidLotAdapter := voidlotadapter.New(voidlotuc.New(actors, lots, auth, publisher, tx))
 
 	resolver := resolveactoruc.New(actors)
 	requireActor, authenticated := authn.middlewares(errs, resolveactoradapter.New(resolver))
@@ -64,6 +67,7 @@ func registerRoutes(mux *http.ServeMux, log *slog.Logger, pool *pgxpool.Pool, ca
 	controllers.NewLotTransferController(transferLotAdapter, errs, log).Register(mux, requireActor)
 	controllers.NewActorController(listActorsAdapter, errs, log).Register(mux, requireActor)
 	controllers.NewLotHistoryController(listLotEventsAdapter, errs, log).Register(mux, requireActor)
+	controllers.NewLotVoidController(voidLotAdapter, errs, log).Register(mux, requireActor)
 
 	if authenticated != nil {
 		registerActorAdapter := registeractoradapter.New(registeractoruc.New(actors))

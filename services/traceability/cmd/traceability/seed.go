@@ -14,9 +14,11 @@ var (
 	seedFarmID       = uuid.MustParse("22222222-2222-2222-2222-222222222222")
 	seedRoasterID    = uuid.MustParse("33333333-3333-3333-3333-333333333333")
 	seedBrandID      = uuid.MustParse("44444444-4444-4444-4444-444444444444")
+	seedOrgID        = uuid.MustParse("55555555-5555-5555-5555-555555555555")
 	seedEmail        = "seed@rutadeorigen.com"
 	seedRoasterEmail = "seed-roaster@rutadeorigen.com"
 	seedBrandEmail   = "seed-brand@rutadeorigen.com"
+	seedOrgEmail     = "seed-organization@rutadeorigen.com"
 	seedCreatedAt    = time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
 )
 
@@ -28,6 +30,8 @@ func seedActors() []*actor.Actor {
 			"Tostador de prueba", seedRoasterEmail, actor.StatusActive, seedCreatedAt),
 		actor.Restore(seedBrandID, "seed-brand", actor.TypeBrand,
 			"Marca de prueba", seedBrandEmail, actor.StatusActive, seedCreatedAt),
+		actor.Restore(seedOrgID, "seed-organization", actor.TypeOrganization,
+			"Organización de prueba", seedOrgEmail, actor.StatusActive, seedCreatedAt),
 	}
 }
 
