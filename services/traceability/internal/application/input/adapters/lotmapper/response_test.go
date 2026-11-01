@@ -54,6 +54,27 @@ func TestToResponse(t *testing.T) {
 		}
 	})
 
+	t.Run("marks a packaged active lot as completed", func(t *testing.T) {
+		p := lot.RestoreParams{
+			ID: uuid.New(), FarmID: uuid.New(), CustodianID: uuid.New(), Code: "LOT-001", Variety: "Castillo",
+			Process: lot.ProcessWashed, HarvestDate: time.Date(2026, time.September, 15, 0, 0, 0, 0, time.UTC),
+			CurrentStage: lot.StagePackaging, Status: lot.StatusActive, Version: 6,
+			CreatedAt: time.Date(2026, time.September, 20, 14, 30, 0, 0, time.UTC),
+		}
+
+		if !lotmapper.ToResponse(lot.Restore(p)).Completed {
+			t.Error("a packaged active lot must be completed")
+		}
+		p.Status = lot.StatusVoided
+		if lotmapper.ToResponse(lot.Restore(p)).Completed {
+			t.Error("a voided lot must not be completed")
+		}
+		p.Status, p.CurrentStage = lot.StatusActive, lot.StageRoasting
+		if lotmapper.ToResponse(lot.Restore(p)).Completed {
+			t.Error("a lot before packaging must not be completed")
+		}
+	})
+
 	t.Run("includes the void reason of a voided lot", func(t *testing.T) {
 		l, _ := restoredLot(lot.StatusVoided, "wrong farm")
 

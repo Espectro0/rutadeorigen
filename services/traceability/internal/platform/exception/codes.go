@@ -31,6 +31,7 @@ const (
 	CodeLotVersionConflict          Code = "TRACEABILITY_LOT_VERSION_CONFLICT"
 	CodeLotInvalidIfMatch           Code = "TRACEABILITY_LOT_INVALID_IF_MATCH"
 	CodeLotInvalidStage             Code = "TRACEABILITY_LOT_INVALID_STAGE"
+	CodeLotInvalidStatus            Code = "TRACEABILITY_LOT_INVALID_STATUS"
 	CodeLotInvalidEventDate         Code = "TRACEABILITY_LOT_INVALID_EVENT_DATE"
 	CodeLotInvalidNote              Code = "TRACEABILITY_LOT_INVALID_NOTE"
 	CodeLotNotTransferable          Code = "TRACEABILITY_LOT_NOT_TRANSFERABLE"
@@ -92,6 +93,7 @@ var kindByCode = map[Code]Kind{
 	CodeLotVersionConflict:          KindConflict,
 	CodeLotInvalidIfMatch:           KindValidation,
 	CodeLotInvalidStage:             KindValidation,
+	CodeLotInvalidStatus:            KindValidation,
 	CodeLotInvalidEventDate:         KindValidation,
 	CodeLotInvalidNote:              KindValidation,
 	CodeLotNotTransferable:          KindConflict,

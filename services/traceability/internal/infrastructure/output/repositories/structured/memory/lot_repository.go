@@ -100,10 +100,7 @@ func (r *LotRepository) List(_ context.Context, f lot.Filter, after lot.Cursor, 
 
 	matches := make([]*lot.Lot, 0, len(r.lots))
 	for _, l := range r.lots {
-		if f.HasFarm() && l.FarmID() != f.FarmID {
-			continue
-		}
-		if f.HasCustodian() && l.CustodianID() != f.CustodianID {
+		if !f.Matches(l) {
 			continue
 		}
 		if !after.IsDefault() && !comesAfter(l, after) {

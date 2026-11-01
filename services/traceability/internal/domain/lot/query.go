@@ -11,6 +11,8 @@ import (
 type Filter struct {
 	FarmID      uuid.UUID
 	CustodianID uuid.UUID
+	Status      Status
+	Stage       Stage
 }
 
 func (f Filter) HasFarm() bool {
@@ -19,6 +21,21 @@ func (f Filter) HasFarm() bool {
 
 func (f Filter) HasCustodian() bool {
 	return !helper.IsDefaultUUID(f.CustodianID)
+}
+
+func (f Filter) HasStatus() bool {
+	return f.Status != ""
+}
+
+func (f Filter) HasStage() bool {
+	return f.Stage != ""
+}
+
+func (f Filter) Matches(l *Lot) bool {
+	return (!f.HasFarm() || l.FarmID() == f.FarmID) &&
+		(!f.HasCustodian() || l.CustodianID() == f.CustodianID) &&
+		(!f.HasStatus() || l.Status() == f.Status) &&
+		(!f.HasStage() || l.CurrentStage() == f.Stage)
 }
 
 type Cursor struct {

@@ -100,7 +100,7 @@ func TestListLots(t *testing.T) {
 		}}
 
 		rec := doGet(newReadMux(t, &fakeGetLotPort{}, list, passThrough),
-			"/lots?farm_id=farm-1&custodian_id=actor-1&cursor=abc&limit=5")
+			"/lots?farm_id=farm-1&custodian_id=actor-1&status=active&stage=farm&cursor=abc&limit=5")
 
 		if rec.Code != http.StatusOK {
 			t.Fatalf("status: got %d, want %d (%s)", rec.Code, http.StatusOK, rec.Body.String())
@@ -114,7 +114,7 @@ func TestListLots(t *testing.T) {
 			t.Errorf("body: got %+v", body)
 		}
 
-		want := request.ListLots{FarmID: "farm-1", CustodianID: "actor-1", Cursor: "abc", Limit: "5"}
+		want := request.ListLots{FarmID: "farm-1", CustodianID: "actor-1", Status: "active", Stage: "farm", Cursor: "abc", Limit: "5"}
 		if list.received != want {
 			t.Errorf("port received %+v, want %+v", list.received, want)
 		}

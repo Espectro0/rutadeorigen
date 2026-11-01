@@ -1174,3 +1174,101 @@ func TestGetLotEndToEndAllowedActionsFollowTheCustodyAndTheStage(t *testing.T) {
 	assertActions(t, "brand with the packaged lot", allowedActions(t, mux, brandHeader, created.ID), "qr:generate")
 	assertActions(t, "roaster with the packaged lot", allowedActions(t, mux, roasterHeader, created.ID))
 }
+
+type lotSummary struct {
+	ID        string `json:"id"`
+	Stage     string `json:"stage"`
+	Status    string `json:"status"`
+	Completed bool   `json:"completed"`
+}
+
+func listLotSummaries(t *testing.T, mux http.Handler, query string) []lotSummary {
+	t.Helper()
+
+	rec := get(mux, producerHeader, "/lots"+query)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list lots%s: status %d (%s)", query, rec.Code, rec.Body.String())
+	}
+
+	var page struct {
+		Items []lotSummary `json:"items"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &page); err != nil {
+		t.Fatalf("decode page: %v (%s)", err, rec.Body.String())
+	}
+	return page.Items
+}
+
+func TestListLotsEndToEndFiltersByStatusAndStageAndReportsCompletion(t *testing.T) {
+	mux, _ := newTestServer(t)
+	fresh := mustCreateLot(t, mux, "LOT-001")
+	packaged := mustCreateLot(t, mux, "LOT-002")
+
+	mustRegisterStage(t, mux, packaged.ID, `"1"`, farmStageBody)
+	mustTransfer(t, mux, producerHeader, packaged.ID, `"2"`, roasterHeader)
+	mustRegisterStageAs(t, mux, roasterHeader, packaged.ID, `"3"`, roastingStageBody)
+	mustTransfer(t, mux, roasterHeader, packaged.ID, `"4"`, brandHeader)
+	mustRegisterStageAs(t, mux, brandHeader, packaged.ID, `"5"`, packagingStageBody)
+
+	t.Run("by stage", func(t *testing.T) {
+		items := listLotSummaries(t, mux, "?stage=packaging")
+		if len(items) != 1 || items[0].ID != packaged.ID {
+			t.Errorf("got %+v, want only the packaged lot", items)
+		}
+		none := listLotSummaries(t, mux, "?stage=none")
+		if len(none) != 1 || none[0].ID != fresh.ID {
+			t.Errorf("got %+v, want only the new lot", none)
+		}
+	})
+
+	t.Run("by status", func(t *testing.T) {
+		if got := len(listLotSummaries(t, mux, "?status=active")); got != 2 {
+			t.Errorf("active: got %d, want 2", got)
+		}
+		if got := len(listLotSummaries(t, mux, "?status=voided")); got != 0 {
+			t.Errorf("voided: got %d, want 0", got)
+		}
+	})
+
+	t.Run("combines the filters with the farm", func(t *testing.T) {
+		items := listLotSummaries(t, mux, "?farm_id="+seedFarmID.String()+"&status=active&stage=packaging")
+		if len(items) != 1 || items[0].ID != packaged.ID {
+			t.Errorf("got %+v, want only the packaged lot", items)
+		}
+	})
+
+	t.Run("reports completion", func(t *testing.T) {
+		for _, item := range listLotSummaries(t, mux, "") {
+			if want := item.ID == packaged.ID; item.Completed != want {
+				t.Errorf("lot %s: completed %v, want %v", item.ID, item.Completed, want)
+			}
+		}
+	})
+
+	t.Run("the lot detail reports completion too", func(t *testing.T) {
+		var detail lotSummary
+		rec := get(mux, producerHeader, "/lots/"+packaged.ID)
+		if err := json.Unmarshal(rec.Body.Bytes(), &detail); err != nil || !detail.Completed {
+			t.Errorf("got %+v (%v), want a completed lot", detail, err)
+		}
+	})
+}
+
+func TestListLotsEndToEndRejectsInvalidFilters(t *testing.T) {
+	mux, _ := newTestServer(t)
+
+	tests := []struct {
+		name     string
+		query    string
+		wantCode string
+	}{
+		{"unknown status", "?status=archived", string(exception.CodeLotInvalidStatus)},
+		{"unknown stage", "?stage=shipping", string(exception.CodeLotInvalidStage)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assertErrorCode(t, get(mux, producerHeader, "/lots"+tt.query), http.StatusBadRequest, tt.wantCode)
+		})
+	}
+}

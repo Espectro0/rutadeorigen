@@ -136,6 +136,9 @@ func Restore(p RestoreParams) *Lot {
 
 func (l *Lot) IsActive() bool  { return l.status == StatusActive }
 func (l *Lot) HasEvents() bool { return l.currentStage != StageNone }
+func (l *Lot) IsCompleted() bool {
+	return l.IsActive() && l.currentStage == StagePackaging
+}
 func (l *Lot) AdvanceTo(stage Stage) error {
 	if !l.IsActive() {
 		return exception.New(exception.CodeLotVoided)

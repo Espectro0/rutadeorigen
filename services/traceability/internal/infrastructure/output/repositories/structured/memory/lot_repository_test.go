@@ -384,3 +384,54 @@ func TestLotRepositoryUpdateStage(t *testing.T) {
 		}
 	})
 }
+
+func TestLotRepositoryListFiltersByStatusAndStage(t *testing.T) {
+	ctx := context.Background()
+	farmID := uuid.New()
+
+	fresh := newLot(t, farmID, "LOT-001")
+	atFarm := newLot(t, farmID, "LOT-002")
+	if err := atFarm.AdvanceTo(lot.StageFarm); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	voided := newLot(t, farmID, "LOT-003")
+	if err := voided.Void("Registered by mistake"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	elsewhere := newLot(t, uuid.New(), "LOT-004")
+	repo := memory.NewLotRepository(fresh, atFarm, voided, elsewhere)
+
+	tests := []struct {
+		name   string
+		filter lot.Filter
+		want   map[uuid.UUID]bool
+	}{
+		{"by status", lot.Filter{Status: lot.StatusVoided}, map[uuid.UUID]bool{voided.ID(): true}},
+		{"by stage", lot.Filter{Stage: lot.StageFarm}, map[uuid.UUID]bool{atFarm.ID(): true}},
+		{"by farm and status", lot.Filter{FarmID: farmID, Status: lot.StatusActive}, map[uuid.UUID]bool{fresh.ID(): true, atFarm.ID(): true}},
+		{"by stage without events", lot.Filter{Stage: lot.StageNone}, map[uuid.UUID]bool{fresh.ID(): true, voided.ID(): true, elsewhere.ID(): true}},
+		{"without matches", lot.Filter{Stage: lot.StagePackaging}, map[uuid.UUID]bool{}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			listed, err := repo.List(ctx, tt.filter, lot.Cursor{}, 10)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			got := make(map[uuid.UUID]bool, len(listed))
+			for _, l := range listed {
+				got[l.ID()] = true
+			}
+			if len(got) != len(tt.want) {
+				t.Fatalf("got %d lots, want %d", len(got), len(tt.want))
+			}
+			for id := range tt.want {
+				if !got[id] {
+					t.Errorf("missing lot %s", id)
+				}
+			}
+		})
+	}
+}

@@ -11,6 +11,7 @@ type Lot struct {
 	HarvestDate string `json:"harvest_date"`
 	Stage       string `json:"stage"`
 	Status      string `json:"status"`
+	Completed   bool   `json:"completed"`
 	VoidReason  string `json:"void_reason,omitempty"`
 	CreatedAt   string `json:"created_at"`
 }

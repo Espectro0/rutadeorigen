@@ -64,13 +64,15 @@ func TestAdapterBuildsTheQuery(t *testing.T) {
 		_, err := listlots.New(uc).Execute(ctx, request.ListLots{
 			FarmID:      " " + farmID.String() + " ",
 			CustodianID: custodianID.String(),
+			Status:      " Active ",
+			Stage:       "ROASTING",
 			Limit:       " 25 ",
 		})
 
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		want := listlotsuc.Query{Filter: lot.Filter{FarmID: farmID, CustodianID: custodianID}, Limit: 25}
+		want := listlotsuc.Query{Filter: lot.Filter{FarmID: farmID, CustodianID: custodianID, Status: lot.StatusActive, Stage: lot.StageRoasting}, Limit: 25}
 		if uc.received != want {
 			t.Errorf("use case received %+v, want %+v", uc.received, want)
 		}
@@ -97,6 +99,9 @@ func TestAdapterBuildsTheQuery(t *testing.T) {
 			{"malformed farm id", request.ListLots{FarmID: "nope"}, exception.CodeLotInvalidFarmID},
 			{"nil farm id", request.ListLots{FarmID: uuid.Nil.String()}, exception.CodeLotInvalidFarmID},
 			{"malformed custodian id", request.ListLots{CustodianID: "nope"}, exception.CodeLotInvalidCustodianID},
+			{"unknown status", request.ListLots{Status: "archived"}, exception.CodeLotInvalidStatus},
+			{"unknown stage", request.ListLots{Stage: "shipping"}, exception.CodeLotInvalidStage},
+			{"the unknown marker is not a stage", request.ListLots{Stage: "unknown"}, exception.CodeLotInvalidStage},
 			{"zero limit", request.ListLots{Limit: "0"}, exception.CodeInvalidLimit},
 			{"negative limit", request.ListLots{Limit: "-5"}, exception.CodeInvalidLimit},
 			{"non numeric limit", request.ListLots{Limit: "many"}, exception.CodeInvalidLimit},

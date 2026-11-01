@@ -69,6 +69,8 @@ func (c *LotController) list(w http.ResponseWriter, r *http.Request) {
 	res, err := c.listLots.Execute(r.Context(), request.ListLots{
 		FarmID:      q.Get("farm_id"),
 		CustodianID: q.Get("custodian_id"),
+		Status:      q.Get("status"),
+		Stage:       q.Get("stage"),
 		Cursor:      q.Get("cursor"),
 		Limit:       q.Get("limit"),
 	})

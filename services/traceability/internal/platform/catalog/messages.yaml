@@ -16,6 +16,7 @@ TRACEABILITY_LOT_INVALID_CUSTODIAN_ID: "El identificador del custodio no es vál
 TRACEABILITY_LOT_VERSION_CONFLICT: "La versión del lote no es la más reciente."
 TRACEABILITY_LOT_INVALID_IF_MATCH: "El encabezado If-Match no es válido."
 TRACEABILITY_LOT_INVALID_STAGE: "La etapa del lote no es válida."
+TRACEABILITY_LOT_INVALID_STATUS: "El estado del lote no es válido."
 TRACEABILITY_LOT_INVALID_EVENT_DATE: "La fecha del evento es obligatoria y no puede estar en el futuro."
 TRACEABILITY_LOT_INVALID_NOTE: "La nota no es válida."
 TRACEABILITY_LOT_NOT_TRANSFERABLE: "El lote no puede transferirse en su etapa actual."
