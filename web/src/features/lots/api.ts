@@ -1,5 +1,13 @@
 import { request } from "@/lib/http-client";
-import { parseLotActions, parseLotProcess, parseLotStage, parseLotStatus, type Lot, type LotPage } from "./types";
+import {
+    parseLotActions,
+    parseLotProcess,
+    parseLotStage,
+    parseLotStatus,
+    type Lot,
+    type LotPage,
+    type StageRegistration,
+} from "./types";
 
 type LotDto = Readonly<{
     id: string;
@@ -76,4 +84,17 @@ export async function createLot(input: NewLot): Promise<Lot> {
         }),
     });
     return toLot(dto);
+}
+
+export async function registerStage(lotId: string, version: number, input: StageRegistration): Promise<void> {
+    await request<unknown>(`/lots/${encodeURIComponent(lotId)}/events`, {
+        method: "POST",
+        headers: { "If-Match": `"${version}"` },
+        body: JSON.stringify({
+            stage: input.stage,
+            event_date: input.eventDate,
+            note: input.note,
+            details: input.details,
+        }),
+    });
 }

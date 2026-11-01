@@ -59,3 +59,24 @@ const LOT_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
 export function isLotId(value: string): boolean {
     return LOT_ID_PATTERN.test(value);
 }
+
+export type StageInput = Exclude<ValidLotStage, "none">;
+
+export function nextStage(current: LotStage): StageInput | null {
+    const index = (LOT_STAGES as readonly string[]).indexOf(current);
+    if (index < 0) return null;
+    const next = LOT_STAGES[index + 1];
+    return next === undefined || next === "none" ? null : next;
+}
+
+export const DRYING_METHODS = ["sun_patio", "african_bed", "greenhouse", "mechanical"] as const;
+export const ROAST_LEVELS = ["light", "medium", "dark"] as const;
+export const GRINDS = ["whole_bean", "ground"] as const;
+export const PACKAGE_WEIGHTS_G = [250, 340, 500, 1000] as const;
+
+export type StageRegistration = Readonly<{
+    stage: StageInput;
+    eventDate: string;
+    note: string;
+    details: Readonly<Record<string, string | number>>;
+}>;

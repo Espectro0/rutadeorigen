@@ -165,6 +165,39 @@
       "generateQr": "Generar QR",
       "void": "Anular lote",
       "soon": "Disponible pronto"
+    },
+    "stageForm": {
+      "title": "Registrar etapa: {stage}",
+      "eventDate": "Fecha del evento",
+      "note": "Nota (opcional)",
+      "placeholder": "Selecciona una opción",
+      "submit": "Registrar",
+      "cancel": "Cancelar",
+      "fields": {
+        "drying_method": "Método de secado",
+        "drying_days": "Días de secado",
+        "moisture_percent": "Humedad (%)",
+        "parchment_weight_kg": "Peso en pergamino (kg)",
+        "roast_level": "Nivel de tostión",
+        "duration_minutes": "Duración (minutos)",
+        "green_weight_kg": "Peso en verde (kg)",
+        "roasted_weight_kg": "Peso tostado (kg)",
+        "grind": "Molienda",
+        "package_weight_g": "Peso del empaque",
+        "units": "Unidades",
+        "best_before": "Consumir preferentemente antes de"
+      },
+      "options": {
+        "sun_patio": "Patio al sol",
+        "african_bed": "Cama africana",
+        "greenhouse": "Invernadero",
+        "mechanical": "Mecánico",
+        "light": "Claro",
+        "medium": "Medio",
+        "dark": "Oscuro",
+        "whole_bean": "Grano entero",
+        "ground": "Molido"
+      }
     }
   }
 }

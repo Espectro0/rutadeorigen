@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { listFarms } from "@/features/farms/api";
 import Link from "next/link";
@@ -9,9 +9,10 @@ import { useDateFormat } from "@/lib/use-date-format";
 import { useDescribeError } from "@/lib/use-describe-error";
 import { useRemote } from "@/lib/use-remote";
 import { getLot } from "../api";
-import { LOT_STAGES, type Lot } from "../types";
+import { LOT_STAGES, nextStage, type Lot } from "../types";
 import { LotActions } from "./lot-actions";
 import { LotStatusBadge } from "./lot-status-badge";
+import { StageForm } from "./stage-form";
 
 const PROGRESS_STAGES = LOT_STAGES.filter((stage) => stage !== "none");
 
@@ -31,6 +32,7 @@ export function LotDetail({ id }: Readonly<{ id: string }>) {
     const dates = useDateFormat();
     const lot = useRemote(`lot:${id}`, () => getLot(id));
     const farms = useRemote("farms", listFarms);
+    const [registering, setRegistering] = useState(false);
 
     const back = (
         <Link href="/lots" className="text-sm underline-offset-2 hover:underline">
@@ -66,6 +68,7 @@ export function LotDetail({ id }: Readonly<{ id: string }>) {
     const data = lot.data as Lot;
     const farmName = (farms.data ?? []).find((farm) => farm.id === data.farmId)?.name ?? data.farmId;
     const currentIndex = PROGRESS_STAGES.findIndex((stage) => stage === data.stage);
+    const upcoming = nextStage(data.stage);
 
     return (
         <div className="flex flex-col gap-6">
@@ -76,7 +79,23 @@ export function LotDetail({ id }: Readonly<{ id: string }>) {
                 <LotStatusBadge status={data.status} label={t(`status.${data.status}`)} />
             </div>
 
-            <LotActions allowed={data.allowedActions} />
+            <LotActions
+                allowed={data.allowedActions}
+                handlers={upcoming === null ? {} : { "lot:register_stage": () => setRegistering(true) }}
+            />
+
+            {registering && upcoming !== null && (
+                <StageForm
+                    lotId={data.id}
+                    version={data.version}
+                    stage={upcoming}
+                    onCancel={() => setRegistering(false)}
+                    onDone={() => {
+                        setRegistering(false);
+                        lot.reload();
+                    }}
+                />
+            )}
 
             {data.status === "voided" && data.voidReason !== "" && (
                 <p role="status" className="rounded-lg bg-terracotta/15 p-4 text-sm text-terracotta">
