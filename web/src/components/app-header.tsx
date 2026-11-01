@@ -1,33 +1,27 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { shortName } from "@/features/session/display-name";
-import { useActor } from "@/features/session/session-provider";
+import { LuMenu } from "react-icons/lu";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 
-export function AppHeader() {
-    const t = useTranslations("Header");
-    const actor = useActor();
-    const initial = actor.firstName?.charAt(0).toUpperCase() ?? "?";
+type Props = Readonly<{ onOpenMenu: () => void; menuOpen: boolean }>;
+
+export function AppHeader({ onOpenMenu, menuOpen }: Props) {
+    const t = useTranslations("Nav");
 
     return (
-        <header className="flex items-center justify-end gap-4 bg-white px-6 py-3 shadow-sm dark:bg-zinc-900">
+        <header className="flex items-center justify-between border-b border-hairline bg-ground-deep px-4 py-3 md:justify-end md:px-6">
+            <button
+                type="button"
+                onClick={onOpenMenu}
+                aria-label={t("openMenu")}
+                aria-expanded={menuOpen}
+                aria-controls="app-sidebar"
+                className="rounded p-1.5 text-ink hover:bg-ground-raised md:hidden"
+            >
+                <LuMenu className="size-6" aria-hidden />
+            </button>
             <LocaleSwitcher />
-            <div className="flex items-center gap-3">
-                <span
-                    aria-hidden
-                    className="flex size-9 items-center justify-center rounded-full bg-blue-500 text-sm font-semibold text-white"
-                >
-                    {initial}
-                </span>
-                <div className="leading-tight">
-                    <p className="text-sm font-medium">{shortName(actor)}</p>
-                    <p className="text-xs text-zinc-500">{actor.name}</p>
-                </div>
-            </div>
-            <a href="/auth/logout" className="rounded border px-3 py-1.5 text-sm">
-                {t("logout")}
-            </a>
         </header>
     );
 }

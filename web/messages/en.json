@@ -54,11 +54,13 @@
     }
   },
   "Nav": {
-  "brand": "Ruta de Origen",
-  "dashboard": "Panel",
-  "farms": "Farms",
-  "lots": "Lots"
-},
+    "brand": "Ruta de Origen",
+    "dashboard": "Panel",
+    "farms": "Farms",
+    "lots": "Lots",
+    "userMenu": "User Menu",
+    "openMenu": "Open Menu"
+  },
   "Dashboard": {
     "title": "Your Panel",
     "subtitle": "You can see here your farms and lots.",
@@ -70,5 +72,69 @@
   "Footer": {
     "openSource": "This project is under license and open source.",
     "repository": "View repository"
+  },
+  "Common": {
+    "loading": "Loading…",
+    "retry": "Retry"
+  },
+  "Farms": {
+    "title": "Farms",
+    "subtitle": "The farms you have registered.",
+    "empty": "You have no registered farms yet.",
+    "altitudeValue": "{value} masl",
+    "columns": {
+      "name": "Name",
+      "altitude": "Altitude",
+      "createdAt": "Registered"
+    }
+  },
+  "Lots": {
+    "title": "Lots",
+    "subtitle": "Browse the list of registered lots.",
+    "empty": "There are no registered lots yet.",
+    "pageSize": "Per page",
+    "columns": {
+      "code": "Code",
+      "variety": "Variety",
+      "process": "Process",
+      "harvestDate": "Harvest",
+      "farm": "Farm",
+      "stage": "Stage",
+      "status": "Status"
+    },
+    "pagination": {
+      "label": "Pagination",
+      "previous": "Previous",
+      "next": "Next",
+      "goTo": "Go to page {page}"
+    },
+    "stage": {
+      "none": "Not started",
+      "farm": "Farm",
+      "roasting": "Roasting",
+      "packaging": "Packaging",
+      "unknown": "Unknown"
+    },
+    "status": {
+      "active": "Active",
+      "voided": "Voided",
+      "unknown": "Unknown"
+    },
+    "process": {
+      "washed": "Washed",
+      "natural": "Natural",
+      "honey": "Honey",
+      "unknown": "Unknown"
+    },
+    "detail": {
+      "back": "Back to lots",
+      "notFound": "We could not find a lot with that ID.",
+      "progress": "Progress",
+      "voidReason": "Void reason",
+      "createdAt": "Registered",
+      "custodian": "Custodian",
+      "id": "ID",
+      "version": "Version"
+    }
   }
 }

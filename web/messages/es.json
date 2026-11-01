@@ -57,7 +57,9 @@
     "brand": "Ruta de Origen",
     "dashboard": "Panel",
     "farms": "Fincas",
-    "lots": "Lotes"
+    "lots": "Lotes",
+    "userMenu": "Menú de Usuario",
+    "openMenu": "Abrir Menú"
   },
   "Dashboard": {
     "title": "Tu panel",
@@ -70,5 +72,69 @@
   "Footer": {
     "openSource": "Este proyecto está bajo licencia y de código abierto.",
     "repository": "Ver el repositorio"
+  },
+  "Common": {
+    "loading": "Cargando…",
+    "retry": "Reintentar"
+  },
+  "Farms": {
+    "title": "Fincas",
+    "subtitle": "Las fincas que tienes registradas.",
+    "empty": "Aún no tienes fincas registradas.",
+    "altitudeValue": "{value} msnm",
+    "columns": {
+      "name": "Nombre",
+      "altitude": "Altitud",
+      "createdAt": "Registrada"
+    }
+  },
+  "Lots": {
+    "title": "Lotes",
+    "subtitle": "Revisa la lista de lotes registrados.",
+    "empty": "Aún no hay lotes registrados.",
+    "pageSize": "Por página",
+    "columns": {
+      "code": "Código",
+      "variety": "Variedad",
+      "process": "Proceso",
+      "harvestDate": "Cosecha",
+      "farm": "Finca",
+      "stage": "Etapa",
+      "status": "Estado"
+    },
+    "pagination": {
+      "label": "Paginación",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "goTo": "Ir a la página {page}"
+    },
+    "stage": {
+      "none": "Sin iniciar",
+      "farm": "Finca",
+      "roasting": "Tostión",
+      "packaging": "Empaque",
+      "unknown": "Desconocida"
+    },
+    "status": {
+      "active": "Activo",
+      "voided": "Anulado",
+      "unknown": "Desconocido"
+    },
+    "process": {
+      "washed": "Lavado",
+      "natural": "Natural",
+      "honey": "Honey",
+      "unknown": "Desconocido"
+    },
+    "detail": {
+      "back": "Volver a lotes",
+      "notFound": "No encontramos un lote con ese ID.",
+      "progress": "Avance",
+      "voidReason": "Motivo de anulación",
+      "createdAt": "Registrado",
+      "custodian": "Custodio",
+      "id": "ID",
+      "version": "Versión"
+    }
   }
 }
