@@ -5,6 +5,9 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  async redirects() {
+    return [{ source: "/:locale(es|en)/:path*", destination: "/:path*", permanent: false }];
+  },
   async rewrites() {
     if (process.env.NODE_ENV !== "development") {
       return [];
