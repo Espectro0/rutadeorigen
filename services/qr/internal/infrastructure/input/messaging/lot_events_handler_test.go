@@ -42,6 +42,33 @@ func (f *stageFake) Execute(ctx context.Context, in request.ProjectLotStage) (re
 	return response.Empty{}, f.err
 }
 
+type actorFake struct {
+	calls         int
+	got           request.ProjectActorRegistered
+	correlationID string
+	err           error
+}
+
+func (f *actorFake) Execute(ctx context.Context, in request.ProjectActorRegistered) (response.Empty, error) {
+	f.calls++
+	f.got = in
+	f.correlationID = requestcontext.CorrelationID(ctx)
+	return response.Empty{}, f.err
+}
+
+const actorBody = `{"id":"env-id","type":"actor.registered","version":1,"occurred_at":"2026-10-01T09:00:00Z","actor_id":"a","actor_role":"brand","correlation_id":"env-corr","data":{"actor_id":"actor-1","user_id":"user_01","type":"brand","extra":"ignored"}}`
+
+func actorDelivery() libmessaging.Delivery {
+	return libmessaging.Delivery{
+		ID:            "msg-3",
+		Type:          "actor.registered",
+		CorrelationID: "corr-3",
+		Version:       1,
+		OccurredAt:    time.Date(2026, 10, 1, 9, 0, 0, 0, time.UTC),
+		Body:          []byte(actorBody),
+	}
+}
+
 const createdBody = `{"id":"env-id","type":"lot.created","version":1,"occurred_at":"2026-09-20T14:30:00Z","actor_id":"a","actor_role":"producer","correlation_id":"env-corr","data":{"lot_id":"lot-1","farm":{"id":"f1","name":"La Esperanza","altitude":1800},"producer":{"id":"p1","name":"Maria"},"custodian_id":"c1","code":"LT-001","variety":"Castillo","process":"washed","harvest_date":"2026-01-10","stage":"none","status":"active"}}`
 
 const stageBody = `{"id":"env-id","type":"lot.stage_registered","version":4,"occurred_at":"2026-09-21T10:00:00Z","actor_id":"a","actor_role":"producer","correlation_id":"env-corr","data":{"lot_id":"lot-1","stage":"roasting","status":"active","event_id":"ev-1","sequence":2,"event_date":"2026-09-20","extra":"ignored"}}`
@@ -336,5 +363,65 @@ func TestHandleStageForALotThatIsNotProjectedYetIsRetried(t *testing.T) {
 	}
 	if !exception.HasCode(err, exception.CodeLotViewNotFound) {
 		t.Errorf("the original code must be kept, got %v", err)
+	}
+}
+
+func TestHandleActorRegisteredMapsDeliveryToRequest(t *testing.T) {
+	created, staged, actors := &createdFake{}, &stageFake{}, &actorFake{}
+	handler := newHandler(created, staged).WithActorRegistered(actors)
+
+	if err := handler.Handle(context.Background(), actorDelivery()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if actors.calls != 1 {
+		t.Fatalf("actor use case calls: got %d, want 1", actors.calls)
+	}
+	if actors.got.MessageID != "msg-3" || actors.got.EventType != "actor.registered" || actors.got.Version != 1 ||
+		actors.got.OccurredAt != "2026-10-01T09:00:00Z" {
+		t.Errorf("unexpected metadata %+v", actors.got)
+	}
+	want := request.ActorRegisteredData{ActorID: "actor-1", UserID: "user_01", Type: "brand"}
+	if actors.got.Data != want {
+		t.Errorf("unexpected data %+v, want %+v", actors.got.Data, want)
+	}
+	if actors.correlationID != "corr-3" {
+		t.Errorf("unexpected correlation id %q", actors.correlationID)
+	}
+	if created.calls != 0 || staged.calls != 0 {
+		t.Errorf("the lot use cases must not run, got %d and %d", created.calls, staged.calls)
+	}
+}
+
+func TestHandleIgnoresActorRegisteredWhenNoUseCaseIsWired(t *testing.T) {
+	if err := newHandler(&createdFake{}, &stageFake{}).Handle(context.Background(), actorDelivery()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestHandleActorRegisteredMalformedDataIsPermanent(t *testing.T) {
+	actors := &actorFake{}
+	d := actorDelivery()
+	d.Body = []byte(`{"type":"actor.registered","data":"nope"}`)
+
+	err := newHandler(&createdFake{}, &stageFake{}).WithActorRegistered(actors).Handle(context.Background(), d)
+
+	if !libmessaging.IsPermanent(err) || actors.calls != 0 {
+		t.Errorf("expected a permanent error without calling the use case, got %v (%d calls)", err, actors.calls)
+	}
+}
+
+func TestHandleActorRegisteredErrorsAreClassified(t *testing.T) {
+	validation := &actorFake{err: exception.New(exception.CodeActorViewInvalidRole)}
+	err := newHandler(&createdFake{}, &stageFake{}).WithActorRegistered(validation).Handle(context.Background(), actorDelivery())
+	if !libmessaging.IsPermanent(err) {
+		t.Errorf("a validation error must be permanent, got %v", err)
+	}
+
+	backend := errors.New("backend is down")
+	retried := &actorFake{err: backend}
+	err = newHandler(&createdFake{}, &stageFake{}).WithActorRegistered(retried).Handle(context.Background(), actorDelivery())
+	if libmessaging.IsPermanent(err) || !errors.Is(err, backend) {
+		t.Errorf("an infrastructure error must be retried, got %v", err)
 	}
 }

@@ -24,9 +24,10 @@ import (
 )
 
 const (
-	lotEventsQueue   = "qr.lot-events"
-	lotEventsBinding = "lot.*"
-	defaultBaseURL   = "http://localhost:8080"
+	lotEventsQueue     = "qr.lot-events"
+	lotEventsBinding   = "lot.*"
+	actorEventsBinding = "actor.*"
+	defaultBaseURL     = "http://localhost:8080"
 )
 
 type runtime struct {
@@ -172,7 +173,7 @@ func connectConsumer(log *slog.Logger, rt *runtime) error {
 	consumer, err := libmessaging.NewConsumer(libmessaging.ConsumerConfig{
 		URL:      url,
 		Queue:    lotEventsQueue,
-		Bindings: []string{lotEventsBinding},
+		Bindings: []string{lotEventsBinding, actorEventsBinding},
 	}, log)
 	if err != nil {
 		return fmt.Errorf("connect to rabbitmq: %w", err)

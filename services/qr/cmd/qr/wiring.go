@@ -11,12 +11,14 @@ import (
 	"rutadeorigen/lib/catalog"
 	getpubliclotadapter "rutadeorigen/qr/internal/application/input/adapters/getpubliclot"
 	getqrimageadapter "rutadeorigen/qr/internal/application/input/adapters/getqrimage"
+	projectactorregisteredadapter "rutadeorigen/qr/internal/application/input/adapters/projectactorregistered"
 	projectlotcreatedadapter "rutadeorigen/qr/internal/application/input/adapters/projectlotcreated"
 	projectlotstageadapter "rutadeorigen/qr/internal/application/input/adapters/projectlotstage"
 	resolvescanadapter "rutadeorigen/qr/internal/application/input/adapters/resolvescan"
 	"rutadeorigen/qr/internal/application/output/ports"
 	getpubliclotuc "rutadeorigen/qr/internal/application/usecases/getpubliclot"
 	getqrimageuc "rutadeorigen/qr/internal/application/usecases/getqrimage"
+	projectactorregistereduc "rutadeorigen/qr/internal/application/usecases/projectactorregistered"
 	projectlotcreateduc "rutadeorigen/qr/internal/application/usecases/projectlotcreated"
 	projectlotstageuc "rutadeorigen/qr/internal/application/usecases/projectlotstage"
 	resolvescanuc "rutadeorigen/qr/internal/application/usecases/resolvescan"
@@ -40,6 +42,7 @@ type dependencies struct {
 
 type outputs struct {
 	views     ports.LotViewRepository
+	actors    ports.ActorViewRepository
 	codes     ports.QRCodeRepository
 	rules     ports.RedirectRepository
 	scans     ports.ScanRepository
@@ -55,6 +58,7 @@ func registerRoutes(mux *http.ServeMux, log *slog.Logger, catalog *catalog.Catal
 
 	projectLotCreated := projectlotcreatedadapter.New(projectlotcreateduc.New(out.views, out.processed, out.cache, out.tx))
 	projectLotStaged := projectlotstageadapter.New(projectlotstageuc.New(out.views, out.processed, out.cache, out.tx))
+	projectActorRegistered := projectactorregisteredadapter.New(projectactorregistereduc.New(out.actors, out.processed, out.tx))
 	getPublicLot := getpubliclotadapter.New(getpubliclotuc.New(out.views, out.cache))
 	resolveScan := resolvescanadapter.New(resolvescanuc.New(out.rules, out.views, out.cache, out.scans))
 	getQRImage := getqrimageadapter.New(getqrimageuc.New(out.views, out.cache, out.codes, renderer.NewGoQRCodeRenderer(), auth, deps.publicBaseURL))
@@ -65,7 +69,7 @@ func registerRoutes(mux *http.ServeMux, log *slog.Logger, catalog *catalog.Catal
 	controllers.NewScanController(resolveScan, errs).Register(mux)
 	controllers.NewQRImageController(getQRImage, errs).Register(mux, requireActor)
 
-	return inmessaging.NewLotEventsHandler(projectLotCreated, projectLotStaged)
+	return inmessaging.NewLotEventsHandler(projectLotCreated, projectLotStaged).WithActorRegistered(projectActorRegistered)
 }
 
 func newOutputs(deps dependencies) outputs {
@@ -75,6 +79,7 @@ func newOutputs(deps dependencies) outputs {
 
 	return outputs{
 		views:     postgres.NewLotViewRepository(deps.pool),
+		actors:    postgres.NewActorViewRepository(deps.pool),
 		codes:     postgres.NewQRCodeRepository(deps.pool),
 		rules:     postgres.NewRedirectRepository(deps.pool),
 		scans:     postgres.NewScanRepository(deps.pool),
@@ -87,6 +92,7 @@ func newOutputs(deps dependencies) outputs {
 func memoryOutputs() outputs {
 	return outputs{
 		views:     memory.NewLotViewRepository(),
+		actors:    memory.NewActorViewRepository(),
 		codes:     memory.NewQRCodeRepository(),
 		rules:     memory.NewRedirectRepository(seedRedirects()...),
 		scans:     memory.NewScanRepository(),

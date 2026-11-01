@@ -15,6 +15,7 @@ import (
 const (
 	LotCreatedType         = "lot.created"
 	LotStageRegisteredType = "lot.stage_registered"
+	ActorRegisteredType    = "actor.registered"
 )
 
 type envelope struct {
@@ -34,13 +35,31 @@ type metadata struct {
 }
 
 type LotEventsHandler struct {
-	created ports.ProjectLotCreatedPort
-	staged  ports.ProjectLotStagePort
+	created         ports.ProjectLotCreatedPort
+	staged          ports.ProjectLotStagePort
+	actorRegistered ports.ProjectActorRegisteredPort
 }
 
 func NewLotEventsHandler(created ports.ProjectLotCreatedPort, staged ports.ProjectLotStagePort) *LotEventsHandler {
 	return &LotEventsHandler{created: created, staged: staged}
 }
+
+func (h *LotEventsHandler) WithActorRegistered(port ports.ProjectActorRegisteredPort) *LotEventsHandler {
+	h.actorRegistered = port
+	return h
+}
+
+func (h *LotEventsHandler) handles(eventType string) bool {
+	switch eventType {
+	case LotCreatedType, LotStageRegisteredType:
+		return true
+	case ActorRegisteredType:
+		return h.actorRegistered != nil
+	default:
+		return false
+	}
+}
+
 func (h *LotEventsHandler) Handle(ctx context.Context, d libmessaging.Delivery) error {
 	var env envelope
 	if err := json.Unmarshal(d.Body, &env); err != nil {
@@ -48,7 +67,7 @@ func (h *LotEventsHandler) Handle(ctx context.Context, d libmessaging.Delivery) 
 	}
 
 	eventType := firstNonEmpty(d.Type, env.Type)
-	if eventType != LotCreatedType && eventType != LotStageRegisteredType {
+	if !h.handles(eventType) {
 		return nil
 	}
 
@@ -66,9 +85,27 @@ func (h *LotEventsHandler) Handle(ctx context.Context, d libmessaging.Delivery) 
 	switch eventType {
 	case LotCreatedType:
 		return h.projectCreated(ctx, meta, env.Data)
+	case ActorRegisteredType:
+		return h.projectActorRegistered(ctx, meta, env.Data)
 	default:
 		return h.projectStage(ctx, meta, env.Data)
 	}
+}
+
+func (h *LotEventsHandler) projectActorRegistered(ctx context.Context, meta metadata, raw json.RawMessage) error {
+	data, err := decodeData[request.ActorRegisteredData](raw)
+	if err != nil {
+		return err
+	}
+
+	_, err = h.actorRegistered.Execute(ctx, request.ProjectActorRegistered{
+		MessageID:  meta.messageID,
+		EventType:  meta.eventType,
+		Version:    meta.version,
+		OccurredAt: meta.occurredAt,
+		Data:       data,
+	})
+	return classify(err)
 }
 
 func (h *LotEventsHandler) projectCreated(ctx context.Context, meta metadata, raw json.RawMessage) error {
