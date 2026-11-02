@@ -148,8 +148,8 @@ func TestOIDCPublicRoutesDoNotNeedASession(t *testing.T) {
 	if rec := h.getWithSession("/public/lots/"+lotID.String(), sealedUnavailable, nil); rec.Code != http.StatusOK {
 		t.Errorf("public lot with the provider down: expected 200, got %d", rec.Code)
 	}
-	if rec := h.getWithSession("/l/"+lotID.String(), "", nil); rec.Code != http.StatusMovedPermanently {
-		t.Errorf("scan: expected 301, got %d", rec.Code)
+	if rec := h.getWithSession("/l/"+lotID.String(), "", nil); rec.Code != http.StatusFound {
+		t.Errorf("scan: expected 302, got %d", rec.Code)
 	}
 }
 
