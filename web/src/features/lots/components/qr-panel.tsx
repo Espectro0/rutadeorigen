@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useDescribeError } from "@/lib/use-describe-error";
 import { useRemote } from "@/lib/use-remote";
@@ -13,22 +13,6 @@ type Props = Readonly<{
     onClose: () => void;
 }>;
 
-function useObjectUrl(blob: Blob | undefined): string {
-    const [url, setUrl] = useState("");
-
-    useEffect(() => {
-        if (blob === undefined) {
-            setUrl("");
-            return;
-        }
-        const created = URL.createObjectURL(blob);
-        setUrl(created);
-        return () => URL.revokeObjectURL(created);
-    }, [blob]);
-
-    return url;
-}
-
 export function QrPanel({ lotId, code, onClose }: Props) {
     const t = useTranslations("Lots.qrPanel");
     const common = useTranslations("Common");
@@ -36,7 +20,7 @@ export function QrPanel({ lotId, code, onClose }: Props) {
     const [size, setSize] = useState<number>(QR_SIZES[1]);
     const [format, setFormat] = useState<QrFormat>("png");
     const image = useRemote(`qr:${lotId}:${size}:${format}`, () => getQrImage(lotId, size, format));
-    const url = useObjectUrl(image.data);
+    const url = image.data ?? "";
 
     const inputClass = "rounded-md border border-hairline bg-ground px-3 py-2";
 

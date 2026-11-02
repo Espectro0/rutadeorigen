@@ -117,7 +117,17 @@ export async function voidLot(lotId: string, version: number, reason: string): P
     });
 }
 
-export async function getQrImage(lotId: string, size: number, format: string): Promise<Blob> {
+function toDataUrl(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+    });
+}
+
+export async function getQrImage(lotId: string, size: number, format: string): Promise<string> {
     const query = new URLSearchParams({ size: String(size), format });
-    return requestBlob(`/public/lots/${encodeURIComponent(lotId)}/qr?${query}`);
+    const blob = await requestBlob(`/public/lots/${encodeURIComponent(lotId)}/qr?${query}`);
+    return toDataUrl(blob);
 }
