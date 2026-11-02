@@ -11,7 +11,7 @@ import { useRemote } from "@/lib/use-remote";
 import { getLot } from "../api";
 import { transferTargetFor } from "@/features/session/permissions";
 import { useActor } from "@/features/session/session-provider";
-import { LOT_STAGES, nextStage, type Lot, type LotAction } from "../types";
+import { nextStage, type Lot, type LotAction } from "../types";
 import { LotActions } from "./lot-actions";
 import { LotCompletedBadge, LotStatusBadge } from "./lot-status-badge";
 import { LotTimeline } from "./lot-timeline";
@@ -19,8 +19,7 @@ import { TransferForm } from "./transfer-form";
 import { VoidDialog } from "./void-dialog";
 import { QrPanel } from "./qr-panel";
 import { StageForm } from "./stage-form";
-
-const PROGRESS_STAGES = LOT_STAGES.filter((stage) => stage !== "none");
+import { StageProgress } from "./stage-progress";
 
 function Field({ label, children }: Readonly<{ label: string; children: ReactNode }>) {
     return (
@@ -75,7 +74,6 @@ export function LotDetail({ id }: Readonly<{ id: string }>) {
 
     const data = lot.data as Lot;
     const farmName = (farms.data ?? []).find((farm) => farm.id === data.farmId)?.name ?? data.farmId;
-    const currentIndex = PROGRESS_STAGES.findIndex((stage) => stage === data.stage);
     const upcoming = nextStage(data.stage);
     const transferTarget = transferTargetFor(actor.type);
     const handlers: Partial<Record<LotAction, () => void>> = {};
@@ -140,44 +138,7 @@ export function LotDetail({ id }: Readonly<{ id: string }>) {
                 </p>
             )}
 
-            <section aria-label={t("detail.progress")} className="card p-5">
-                <h2 className="mb-6 text-lg font-semibold">{t("detail.progress")}</h2>
-                <ol className="relative flex flex-col gap-6 sm:flex-row sm:justify-between sm:gap-0">
-                    <div
-                        aria-hidden
-                        className="absolute hidden sm:block top-3.5 left-4 right-4 h-0.5 bg-ground-raised -z-0"
-                    />
-
-                    {PROGRESS_STAGES.map((stage, index) => {
-                        const done = index < currentIndex;
-                        const current = index === currentIndex;
-
-                        return (
-                            <li
-                                key={stage}
-                                aria-current={current ? "step" : undefined}
-                                className="relative z-10 flex items-center gap-3 sm:flex-col sm:items-center sm:gap-2 sm:text-center"
-                            >
-                                <span
-                                    aria-hidden
-                                    className={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-colors ${
-                                        done
-                                            ? "bg-verified text-white"
-                                            : current
-                                                ? "bg-terracotta text-on-accent ring-4 ring-terracotta/20"
-                                                : "bg-ground-raised text-ink-dim"
-                                    }`}
-                                >
-                                    {done ? "✓" : index + 1}
-                                </span>
-                                <span className={`text-sm ${current ? "font-semibold text-ink" : "text-ink-dim"}`}>
-                                    {t(`stage.${stage}`)}
-                                </span>
-                            </li>
-                        );
-                    })}
-                </ol>
-            </section>
+            <StageProgress stage={data.stage} />
 
             <section className="card p-5">
                 <dl className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
