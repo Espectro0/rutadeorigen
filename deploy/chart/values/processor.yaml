@@ -2,3 +2,10 @@ services:
   processor:
     tag: "242210aaa5a8e67ae92a1fe886a5ea86a5c7a935"
     replicas: 1
+    envFromSecret: processor-db
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        memory: 1Gi

@@ -22,8 +22,8 @@ const (
 type AggregateType string
 
 const (
-	AggregateLot   AggregateType = "lot"
-	AggregateActor AggregateType = "actor"
+	AggregateLot      AggregateType = "lot"
+	AggregateActor    AggregateType = "actor"
 	AggregateEvidence AggregateType = "evidence"
 )
 

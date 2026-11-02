@@ -18,11 +18,8 @@ import (
 var _ ports.EvidenceStorage = (*Garage)(nil)
 
 type GarageConfig struct {
-	// Endpoint is the address the service uses to reach Garage (host:port).
-	Endpoint string
-	UseSSL   bool
-	// PublicURL is the address the browser uses (for example the Cloudflare
-	// tunnel). Signatures bind the Host, so presigned URLs are signed for it.
+	Endpoint  string
+	UseSSL    bool
 	PublicURL string
 	AccessKey string
 	SecretKey string

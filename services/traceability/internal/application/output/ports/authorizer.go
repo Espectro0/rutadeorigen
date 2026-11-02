@@ -12,16 +12,16 @@ import (
 type Action string
 
 const (
-	ActionCreateLot     Action = "lot:create"
-	ActionReadLot       Action = "lot:read"
-	ActionCreateFarm    Action = "farm:create"
-	ActionReadFarm      Action = "farm:read"
-	ActionRegisterStage Action = "lot:register_stage"
-	ActionDeleteFarm    Action = "farm:delete"
-	ActionTransferLot   Action = "lot:transfer"
-	ActionVoidLot       Action = "lot:void"
-	ActionReadActor     Action = "actor:read"
-	ActionGenerateQR    Action = "qr:generate"
+	ActionCreateLot      Action = "lot:create"
+	ActionReadLot        Action = "lot:read"
+	ActionCreateFarm     Action = "farm:create"
+	ActionReadFarm       Action = "farm:read"
+	ActionRegisterStage  Action = "lot:register_stage"
+	ActionDeleteFarm     Action = "farm:delete"
+	ActionTransferLot    Action = "lot:transfer"
+	ActionVoidLot        Action = "lot:void"
+	ActionReadActor      Action = "actor:read"
+	ActionGenerateQR     Action = "qr:generate"
 	ActionUploadEvidence Action = "evidence:upload"
 )
 

@@ -159,10 +159,10 @@ func TestMarkProcessedErrors(t *testing.T) {
 	at := time.Now().UTC()
 
 	tests := []struct {
-		name   string
+		name    string
 		prepare func(*testing.T) *evidence.Evidence
-		sha    string
-		want   exception.Code
+		sha     string
+		want    exception.Code
 	}{
 		{"still pending the upload", mustNew, "abc", exception.CodeEvidenceInvalidResult},
 		{"without hash", uploaded, " ", exception.CodeEvidenceInvalidResult},
