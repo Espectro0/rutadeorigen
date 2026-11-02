@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { DM_Sans, Space_Grotesk, Space_Mono } from "next/font/google";
+import { cookies } from "next/headers";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getTranslations } from "next-intl/server";
+import { TimezoneSync } from "@/components/timezone-sync";
+import { TIMEZONE_COOKIE, isTimeZone } from "@/i18n/config";
 import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -12,6 +15,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const locale = await getLocale();
+  const savedZone = (await cookies()).get(TIMEZONE_COOKIE)?.value;
+  const zone = isTimeZone(savedZone) ? savedZone : undefined;
 
   return (
     <html
@@ -19,7 +24,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       className={`${spaceGrotesk.variable} ${dmSans.variable} ${spaceMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
-        <NextIntlClientProvider>{children}</NextIntlClientProvider>
+        <NextIntlClientProvider>
+          <TimezoneSync current={zone} />
+          {children}
+        </NextIntlClientProvider>
       </body>
     </html>
   );
