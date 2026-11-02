@@ -296,5 +296,10 @@
       "title": "No pudimos cargar el lote",
       "body": "El servicio no está disponible por ahora. Inténtalo de nuevo en unos minutos."
     }
+  },
+  "NotFound": {
+    "title": "Página no encontrada",
+    "body": "La dirección que buscas no existe o fue movida.",
+    "home": "Ir al inicio"
   }
 }

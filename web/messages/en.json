@@ -296,5 +296,10 @@
       "title": "We could not load the lot",
       "body": "The service is not available right now. Please try again in a few minutes."
     }
+  },
+  "NotFound": {
+    "title": "Page not found",
+    "body": "The address you are looking for does not exist or has been moved.",
+    "home": "Go to home"
   }
 }
