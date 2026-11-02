@@ -18,6 +18,7 @@ import (
 	"rutadeorigen/lib/health"
 	"rutadeorigen/lib/logger"
 	libmessaging "rutadeorigen/lib/messaging"
+	evidencestorage "rutadeorigen/traceability/internal/infrastructure/output/external/storage"
 	"rutadeorigen/traceability/internal/infrastructure/output/messaging"
 	"rutadeorigen/traceability/internal/infrastructure/output/repositories/structured/postgres"
 	"rutadeorigen/traceability/internal/platform/catalog"
@@ -45,6 +46,8 @@ func main() {
 	var closers []app.Closer
 	var pool *pgxpool.Pool
 	var brokerLost atomic.Bool
+	var routeOptions []routeOption
+	var consumer *libmessaging.Consumer
 
 	storage := config.String("STORAGE", "postgres")
 	switch storage {
@@ -90,6 +93,38 @@ func main() {
 				stop()
 			}
 		}()
+
+		evidence, err := loadEvidence()
+		if err != nil {
+			log.Error("invalid configuration", "err", err)
+			os.Exit(1)
+		}
+		garage, err := evidencestorage.NewGarage(evidence.garage)
+		if err != nil {
+			log.Error("failed to create garage client", "err", err)
+			os.Exit(1)
+		}
+		checkers = append(checkers, health.NewChecker("garage", garage.Ping))
+		routeOptions = append(routeOptions, withEvidenceStorage(garage), withEvidenceSettings(evidence.settings()))
+
+		consumer, err = libmessaging.NewConsumer(libmessaging.ConsumerConfig{
+			URL:      amqpURL,
+			Queue:    evidenceConsumerQueue,
+			Bindings: evidenceResultEvents,
+		}, log)
+		if err != nil {
+			log.Error("failed to start rabbitmq consumer", "err", err)
+			os.Exit(1)
+		}
+		checkers = append(checkers, health.NewChecker("rabbitmq-consumer", consumer.Ping))
+		closers = append(closers, consumer.Close)
+		go func() {
+			if err := <-consumer.Closed(); err != nil {
+				brokerLost.Store(true)
+				log.Error("rabbitmq consumer connection lost", "err", err)
+				stop()
+			}
+		}()
 	case "memory":
 		log.Warn("STORAGE=memory, using in-memory repositories (development only)")
 	default:
@@ -107,7 +142,16 @@ func main() {
 	mux := http.NewServeMux()
 	h.Register(mux)
 
-	registerRoutes(mux, log, pool, messages, authn)
+	evidenceResults := registerRoutes(mux, log, pool, messages, authn, routeOptions...)
+	if consumer != nil {
+		go func() {
+			if err := consumer.Run(ctx, evidenceResults.Handle); err != nil {
+				brokerLost.Store(true)
+				log.Error("evidence results consumer stopped", "err", err)
+				stop()
+			}
+		}()
+	}
 
 	if err := app.Run(ctx, app.Params{Config: cfg, Logger: log, Handler: mux, Health: h, Closers: closers}); err != nil || brokerLost.Load() {
 		log.Error("service stopped with error", "err", err)

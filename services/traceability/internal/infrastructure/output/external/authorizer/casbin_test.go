@@ -214,3 +214,35 @@ func TestCasbinDeniesByDefault(t *testing.T) {
 		}
 	})
 }
+
+func TestCasbinUploadEvidenceFollowsTheStageAndTheCustody(t *testing.T) {
+	c := newCasbin(t)
+
+	tests := []struct {
+		stage lot.Stage
+		role  actor.Type
+	}{
+		{lot.StageFarm, actor.TypeProducer},
+		{lot.StageRoasting, actor.TypeRoaster},
+		{lot.StagePackaging, actor.TypeBrand},
+	}
+
+	for _, tt := range tests {
+		for _, role := range roles {
+			subject := ports.Subject{ActorID: uuid.New(), Role: role}
+			resource := ports.Resource{Type: ports.ResourceLot, ID: uuid.New(), CustodianID: subject.ActorID, Stage: tt.stage}
+
+			got := decide(t, c, subject, ports.ActionUploadEvidence, resource)
+
+			if want := role == tt.role; got != want {
+				t.Errorf("stage %s, custodian with role %s: got %v, want %v", tt.stage, role, got, want)
+			}
+		}
+
+		subject := ports.Subject{ActorID: uuid.New(), Role: tt.role}
+		notCustodian := ports.Resource{Type: ports.ResourceLot, ID: uuid.New(), CustodianID: uuid.New(), Stage: tt.stage}
+		if decide(t, c, subject, ports.ActionUploadEvidence, notCustodian) {
+			t.Errorf("stage %s: a role without custody must not upload evidence", tt.stage)
+		}
+	}
+}

@@ -16,6 +16,7 @@ const (
 	EventLotTransferred     EventType = "lot.transferred"
 	EventLotVoided          EventType = "lot.voided"
 	EventActorRegistered    EventType = "actor.registered"
+	EventEvidenceUploaded   EventType = "evidence.uploaded"
 )
 
 type AggregateType string
@@ -23,6 +24,7 @@ type AggregateType string
 const (
 	AggregateLot   AggregateType = "lot"
 	AggregateActor AggregateType = "actor"
+	AggregateEvidence AggregateType = "evidence"
 )
 
 type Event struct {
