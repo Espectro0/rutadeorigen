@@ -17,6 +17,8 @@ import { LotCompletedBadge, LotStatusBadge } from "./lot-status-badge";
 import { LotTimeline } from "./lot-timeline";
 import { TransferForm } from "./transfer-form";
 import { VoidDialog } from "./void-dialog";
+import { EvidenceGallery } from "@/features/evidences/components/evidence-gallery";
+import { EvidenceUploader } from "@/features/evidences/components/evidence-uploader";
 import { QrPanel } from "./qr-panel";
 import { StageForm } from "./stage-form";
 import { StageProgress } from "./stage-progress";
@@ -38,7 +40,8 @@ export function LotDetail({ id }: Readonly<{ id: string }>) {
     const dates = useDateFormat();
     const lot = useRemote(`lot:${id}`, () => getLot(id));
     const farms = useRemote("farms", listFarms);
-    const [panel, setPanel] = useState<"stage" | "transfer" | "void" | "qr" | null>(null);
+    const [panel, setPanel] = useState<"stage" | "transfer" | "void" | "qr" | "evidence" | null>(null);
+    const [evidenceRefresh, setEvidenceRefresh] = useState(0);
     const actor = useActor();
 
     const back = (
@@ -81,7 +84,12 @@ export function LotDetail({ id }: Readonly<{ id: string }>) {
     if (transferTarget !== null) handlers["lot:transfer"] = () => setPanel("transfer");
     handlers["lot:void"] = () => setPanel("void");
     handlers["qr:generate"] = () => setPanel("qr");
+    handlers["evidence:upload"] = () => setPanel("evidence");
     const closePanel = () => setPanel(null);
+    const finishEvidence = () => {
+        setPanel(null);
+        setEvidenceRefresh((value) => value + 1);
+    };
     const finishPanel = () => {
         setPanel(null);
         lot.reload();
@@ -116,6 +124,10 @@ export function LotDetail({ id }: Readonly<{ id: string }>) {
             )}
 
             {panel === "qr" && <QrPanel lotId={data.id} code={data.code} onClose={closePanel} />}
+
+            {panel === "evidence" && (
+                <EvidenceUploader lotId={data.id} onDone={finishEvidence} onCancel={closePanel} />
+            )}
 
             {panel === "void" && (
                 <VoidDialog lotId={data.id} version={data.version} onCancel={closePanel} onDone={finishPanel} />
@@ -157,6 +169,8 @@ export function LotDetail({ id }: Readonly<{ id: string }>) {
                     <Field label={t("detail.version")}>{data.version}</Field>
                 </dl>
             </section>
+
+            <EvidenceGallery lotId={data.id} refreshToken={evidenceRefresh} />
 
             <LotTimeline lotId={data.id} version={data.version} />
         </div>

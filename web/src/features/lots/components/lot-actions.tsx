@@ -3,11 +3,12 @@
 import { useTranslations } from "next-intl";
 import type { LotAction } from "../types";
 
-const ORDER: readonly LotAction[] = ["lot:register_stage", "lot:transfer", "qr:generate", "lot:void"];
+const ORDER: readonly LotAction[] = ["lot:register_stage", "lot:transfer", "evidence:upload", "qr:generate", "lot:void"];
 
 const LABEL_KEY = {
     "lot:register_stage": "registerStage",
     "lot:transfer": "transfer",
+    "evidence:upload": "uploadEvidence",
     "qr:generate": "generateQr",
     "lot:void": "void",
 } as const satisfies Record<LotAction, string>;

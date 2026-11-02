@@ -1178,7 +1178,7 @@ func TestGetLotEndToEndAllowedActionsFollowTheCustodyAndTheStage(t *testing.T) {
 	assertActions(t, "roaster on a new lot", allowedActions(t, mux, roasterHeader, created.ID))
 
 	mustRegisterStage(t, mux, created.ID, `"1"`, farmStageBody)
-	assertActions(t, "producer after the farm stage", allowedActions(t, mux, producerHeader, created.ID), "lot:transfer")
+	assertActions(t, "producer after the farm stage", allowedActions(t, mux, producerHeader, created.ID), "lot:transfer", "evidence:upload")
 
 	mustTransfer(t, mux, producerHeader, created.ID, `"2"`, roasterHeader)
 	assertActions(t, "former custodian", allowedActions(t, mux, producerHeader, created.ID))
@@ -1189,7 +1189,7 @@ func TestGetLotEndToEndAllowedActionsFollowTheCustodyAndTheStage(t *testing.T) {
 	assertActions(t, "brand after receiving the roasted lot", allowedActions(t, mux, brandHeader, created.ID), "lot:register_stage")
 
 	mustRegisterStageAs(t, mux, brandHeader, created.ID, `"5"`, packagingStageBody)
-	assertActions(t, "brand with the packaged lot", allowedActions(t, mux, brandHeader, created.ID), "qr:generate")
+	assertActions(t, "brand with the packaged lot", allowedActions(t, mux, brandHeader, created.ID), "evidence:upload", "qr:generate")
 	assertActions(t, "roaster with the packaged lot", allowedActions(t, mux, roasterHeader, created.ID))
 }
 

@@ -16,6 +16,14 @@ type PublicLotDto = Readonly<{
     stage: string;
     status: string;
     updated_at: string;
+    evidences?: readonly PublicEvidenceDto[] | null;
+}>;
+
+type PublicEvidenceDto = Readonly<{
+    id: string;
+    stage: string;
+    thumbnail_url: string;
+    image_url: string;
 }>;
 
 function baseUrl(): string {
@@ -37,6 +45,12 @@ function toPublicLot(dto: PublicLotDto): PublicLot {
         stage: parseLotStage(dto.stage),
         status: parseLotStatus(dto.status),
         updatedAt: dto.updated_at,
+        evidences: (dto.evidences ?? []).map((evidence) => ({
+            id: evidence.id,
+            stage: parseLotStage(evidence.stage),
+            thumbnailUrl: evidence.thumbnail_url,
+            imageUrl: evidence.image_url,
+        })),
     };
 }
 

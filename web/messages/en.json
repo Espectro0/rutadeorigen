@@ -173,7 +173,8 @@
       "transfer": "Transfer",
       "generateQr": "Generate QR",
       "void": "Void lot",
-      "soon": "Coming soon"
+      "soon": "Coming soon",
+      "uploadEvidence": "Upload photo"
     },
     "stageForm": {
       "title": "Register stage: {stage}",
@@ -295,11 +296,40 @@
     "unavailable": {
       "title": "We could not load the lot",
       "body": "The service is not available right now. Please try again in a few minutes."
-    }
+    },
+    "photos": "Photos"
   },
   "NotFound": {
     "title": "Page not found",
     "body": "The address you are looking for does not exist or has been moved.",
     "home": "Go to home"
+  },
+  "Evidences": {
+    "title": "Lot photos",
+    "empty": "There are no photos for this lot yet.",
+    "processing": "Processing…",
+    "rejected": "Photo rejected",
+    "thumbnailAlt": "Lot photo from the {stage} stage",
+    "uploader": {
+      "title": "Upload photo",
+      "file": "Image",
+      "hint": "JPEG, PNG or WebP up to {size} MB.",
+      "previewAlt": "Preview of the selected photo",
+      "uploading": "Uploading…",
+      "submit": "Upload",
+      "cancel": "Cancel",
+      "problems": {
+        "type": "The file must be a JPEG, PNG or WebP image.",
+        "size": "The image is larger than the {size} MB limit."
+      }
+    },
+    "viewer": {
+      "title": "Lot photo",
+      "position": "Photo {current} of {total} · {stage}",
+      "alt": "Lot photo from the {stage} stage",
+      "close": "Close",
+      "previous": "Previous",
+      "next": "Next"
+    }
   }
 }

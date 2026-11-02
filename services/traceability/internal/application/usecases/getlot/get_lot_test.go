@@ -263,21 +263,21 @@ func TestGetLotAllowedActionsFollowTheLotState(t *testing.T) {
 			stages: map[ports.Action]lot.Stage{ports.ActionRegisterStage: lot.StageFarm},
 		},
 		{
-			name:   "a lot at the farm stage can register roasting, transfer or be voided",
+			name:   "a lot at the farm stage can register roasting, transfer, receive evidence or be voided",
 			lot:    lotAt(lot.StageFarm, lot.StatusActive, uuid.New()),
-			asked:  []ports.Action{ports.ActionRegisterStage, ports.ActionTransferLot, ports.ActionVoidLot},
+			asked:  []ports.Action{ports.ActionRegisterStage, ports.ActionTransferLot, ports.ActionUploadEvidence, ports.ActionVoidLot},
 			stages: map[ports.Action]lot.Stage{ports.ActionRegisterStage: lot.StageRoasting},
 		},
 		{
-			name:   "a lot at roasting can register packaging, transfer or be voided",
+			name:   "a lot at roasting can register packaging, transfer, receive evidence or be voided",
 			lot:    lotAt(lot.StageRoasting, lot.StatusActive, uuid.New()),
-			asked:  []ports.Action{ports.ActionRegisterStage, ports.ActionTransferLot, ports.ActionVoidLot},
+			asked:  []ports.Action{ports.ActionRegisterStage, ports.ActionTransferLot, ports.ActionUploadEvidence, ports.ActionVoidLot},
 			stages: map[ports.Action]lot.Stage{ports.ActionRegisterStage: lot.StagePackaging},
 		},
 		{
-			name:  "a packaged lot can only be voided or have its QR generated",
+			name:  "a packaged lot can receive evidence, be voided or have its QR generated",
 			lot:   lotAt(lot.StagePackaging, lot.StatusActive, uuid.New()),
-			asked: []ports.Action{ports.ActionVoidLot, ports.ActionGenerateQR},
+			asked: []ports.Action{ports.ActionUploadEvidence, ports.ActionVoidLot, ports.ActionGenerateQR},
 		},
 		{
 			name:  "a voided lot offers no action",

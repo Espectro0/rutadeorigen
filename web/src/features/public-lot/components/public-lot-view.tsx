@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { LotStatusBadge } from "@/features/lots/components/lot-status-badge";
+import { EvidenceGrid } from "@/features/evidences/components/evidence-grid";
+import type { EvidenceTile } from "@/features/evidences/types";
 import { StageProgress } from "@/features/lots/components/stage-progress";
 import type { PublicLot } from "../types";
 import { UpdatedAt } from "./updated-at";
@@ -12,6 +14,18 @@ function Field({ label, children }: Readonly<{ label: string; children: ReactNod
             <dd className="break-words font-medium">{children}</dd>
         </div>
     );
+}
+
+function toTile(evidence: PublicLot["evidences"][number]): EvidenceTile {
+    return {
+        id: evidence.id,
+        stage: evidence.stage,
+        state: "ready",
+        fileName: "",
+        thumbnailUrl: evidence.thumbnailUrl,
+        imageUrl: evidence.imageUrl,
+        rejectionReason: "",
+    };
 }
 
 export async function PublicLotView({ lot }: Readonly<{ lot: PublicLot }>) {
@@ -64,6 +78,13 @@ export async function PublicLotView({ lot }: Readonly<{ lot: PublicLot }>) {
                     <Field label={t("harvest")}>{harvest}</Field>
                 </dl>
             </section>
+
+            {!voided && lot.evidences.length > 0 && (
+                <section aria-label={t("photos")} className="card p-5">
+                    <h2 className="mb-4 text-lg font-semibold">{t("photos")}</h2>
+                    <EvidenceGrid tiles={lot.evidences.map(toTile)} />
+                </section>
+            )}
 
             <UpdatedAt iso={lot.updatedAt} />
         </div>

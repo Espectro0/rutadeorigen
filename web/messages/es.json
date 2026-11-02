@@ -173,7 +173,8 @@
       "transfer": "Transferir",
       "generateQr": "Generar QR",
       "void": "Anular lote",
-      "soon": "Disponible pronto"
+      "soon": "Disponible pronto",
+      "uploadEvidence": "Subir foto"
     },
     "stageForm": {
       "title": "Registrar etapa: {stage}",
@@ -295,11 +296,40 @@
     "unavailable": {
       "title": "No pudimos cargar el lote",
       "body": "El servicio no está disponible por ahora. Inténtalo de nuevo en unos minutos."
-    }
+    },
+    "photos": "Fotos"
   },
   "NotFound": {
     "title": "Página no encontrada",
     "body": "La dirección que buscas no existe o fue movida.",
     "home": "Ir al inicio"
+  },
+  "Evidences": {
+    "title": "Fotos del lote",
+    "empty": "Aún no hay fotos para este lote.",
+    "processing": "Procesando…",
+    "rejected": "Foto rechazada",
+    "thumbnailAlt": "Foto del lote en la etapa {stage}",
+    "uploader": {
+      "title": "Subir foto",
+      "file": "Imagen",
+      "hint": "JPEG, PNG o WebP de hasta {size} MB.",
+      "previewAlt": "Vista previa de la foto seleccionada",
+      "uploading": "Subiendo…",
+      "submit": "Subir",
+      "cancel": "Cancelar",
+      "problems": {
+        "type": "El archivo debe ser una imagen JPEG, PNG o WebP.",
+        "size": "La imagen supera los {size} MB permitidos."
+      }
+    },
+    "viewer": {
+      "title": "Foto del lote",
+      "position": "Foto {current} de {total} · {stage}",
+      "alt": "Foto del lote en la etapa {stage}",
+      "close": "Cerrar",
+      "previous": "Anterior",
+      "next": "Siguiente"
+    }
   }
 }
