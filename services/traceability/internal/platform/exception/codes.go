@@ -51,6 +51,19 @@ const (
 	CodeFarmNotFound        Code = "TRACEABILITY_FARM_NOT_FOUND"
 	CodeFarmHasLots         Code = "TRACEABILITY_FARM_HAS_LOTS"
 
+	CodeEvidenceInvalidFileName    Code = "TRACEABILITY_EVIDENCE_INVALID_FILE_NAME"
+	CodeEvidenceInvalidContentType Code = "TRACEABILITY_EVIDENCE_INVALID_CONTENT_TYPE"
+	CodeEvidenceEmptyFile          Code = "TRACEABILITY_EVIDENCE_EMPTY_FILE"
+	CodeEvidenceTooLarge           Code = "TRACEABILITY_EVIDENCE_TOO_LARGE"
+	CodeEvidenceLotWithoutStage    Code = "TRACEABILITY_EVIDENCE_LOT_WITHOUT_STAGE"
+	CodeEvidenceNotFound           Code = "TRACEABILITY_EVIDENCE_NOT_FOUND"
+	CodeEvidenceAlreadyFinal       Code = "TRACEABILITY_EVIDENCE_ALREADY_FINAL"
+	CodeEvidenceInvalidResult      Code = "TRACEABILITY_EVIDENCE_INVALID_RESULT"
+	CodeEvidenceFileMissing        Code = "TRACEABILITY_EVIDENCE_FILE_MISSING"
+	CodeEvidenceFileMismatch       Code = "TRACEABILITY_EVIDENCE_FILE_MISMATCH"
+	CodeEvidenceStorageUnavailable Code = "TRACEABILITY_EVIDENCE_STORAGE_UNAVAILABLE"
+	CodeEventInvalidPayload        Code = "TRACEABILITY_EVENT_INVALID_PAYLOAD"
+
 	CodeStageInvalidDryingMethod    Code = "TRACEABILITY_STAGE_INVALID_DRYING_METHOD"
 	CodeStageInvalidDryingDays      Code = "TRACEABILITY_STAGE_INVALID_DRYING_DAYS"
 	CodeStageInvalidMoisture        Code = "TRACEABILITY_STAGE_INVALID_MOISTURE"
@@ -113,6 +126,19 @@ var kindByCode = map[Code]Kind{
 	CodeFarmInvalidAltitude: KindValidation,
 	CodeFarmNotFound:        KindNotFound,
 	CodeFarmHasLots:         KindConflict,
+
+	CodeEvidenceInvalidFileName:    KindValidation,
+	CodeEvidenceInvalidContentType: KindValidation,
+	CodeEvidenceEmptyFile:          KindValidation,
+	CodeEvidenceTooLarge:           KindValidation,
+	CodeEvidenceLotWithoutStage:    KindConflict,
+	CodeEvidenceNotFound:           KindNotFound,
+	CodeEvidenceAlreadyFinal:       KindConflict,
+	CodeEvidenceInvalidResult:      KindValidation,
+	CodeEvidenceFileMissing:        KindConflict,
+	CodeEvidenceFileMismatch:       KindConflict,
+	CodeEvidenceStorageUnavailable: KindUnavailable,
+	CodeEventInvalidPayload:        KindValidation,
 
 	CodeStageInvalidDryingMethod:    KindValidation,
 	CodeStageInvalidDryingDays:      KindValidation,

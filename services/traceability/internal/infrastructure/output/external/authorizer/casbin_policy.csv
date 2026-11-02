@@ -11,3 +11,6 @@ p, producer, lot, lot:transfer, *, custodian
 p, roaster, lot, lot:transfer, *, custodian
 p, organization, lot, lot:void, *, any
 p, brand, lot, qr:generate, packaging, custodian
+p, producer, lot, evidence:upload, farm, custodian
+p, roaster, lot, evidence:upload, roasting, custodian
+p, brand, lot, evidence:upload, packaging, custodian

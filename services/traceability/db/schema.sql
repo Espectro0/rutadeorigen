@@ -71,3 +71,22 @@ CREATE TABLE IF NOT EXISTS outbox (
 );
 
 CREATE INDEX IF NOT EXISTS outbox_unpublished_idx ON outbox (created_at) WHERE published_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS evidence (
+    id               UUID        PRIMARY KEY,
+    lot_id           UUID        NOT NULL REFERENCES lot (id),
+    stage            TEXT        NOT NULL CHECK (stage IN ('farm', 'roasting', 'packaging')),
+    uploaded_by      UUID        NOT NULL REFERENCES actor (id),
+    file_name        TEXT        NOT NULL,
+    content_type     TEXT        NOT NULL CHECK (content_type IN ('image/jpeg', 'image/png', 'image/webp')),
+    size_bytes       BIGINT      NOT NULL CHECK (size_bytes > 0),
+    status           TEXT        NOT NULL CHECK (status IN ('pending_upload', 'uploaded', 'processed', 'rejected')),
+    sha256           TEXT        NOT NULL DEFAULT '',
+    final_key        TEXT        NOT NULL DEFAULT '',
+    thumbnail_key    TEXT        NOT NULL DEFAULT '',
+    rejection_reason TEXT        NOT NULL DEFAULT '',
+    created_at       TIMESTAMPTZ NOT NULL,
+    processed_at     TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS evidence_lot_created_at_idx ON evidence (lot_id, created_at DESC, id DESC);

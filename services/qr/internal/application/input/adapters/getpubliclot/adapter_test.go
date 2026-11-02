@@ -10,6 +10,8 @@ import (
 
 	"rutadeorigen/qr/internal/application/input/adapters/getpubliclot"
 	"rutadeorigen/qr/internal/application/input/dto/request"
+	listpublicevidencesuc "rutadeorigen/qr/internal/application/usecases/listpublicevidences"
+	"rutadeorigen/qr/internal/domain/evidenceview"
 	"rutadeorigen/qr/internal/domain/lotview"
 	"rutadeorigen/qr/internal/platform/exception"
 )
@@ -99,4 +101,67 @@ func TestAdapterExecute(t *testing.T) {
 			t.Errorf("got %+v, want an empty response", got)
 		}
 	})
+}
+
+type fakeEvidences struct {
+	items []listpublicevidencesuc.Item
+	err   error
+	got   *lotview.LotView
+}
+
+func (f *fakeEvidences) Execute(_ context.Context, view *lotview.LotView) ([]listpublicevidencesuc.Item, error) {
+	f.got = view
+	return f.items, f.err
+}
+
+func TestAdapterIncludesEvidences(t *testing.T) {
+	view := existingView()
+	evidence, err := evidenceview.New(evidenceview.NewParams{
+		EvidenceID: uuid.New(), LotID: view.LotID(), Stage: lotview.StageFarm,
+		FinalKey: "k/imagen.jpg", ThumbnailKey: "k/miniatura.webp", ContentType: "image/jpeg",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	evidences := &fakeEvidences{items: []listpublicevidencesuc.Item{{
+		Evidence: evidence, ThumbnailURL: "https://signed/t", ImageURL: "https://signed/i",
+	}}}
+
+	got, err := getpubliclot.New(&fakeUseCase{result: view}).WithEvidences(evidences).
+		Execute(context.Background(), request.GetPublicLot{ID: view.LotID().String()})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if evidences.got != view {
+		t.Error("the evidences use case must receive the lot view")
+	}
+	if len(got.Evidences) != 1 || got.Evidences[0].ID != evidence.EvidenceID().String() ||
+		got.Evidences[0].Stage != "farm" || got.Evidences[0].ThumbnailURL != "https://signed/t" ||
+		got.Evidences[0].ImageURL != "https://signed/i" {
+		t.Errorf("unexpected evidences %+v", got.Evidences)
+	}
+}
+
+func TestAdapterReturnsEvidenceErrors(t *testing.T) {
+	boom := errors.New("db down")
+	view := existingView()
+
+	got, err := getpubliclot.New(&fakeUseCase{result: view}).WithEvidences(&fakeEvidences{err: boom}).
+		Execute(context.Background(), request.GetPublicLot{ID: view.LotID().String()})
+
+	if !errors.Is(err, boom) || got.ID != "" {
+		t.Errorf("want the error and an empty response, got %+v %v", got, err)
+	}
+}
+
+func TestAdapterWithoutEvidencesOmitsThem(t *testing.T) {
+	view := existingView()
+
+	got, err := getpubliclot.New(&fakeUseCase{result: view}).
+		Execute(context.Background(), request.GetPublicLot{ID: view.LotID().String()})
+
+	if err != nil || len(got.Evidences) != 0 {
+		t.Errorf("want no evidences, got %+v %v", got.Evidences, err)
+	}
 }

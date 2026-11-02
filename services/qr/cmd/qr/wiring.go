@@ -13,6 +13,7 @@ import (
 	getqrimageadapter "rutadeorigen/qr/internal/application/input/adapters/getqrimage"
 	getscanstatsadapter "rutadeorigen/qr/internal/application/input/adapters/getscanstats"
 	projectactorregisteredadapter "rutadeorigen/qr/internal/application/input/adapters/projectactorregistered"
+	projectevidenceprocessedadapter "rutadeorigen/qr/internal/application/input/adapters/projectevidenceprocessed"
 	projectlotcreatedadapter "rutadeorigen/qr/internal/application/input/adapters/projectlotcreated"
 	projectlotstageadapter "rutadeorigen/qr/internal/application/input/adapters/projectlotstage"
 	projectlottransferredadapter "rutadeorigen/qr/internal/application/input/adapters/projectlottransferred"
@@ -23,7 +24,9 @@ import (
 	getpubliclotuc "rutadeorigen/qr/internal/application/usecases/getpubliclot"
 	getqrimageuc "rutadeorigen/qr/internal/application/usecases/getqrimage"
 	getscanstatsuc "rutadeorigen/qr/internal/application/usecases/getscanstats"
+	listpublicevidencesuc "rutadeorigen/qr/internal/application/usecases/listpublicevidences"
 	projectactorregistereduc "rutadeorigen/qr/internal/application/usecases/projectactorregistered"
+	projectevidenceprocesseduc "rutadeorigen/qr/internal/application/usecases/projectevidenceprocessed"
 	projectlotcreateduc "rutadeorigen/qr/internal/application/usecases/projectlotcreated"
 	projectlotstageuc "rutadeorigen/qr/internal/application/usecases/projectlotstage"
 	projectlottransferreduc "rutadeorigen/qr/internal/application/usecases/projectlottransferred"
@@ -35,6 +38,7 @@ import (
 	inmessaging "rutadeorigen/qr/internal/infrastructure/input/messaging"
 	"rutadeorigen/qr/internal/infrastructure/output/external/authorizer"
 	"rutadeorigen/qr/internal/infrastructure/output/external/renderer"
+	evidencestorage "rutadeorigen/qr/internal/infrastructure/output/external/storage"
 	semimemory "rutadeorigen/qr/internal/infrastructure/output/repositories/semistructured/memory"
 	semiredis "rutadeorigen/qr/internal/infrastructure/output/repositories/semistructured/redis"
 	"rutadeorigen/qr/internal/infrastructure/output/repositories/structured/memory"
@@ -46,6 +50,8 @@ type dependencies struct {
 	redis         *goredis.Client
 	publicBaseURL string
 	cacheTTL      time.Duration
+	viewer        ports.EvidenceViewer
+	evidence      listpublicevidencesuc.Settings
 }
 
 type outputs struct {
@@ -55,6 +61,8 @@ type outputs struct {
 	rules     ports.RedirectRepository
 	scans     ports.ScanRepository
 	processed ports.ProcessedEventRepository
+	evidences ports.EvidenceViewRepository
+	viewer    ports.EvidenceViewer
 	cache     ports.LotViewCache
 	tx        ports.TxManager
 }
@@ -69,7 +77,9 @@ func registerRoutes(mux *http.ServeMux, log *slog.Logger, catalog *catalog.Catal
 	projectActorRegistered := projectactorregisteredadapter.New(projectactorregistereduc.New(out.actors, out.processed, out.tx))
 	projectLotTransferred := projectlottransferredadapter.New(projectlottransferreduc.New(out.views, out.processed, out.cache, out.tx))
 	projectLotVoided := projectlotvoidedadapter.New(projectlotvoideduc.New(out.views, out.processed, out.cache, out.tx))
-	getPublicLot := getpubliclotadapter.New(getpubliclotuc.New(out.views, out.cache))
+	projectEvidenceProcessed := projectevidenceprocessedadapter.New(projectevidenceprocesseduc.New(out.evidences, out.processed, out.tx))
+	getPublicLot := getpubliclotadapter.New(getpubliclotuc.New(out.views, out.cache)).
+		WithEvidences(listpublicevidencesuc.New(out.evidences, out.viewer, evidenceSettings(deps.evidence)))
 	resolveScan := resolvescanadapter.New(resolvescanuc.New(out.rules, out.views, out.cache, out.scans))
 	getQRImage := getqrimageadapter.New(getqrimageuc.New(out.views, out.cache, out.codes, renderer.NewGoQRCodeRenderer(), auth, deps.publicBaseURL))
 
@@ -85,7 +95,26 @@ func registerRoutes(mux *http.ServeMux, log *slog.Logger, catalog *catalog.Catal
 	return inmessaging.NewLotEventsHandler(projectLotCreated, projectLotStaged).
 		WithActorRegistered(projectActorRegistered).
 		WithLotTransferred(projectLotTransferred).
-		WithLotVoided(projectLotVoided)
+		WithLotVoided(projectLotVoided).
+		WithEvidenceProcessed(projectEvidenceProcessed)
+}
+
+func evidenceSettings(configured listpublicevidencesuc.Settings) listpublicevidencesuc.Settings {
+	settings := defaultEvidenceSettings()
+	if configured.ViewTTL > 0 {
+		settings.ViewTTL = configured.ViewTTL
+	}
+	if configured.MaxPerLot > 0 {
+		settings.MaxPerLot = configured.MaxPerLot
+	}
+	return settings
+}
+
+func evidenceViewer(configured ports.EvidenceViewer) ports.EvidenceViewer {
+	if configured == nil {
+		return evidencestorage.NewMemory()
+	}
+	return configured
 }
 
 func newOutputs(deps dependencies) outputs {
@@ -100,6 +129,8 @@ func newOutputs(deps dependencies) outputs {
 		rules:     postgres.NewRedirectRepository(deps.pool),
 		scans:     postgres.NewScanRepository(deps.pool),
 		processed: postgres.NewProcessedEventRepository(deps.pool),
+		evidences: postgres.NewEvidenceViewRepository(deps.pool),
+		viewer:    evidenceViewer(deps.viewer),
 		cache:     semiredis.NewLotViewCache(deps.redis, deps.cacheTTL),
 		tx:        postgres.NewTxManager(deps.pool),
 	}
@@ -113,6 +144,8 @@ func memoryOutputs() outputs {
 		rules:     memory.NewRedirectRepository(seedRedirects()...),
 		scans:     memory.NewScanRepository(),
 		processed: memory.NewProcessedEventRepository(),
+		evidences: memory.NewEvidenceViewRepository(),
+		viewer:    evidencestorage.NewMemory(),
 		cache:     semimemory.NewLotViewCache(),
 		tx:        memory.NewTxManager(),
 	}

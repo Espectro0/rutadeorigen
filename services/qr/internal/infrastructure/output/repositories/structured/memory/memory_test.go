@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"rutadeorigen/qr/internal/domain/actorview"
+	"rutadeorigen/qr/internal/domain/evidenceview"
 	"rutadeorigen/qr/internal/domain/lotview"
 	"rutadeorigen/qr/internal/domain/qrcode"
 	"rutadeorigen/qr/internal/domain/redirect"
@@ -277,5 +278,53 @@ func TestScanRepositoryStatsOfALotWithoutScans(t *testing.T) {
 
 	if err != nil || got.HasScans() || got.Daily() == nil || len(got.Daily()) != 0 {
 		t.Errorf("expected empty stats, got %+v and %v", got, err)
+	}
+}
+
+func TestEvidenceViewRepositoryListsByLotInOrderWithLimit(t *testing.T) {
+	repository := memory.NewEvidenceViewRepository()
+	lotID, otherLotID := uuid.New(), uuid.New()
+	base := time.Date(2026, time.November, 2, 10, 0, 0, 0, time.UTC)
+
+	save := func(lot uuid.UUID, minutes int) *evidenceview.EvidenceView {
+		view, err := evidenceview.New(evidenceview.NewParams{
+			EvidenceID: uuid.New(), LotID: lot, Stage: lotview.StageFarm,
+			FinalKey: "k/i.jpg", ThumbnailKey: "k/t.webp", ContentType: "image/jpeg",
+			ProcessedAt: base.Add(time.Duration(minutes) * time.Minute),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := repository.Save(context.Background(), view); err != nil {
+			t.Fatal(err)
+		}
+		return view
+	}
+	late, early, _ := save(lotID, 30), save(lotID, 5), save(otherLotID, 1)
+
+	all, _ := repository.ListByLotID(context.Background(), lotID, 10)
+	if len(all) != 2 || all[0].EvidenceID() != early.EvidenceID() || all[1].EvidenceID() != late.EvidenceID() {
+		t.Errorf("want the lot's two views oldest first, got %+v", all)
+	}
+
+	limited, _ := repository.ListByLotID(context.Background(), lotID, 1)
+	if len(limited) != 1 {
+		t.Errorf("want the limit to apply, got %d", len(limited))
+	}
+}
+
+func TestEvidenceViewRepositorySaveIsIdempotent(t *testing.T) {
+	repository := memory.NewEvidenceViewRepository()
+	lotID := uuid.New()
+	view, _ := evidenceview.New(evidenceview.NewParams{
+		EvidenceID: uuid.New(), LotID: lotID, Stage: lotview.StageRoasting,
+		FinalKey: "k/i.png", ThumbnailKey: "k/t.webp", ContentType: "image/png",
+	})
+
+	_ = repository.Save(context.Background(), view)
+	_ = repository.Save(context.Background(), view)
+
+	if listed, _ := repository.ListByLotID(context.Background(), lotID, 10); len(listed) != 1 {
+		t.Errorf("want one view, got %d", len(listed))
 	}
 }

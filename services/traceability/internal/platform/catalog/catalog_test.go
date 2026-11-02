@@ -20,6 +20,8 @@ var paramsByCode = map[exception.Code][]string{
 	exception.CodeStageInvalidDryingDays:    {"min", "max"},
 	exception.CodeStageInvalidMoisture:      {"min", "max"},
 	exception.CodeStageInvalidRoastDuration: {"min", "max"},
+	exception.CodeEvidenceInvalidFileName:   {"min", "max"},
+	exception.CodeEvidenceTooLarge:          {"max"},
 }
 
 func newCatalog(t *testing.T) *libcatalog.Catalog {

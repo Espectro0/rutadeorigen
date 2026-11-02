@@ -1,0 +1,14 @@
+PROCESSOR_EVENT_INVALID_PAYLOAD: "El contenido del evento recibido no es válido."
+PROCESSOR_EVIDENCE_KEY_MISMATCH: "La ubicación del archivo no corresponde a la evidencia indicada."
+
+PROCESSOR_FILE_MISSING: "El archivo ya no está disponible para procesarse. Vuelve a subirlo."
+PROCESSOR_FILE_TOO_LARGE: "El archivo supera el tamaño máximo de {max} MB."
+PROCESSOR_FILE_SIZE_MISMATCH: "El tamaño del archivo no coincide con el declarado al subirlo."
+
+PROCESSOR_IMAGE_UNSUPPORTED_FORMAT: "El archivo no es una imagen JPEG, PNG o WebP válida."
+PROCESSOR_IMAGE_CORRUPT: "La imagen está dañada y no se pudo leer."
+PROCESSOR_IMAGE_INVALID_DIMENSIONS: "Las dimensiones de la imagen no son válidas."
+PROCESSOR_IMAGE_TOO_MANY_PIXELS: "La imagen es demasiado grande: no puede superar {max} megapíxeles."
+PROCESSOR_IMAGE_PROCESSING_FAILED: "No se pudo procesar la imagen."
+
+PROCESSOR_STORAGE_UNAVAILABLE: "El almacenamiento de evidencias no está disponible en este momento."
