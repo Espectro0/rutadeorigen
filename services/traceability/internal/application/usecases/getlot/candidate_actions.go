@@ -26,6 +26,9 @@ func candidateActions(l *lot.Lot) []candidate {
 	if hasNext && l.HasEvents() {
 		candidates = append(candidates, candidate{action: ports.ActionTransferLot, stage: current})
 	}
+	if current != lot.StageNone {
+		candidates = append(candidates, candidate{action: ports.ActionUploadEvidence, stage: current})
+	}
 	candidates = append(candidates, candidate{action: ports.ActionVoidLot, stage: current})
 	if current == lot.StagePackaging {
 		candidates = append(candidates, candidate{action: ports.ActionGenerateQR, stage: current})
