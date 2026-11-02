@@ -270,5 +270,31 @@
     "chartLabel": "Gráfica de escaneos de los últimos {days} días: {total} en total",
     "empty": "Este lote aún no tiene escaneos.",
     "notAllowed": "Solo la organización puede ver las estadísticas de escaneos."
+  },
+  "Public": {
+    "metaTitle": "Lote {code}",
+    "metaTitleFallback": "Lote no disponible",
+    "metaDescription": "{variety} de {farm}, cultivado por {producer}.",
+    "voided": "Este lote fue anulado",
+    "inProcess": "Este lote aún está en proceso",
+    "origin": "Origen",
+    "farm": "Finca",
+    "altitude": "Altitud",
+    "altitudeValue": "{value} msnm",
+    "producer": "Productor",
+    "coffee": "Café",
+    "variety": "Variedad",
+    "process": "Proceso",
+    "harvest": "Cosecha",
+    "updated": "Actualizado el {date}",
+    "home": "Ir al inicio",
+    "notFound": {
+      "title": "No encontramos este lote",
+      "body": "Revisa que el código QR esté completo o intenta escanearlo de nuevo."
+    },
+    "unavailable": {
+      "title": "No pudimos cargar el lote",
+      "body": "El servicio no está disponible por ahora. Inténtalo de nuevo en unos minutos."
+    }
   }
 }
