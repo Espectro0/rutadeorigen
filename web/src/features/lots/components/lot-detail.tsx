@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { listFarms } from "@/features/farms/api";
 import Link from "next/link";
@@ -9,8 +9,16 @@ import { useDateFormat } from "@/lib/use-date-format";
 import { useDescribeError } from "@/lib/use-describe-error";
 import { useRemote } from "@/lib/use-remote";
 import { getLot } from "../api";
-import { LOT_STAGES, type Lot } from "../types";
-import { LotStatusBadge } from "./lot-status-badge";
+import { transferTargetFor } from "@/features/session/permissions";
+import { useActor } from "@/features/session/session-provider";
+import { LOT_STAGES, nextStage, type Lot, type LotAction } from "../types";
+import { LotActions } from "./lot-actions";
+import { LotCompletedBadge, LotStatusBadge } from "./lot-status-badge";
+import { LotTimeline } from "./lot-timeline";
+import { TransferForm } from "./transfer-form";
+import { VoidDialog } from "./void-dialog";
+import { QrPanel } from "./qr-panel";
+import { StageForm } from "./stage-form";
 
 const PROGRESS_STAGES = LOT_STAGES.filter((stage) => stage !== "none");
 
@@ -26,10 +34,13 @@ function Field({ label, children }: Readonly<{ label: string; children: ReactNod
 export function LotDetail({ id }: Readonly<{ id: string }>) {
     const t = useTranslations("Lots");
     const common = useTranslations("Common");
+    const stats = useTranslations("Stats");
     const describe = useDescribeError();
     const dates = useDateFormat();
     const lot = useRemote(`lot:${id}`, () => getLot(id));
     const farms = useRemote("farms", listFarms);
+    const [panel, setPanel] = useState<"stage" | "transfer" | "void" | "qr" | null>(null);
+    const actor = useActor();
 
     const back = (
         <Link href="/lots" className="text-sm underline-offset-2 hover:underline">
@@ -65,6 +76,18 @@ export function LotDetail({ id }: Readonly<{ id: string }>) {
     const data = lot.data as Lot;
     const farmName = (farms.data ?? []).find((farm) => farm.id === data.farmId)?.name ?? data.farmId;
     const currentIndex = PROGRESS_STAGES.findIndex((stage) => stage === data.stage);
+    const upcoming = nextStage(data.stage);
+    const transferTarget = transferTargetFor(actor.type);
+    const handlers: Partial<Record<LotAction, () => void>> = {};
+    if (upcoming !== null) handlers["lot:register_stage"] = () => setPanel("stage");
+    if (transferTarget !== null) handlers["lot:transfer"] = () => setPanel("transfer");
+    handlers["lot:void"] = () => setPanel("void");
+    handlers["qr:generate"] = () => setPanel("qr");
+    const closePanel = () => setPanel(null);
+    const finishPanel = () => {
+        setPanel(null);
+        lot.reload();
+    };
 
     return (
         <div className="flex flex-col gap-6">
@@ -73,7 +96,42 @@ export function LotDetail({ id }: Readonly<{ id: string }>) {
             <div className="flex flex-wrap items-center gap-3">
                 <h1 className="text-2xl font-semibold tracking-tight">{data.code}</h1>
                 <LotStatusBadge status={data.status} label={t(`status.${data.status}`)} />
+                {data.completed && <LotCompletedBadge label={t("completed")} />}
             </div>
+
+            <LotActions allowed={data.allowedActions} handlers={handlers} />
+
+            {actor.type === "organization" && (
+                <Link href={`/lots/${data.id}/stats`} className="w-fit text-sm underline-offset-2 hover:underline">
+                    {stats("link")}
+                </Link>
+            )}
+
+            {panel === "stage" && upcoming !== null && (
+                <StageForm
+                    lotId={data.id}
+                    version={data.version}
+                    stage={upcoming}
+                    onCancel={closePanel}
+                    onDone={finishPanel}
+                />
+            )}
+
+            {panel === "qr" && <QrPanel lotId={data.id} code={data.code} onClose={closePanel} />}
+
+            {panel === "void" && (
+                <VoidDialog lotId={data.id} version={data.version} onCancel={closePanel} onDone={finishPanel} />
+            )}
+
+            {panel === "transfer" && transferTarget !== null && (
+                <TransferForm
+                    lotId={data.id}
+                    version={data.version}
+                    targetType={transferTarget}
+                    onCancel={closePanel}
+                    onDone={finishPanel}
+                />
+            )}
 
             {data.status === "voided" && data.voidReason !== "" && (
                 <p role="status" className="rounded-lg bg-terracotta/15 p-4 text-sm text-terracotta">
@@ -138,6 +196,8 @@ export function LotDetail({ id }: Readonly<{ id: string }>) {
                     <Field label={t("detail.version")}>{data.version}</Field>
                 </dl>
             </section>
+
+            <LotTimeline lotId={data.id} version={data.version} />
         </div>
     );
 }

@@ -87,7 +87,8 @@
     "columns": {
       "name": "Name",
       "altitude": "Altitude",
-      "createdAt": "Registered"
+      "createdAt": "Registered",
+      "actions": "Actions"
     },
     "new": "New farm",
     "form": {
@@ -95,6 +96,14 @@
       "name": "Name",
       "altitude": "Altitude (masl)",
       "submit": "Save",
+      "cancel": "Cancel"
+    },
+    "delete": {
+      "action": "Delete",
+      "title": "Delete farm",
+      "confirm": "Are you sure you want to delete the farm {name}? This cannot be undone.",
+      "hint": "Only a farm without lots can be deleted.",
+      "submit": "Delete",
       "cancel": "Cancel"
     }
   },
@@ -157,6 +166,109 @@
       "harvestDate": "Harvest date",
       "submit": "Save",
       "cancel": "Cancel"
-    }
+    },
+    "actions": {
+      "title": "Lot actions",
+      "registerStage": "Register stage",
+      "transfer": "Transfer",
+      "generateQr": "Generate QR",
+      "void": "Void lot",
+      "soon": "Coming soon"
+    },
+    "stageForm": {
+      "title": "Register stage: {stage}",
+      "eventDate": "Event date",
+      "note": "Note (optional)",
+      "placeholder": "Select an option",
+      "submit": "Register",
+      "cancel": "Cancel",
+      "fields": {
+        "drying_method": "Drying method",
+        "drying_days": "Drying days",
+        "moisture_percent": "Moisture (%)",
+        "parchment_weight_kg": "Parchment weight (kg)",
+        "roast_level": "Roast level",
+        "duration_minutes": "Duration (minutes)",
+        "green_weight_kg": "Green weight (kg)",
+        "roasted_weight_kg": "Roasted weight (kg)",
+        "grind": "Grind",
+        "package_weight_g": "Package weight",
+        "units": "Units",
+        "best_before": "Best before"
+      },
+      "options": {
+        "sun_patio": "Sun patio",
+        "african_bed": "African bed",
+        "greenhouse": "Greenhouse",
+        "mechanical": "Mechanical",
+        "light": "Light",
+        "medium": "Medium",
+        "dark": "Dark",
+        "whole_bean": "Whole bean",
+        "ground": "Ground"
+      }
+    },
+    "transferForm": {
+      "title": "Transfer lot",
+      "target": "Recipient ({type})",
+      "placeholder": "Select a recipient",
+      "empty": "There are no {type} actors available.",
+      "note": "Note (optional)",
+      "submit": "Transfer",
+      "cancel": "Cancel"
+    },
+    "voidDialog": {
+      "title": "Void lot",
+      "warning": "This action cannot be undone. The lot will be voided, it can no longer be modified, and its QR will stop working. The history is kept.",
+      "reason": "Reason for voiding",
+      "submit": "Void lot",
+      "cancel": "Cancel"
+    },
+    "qrPanel": {
+      "title": "Lot QR code",
+      "size": "Size",
+      "format": "Format",
+      "alt": "QR code of lot {code}",
+      "download": "Download",
+      "close": "Close"
+    },
+    "timeline": {
+      "title": "History",
+      "empty": "This lot has no recorded events yet.",
+      "chainValid": "Chain verified",
+      "chainBroken": "Invalid chain",
+      "chainBrokenHelp": "The hash chain is not valid: the history may have been tampered with.",
+      "by": "Recorded by {role}",
+      "hash": "Hash",
+      "type": {
+        "transfer": "Transfer",
+        "correction": "Correction"
+      }
+    },
+    "filters": {
+      "label": "Filters",
+      "status": "Status",
+      "stage": "Stage",
+      "farm": "Farm",
+      "all": "All",
+      "allFarms": "All",
+      "clear": "Clear filters"
+    },
+    "completed": "Completed",
+    "emptyFiltered": "No lots match the filters."
+  },
+  "Stats": {
+    "title": "Scan statistics",
+    "back": "Back to lot",
+    "link": "View scan statistics",
+    "period": "Period",
+    "daysOption": "Last {days} days",
+    "total": "Total scans",
+    "first": "First scan",
+    "last": "Last scan",
+    "chartTitle": "Scans per day",
+    "chartLabel": "Chart of scans over the last {days} days: {total} in total",
+    "empty": "This lot has no scans yet.",
+    "notAllowed": "Only the organization can view scan statistics."
   }
 }

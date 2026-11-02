@@ -87,7 +87,8 @@
     "columns": {
       "name": "Nombre",
       "altitude": "Altitud",
-      "createdAt": "Registrada"
+      "createdAt": "Registrada",
+      "actions": "Acciones"
     },
     "new": "Nueva finca",
     "form": {
@@ -95,6 +96,14 @@
       "name": "Nombre",
       "altitude": "Altitud (msnm)",
       "submit": "Guardar",
+      "cancel": "Cancelar"
+    },
+    "delete": {
+      "action": "Eliminar",
+      "title": "Eliminar finca",
+      "confirm": "¿Seguro que quieres eliminar la finca {name}? Esta acción no se puede deshacer.",
+      "hint": "Solo se puede eliminar una finca que no tenga lotes.",
+      "submit": "Eliminar",
       "cancel": "Cancelar"
     }
   },
@@ -157,6 +166,109 @@
       "harvestDate": "Fecha de cosecha",
       "submit": "Guardar",
       "cancel": "Cancelar"
-    }
+    },
+    "actions": {
+      "title": "Acciones del lote",
+      "registerStage": "Registrar etapa",
+      "transfer": "Transferir",
+      "generateQr": "Generar QR",
+      "void": "Anular lote",
+      "soon": "Disponible pronto"
+    },
+    "stageForm": {
+      "title": "Registrar etapa: {stage}",
+      "eventDate": "Fecha del evento",
+      "note": "Nota (opcional)",
+      "placeholder": "Selecciona una opción",
+      "submit": "Registrar",
+      "cancel": "Cancelar",
+      "fields": {
+        "drying_method": "Método de secado",
+        "drying_days": "Días de secado",
+        "moisture_percent": "Humedad (%)",
+        "parchment_weight_kg": "Peso en pergamino (kg)",
+        "roast_level": "Nivel de tostión",
+        "duration_minutes": "Duración (minutos)",
+        "green_weight_kg": "Peso en verde (kg)",
+        "roasted_weight_kg": "Peso tostado (kg)",
+        "grind": "Molienda",
+        "package_weight_g": "Peso del empaque",
+        "units": "Unidades",
+        "best_before": "Consumir preferentemente antes de"
+      },
+      "options": {
+        "sun_patio": "Patio al sol",
+        "african_bed": "Cama africana",
+        "greenhouse": "Invernadero",
+        "mechanical": "Mecánico",
+        "light": "Claro",
+        "medium": "Medio",
+        "dark": "Oscuro",
+        "whole_bean": "Grano entero",
+        "ground": "Molido"
+      }
+    },
+    "transferForm": {
+      "title": "Transferir lote",
+      "target": "Destinatario ({type})",
+      "placeholder": "Selecciona un destinatario",
+      "empty": "No hay actores de tipo {type} disponibles.",
+      "note": "Nota (opcional)",
+      "submit": "Transferir",
+      "cancel": "Cancelar"
+    },
+    "voidDialog": {
+      "title": "Anular lote",
+      "warning": "Esta acción es irreversible. El lote quedará anulado, no se podrá modificar y su QR dejará de funcionar. El historial se conserva.",
+      "reason": "Motivo de la anulación",
+      "submit": "Anular lote",
+      "cancel": "Cancelar"
+    },
+    "qrPanel": {
+      "title": "Código QR del lote",
+      "size": "Tamaño",
+      "format": "Formato",
+      "alt": "Código QR del lote {code}",
+      "download": "Descargar",
+      "close": "Cerrar"
+    },
+    "timeline": {
+      "title": "Historial",
+      "empty": "Este lote aún no tiene eventos registrados.",
+      "chainValid": "Cadena verificada",
+      "chainBroken": "Cadena inválida",
+      "chainBrokenHelp": "La cadena de hashes no es válida: el historial pudo haber sido alterado.",
+      "by": "Registrado por {role}",
+      "hash": "Hash",
+      "type": {
+        "transfer": "Transferencia",
+        "correction": "Corrección"
+      }
+    },
+    "filters": {
+      "label": "Filtros",
+      "status": "Estado",
+      "stage": "Etapa",
+      "farm": "Finca",
+      "all": "Todos",
+      "allFarms": "Todas",
+      "clear": "Limpiar filtros"
+    },
+    "completed": "Completado",
+    "emptyFiltered": "Ningún lote coincide con los filtros."
+  },
+  "Stats": {
+    "title": "Estadísticas de escaneos",
+    "back": "Volver al lote",
+    "link": "Ver estadísticas de escaneos",
+    "period": "Periodo",
+    "daysOption": "Últimos {days} días",
+    "total": "Escaneos totales",
+    "first": "Primer escaneo",
+    "last": "Último escaneo",
+    "chartTitle": "Escaneos por día",
+    "chartLabel": "Gráfica de escaneos de los últimos {days} días: {total} en total",
+    "empty": "Este lote aún no tiene escaneos.",
+    "notAllowed": "Solo la organización puede ver las estadísticas de escaneos."
   }
 }

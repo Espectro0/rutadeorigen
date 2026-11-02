@@ -35,3 +35,7 @@ export async function createFarm(input: NewFarm): Promise<Farm> {
     });
     return toFarm(dto);
 }
+
+export async function deleteFarm(id: string): Promise<void> {
+    await request<void>(`/farms/${encodeURIComponent(id)}`, { method: "DELETE" });
+}

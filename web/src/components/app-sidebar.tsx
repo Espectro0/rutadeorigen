@@ -7,6 +7,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserMenu } from "@/components/user-menu";
+import { navFor } from "@/features/session/permissions";
+import { useActor } from "@/features/session/session-provider";
 
 const ITEMS = [
     { href: "/dashboard", key: "dashboard", Icon: LuLayoutDashboard },
@@ -19,6 +21,9 @@ type Props = Readonly<{ open: boolean; onClose: () => void }>;
 export function AppSidebar({ open, onClose }: Props) {
     const t = useTranslations("Nav");
     const pathname = usePathname();
+    const actor = useActor();
+    const visible = navFor(actor.type);
+    const items = ITEMS.filter(({ key }) => visible.includes(key));
 
     useEffect(() => {
         if (!open) return;
@@ -51,7 +56,7 @@ export function AppSidebar({ open, onClose }: Props) {
                 </div>
 
                 <nav className="flex flex-col gap-1 px-3">
-                    {ITEMS.map(({ href, key, Icon }) => {
+                    {items.map(({ href, key, Icon }) => {
                         const active = pathname === href || pathname.startsWith(`${href}/`);
                         return (
                             <Link
