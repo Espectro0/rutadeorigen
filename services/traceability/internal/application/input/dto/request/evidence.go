@@ -1,6 +1,6 @@
 package request
 
-type RequestEvidenceUpload struct {
+type EvidenceUpload struct {
 	LotID       string `json:"-"`
 	FileName    string `json:"file_name"`
 	ContentType string `json:"content_type"`

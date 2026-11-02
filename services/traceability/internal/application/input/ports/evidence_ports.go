@@ -6,7 +6,7 @@ import (
 )
 
 type RequestEvidenceUploadPort interface {
-	InputPort[request.RequestEvidenceUpload, response.EvidenceUpload]
+	InputPort[request.EvidenceUpload, response.EvidenceUpload]
 }
 
 type CompleteEvidenceUploadPort interface {

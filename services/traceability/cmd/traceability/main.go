@@ -24,6 +24,16 @@ import (
 	"rutadeorigen/traceability/internal/platform/catalog"
 )
 
+type runtime struct {
+	pool         *pgxpool.Pool
+	checkers     []health.Checker
+	closers      []app.Closer
+	routeOptions []routeOption
+	consumer     *libmessaging.Consumer
+	brokerLost   atomic.Bool
+	stop         context.CancelFunc
+}
+
 func main() {
 	cfg, err := config.LoadBase()
 	if err != nil {
@@ -42,94 +52,10 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
 	defer stop()
 
-	var checkers []health.Checker
-	var closers []app.Closer
-	var pool *pgxpool.Pool
-	var brokerLost atomic.Bool
-	var routeOptions []routeOption
-	var consumer *libmessaging.Consumer
-
+	rt := &runtime{stop: stop}
 	storage := config.String("STORAGE", "postgres")
-	switch storage {
-	case "postgres":
-		dsn, err := config.Required("DATABASE_URL")
-		if err != nil {
-			log.Error("invalid configuration", "err", err)
-			os.Exit(1)
-		}
-
-		pool, err = postgres.Connect(ctx, dsn)
-		if err != nil {
-			log.Error("failed to connect to database", "err", err)
-			os.Exit(1)
-		}
-		log.Info("connected to database")
-
-		checkers = append(checkers, health.NewChecker("postgres", pool.Ping))
-		closers = append(closers, func(context.Context) error {
-			pool.Close()
-			return nil
-		})
-
-		amqpURL, err := config.Required("RABBITMQ_URL")
-		if err != nil {
-			log.Error("invalid configuration", "err", err)
-			os.Exit(1)
-		}
-		broker, err := libmessaging.NewPublisher(amqpURL)
-		if err != nil {
-			log.Error("failed to connect to rabbitmq", "err", err)
-			os.Exit(1)
-		}
-		log.Info("connected to rabbitmq")
-
-		checkers = append(checkers, health.NewChecker("rabbitmq", broker.Ping))
-		closers = append(closers, broker.Close)
-		go messaging.NewOutboxRelay(pool, broker, log).Run(ctx)
-		go func() {
-			if err := <-broker.Closed(); err != nil {
-				brokerLost.Store(true)
-				log.Error("rabbitmq connection lost", "err", err)
-				stop()
-			}
-		}()
-
-		evidence, err := loadEvidence()
-		if err != nil {
-			log.Error("invalid configuration", "err", err)
-			os.Exit(1)
-		}
-		garage, err := evidencestorage.NewGarage(evidence.garage)
-		if err != nil {
-			log.Error("failed to create garage client", "err", err)
-			os.Exit(1)
-		}
-		checkers = append(checkers, health.NewChecker("garage", garage.Ping))
-		routeOptions = append(routeOptions, withEvidenceStorage(garage), withEvidenceViewer(garage),
-			withEvidenceViewTTL(evidence.viewTTL), withEvidenceSettings(evidence.settings()))
-
-		consumer, err = libmessaging.NewConsumer(libmessaging.ConsumerConfig{
-			URL:      amqpURL,
-			Queue:    evidenceConsumerQueue,
-			Bindings: evidenceResultEvents,
-		}, log)
-		if err != nil {
-			log.Error("failed to start rabbitmq consumer", "err", err)
-			os.Exit(1)
-		}
-		checkers = append(checkers, health.NewChecker("rabbitmq-consumer", consumer.Ping))
-		closers = append(closers, consumer.Close)
-		go func() {
-			if err := <-consumer.Closed(); err != nil {
-				brokerLost.Store(true)
-				log.Error("rabbitmq consumer connection lost", "err", err)
-				stop()
-			}
-		}()
-	case "memory":
-		log.Warn("STORAGE=memory, using in-memory repositories (development only)")
-	default:
-		log.Error("invalid configuration", "err", fmt.Errorf("unknown STORAGE %q", storage))
+	if err := setupStorage(ctx, log, rt, storage); err != nil {
+		log.Error("failed to set up storage", "err", err)
 		os.Exit(1)
 	}
 
@@ -139,23 +65,139 @@ func main() {
 		os.Exit(1)
 	}
 
-	h := health.New(log, 2*time.Second, checkers...)
+	h := health.New(log, 2*time.Second, rt.checkers...)
 	mux := http.NewServeMux()
 	h.Register(mux)
 
-	evidenceResults := registerRoutes(mux, log, pool, messages, authn, routeOptions...)
-	if consumer != nil {
-		go func() {
-			if err := consumer.Run(ctx, evidenceResults.Handle); err != nil {
-				brokerLost.Store(true)
-				log.Error("evidence results consumer stopped", "err", err)
-				stop()
-			}
-		}()
+	evidenceResults := registerRoutes(mux, log, rt.pool, messages, authn, rt.routeOptions...)
+	if rt.consumer != nil {
+		watchConsumer(ctx, log, rt, evidenceResults.Handle)
 	}
 
-	if err := app.Run(ctx, app.Params{Config: cfg, Logger: log, Handler: mux, Health: h, Closers: closers}); err != nil || brokerLost.Load() {
+	params := app.Params{Config: cfg, Logger: log, Handler: mux, Health: h, Closers: rt.closers}
+	if err := app.Run(ctx, params); err != nil || rt.brokerLost.Load() {
 		log.Error("service stopped with error", "err", err)
 		os.Exit(1)
 	}
+}
+
+func setupStorage(ctx context.Context, log *slog.Logger, rt *runtime, storage string) error {
+	switch storage {
+	case "postgres":
+		return setupPostgres(ctx, log, rt)
+	case "memory":
+		log.Warn("STORAGE=memory, using in-memory repositories (development only)")
+		return nil
+	default:
+		return fmt.Errorf("unknown STORAGE %q", storage)
+	}
+}
+
+func setupPostgres(ctx context.Context, log *slog.Logger, rt *runtime) error {
+	if err := connectDatabase(ctx, log, rt); err != nil {
+		return err
+	}
+
+	amqpURL, err := config.Required("RABBITMQ_URL")
+	if err != nil {
+		return err
+	}
+	if err := connectBroker(ctx, log, rt, amqpURL); err != nil {
+		return err
+	}
+	if err := connectGarage(rt); err != nil {
+		return err
+	}
+	return connectConsumer(log, rt, amqpURL)
+}
+
+func connectDatabase(ctx context.Context, log *slog.Logger, rt *runtime) error {
+	dsn, err := config.Required("DATABASE_URL")
+	if err != nil {
+		return err
+	}
+
+	pool, err := postgres.Connect(ctx, dsn)
+	if err != nil {
+		return fmt.Errorf("connect to database: %w", err)
+	}
+	log.Info("connected to database")
+
+	rt.pool = pool
+	rt.checkers = append(rt.checkers, health.NewChecker("postgres", pool.Ping))
+	rt.closers = append(rt.closers, func(context.Context) error {
+		pool.Close()
+		return nil
+	})
+	return nil
+}
+
+func connectBroker(ctx context.Context, log *slog.Logger, rt *runtime, amqpURL string) error {
+	broker, err := libmessaging.NewPublisher(amqpURL)
+	if err != nil {
+		return fmt.Errorf("connect to rabbitmq: %w", err)
+	}
+	log.Info("connected to rabbitmq")
+
+	rt.checkers = append(rt.checkers, health.NewChecker("rabbitmq", broker.Ping))
+	rt.closers = append(rt.closers, broker.Close)
+	go messaging.NewOutboxRelay(rt.pool, broker, log).Run(ctx)
+	go stopWhenClosed(rt, log, "rabbitmq connection lost", broker.Closed())
+	return nil
+}
+
+func connectGarage(rt *runtime) error {
+	evidence, err := loadEvidence()
+	if err != nil {
+		return err
+	}
+
+	garage, err := evidencestorage.NewGarage(evidence.garage)
+	if err != nil {
+		return fmt.Errorf("create garage client: %w", err)
+	}
+
+	rt.checkers = append(rt.checkers, health.NewChecker("garage", garage.Ping))
+	rt.routeOptions = append(rt.routeOptions,
+		withEvidenceStorage(garage),
+		withEvidenceViewer(garage),
+		withEvidenceViewTTL(evidence.viewTTL),
+		withEvidenceSettings(evidence.settings()),
+	)
+	return nil
+}
+
+func connectConsumer(log *slog.Logger, rt *runtime, amqpURL string) error {
+	consumer, err := libmessaging.NewConsumer(libmessaging.ConsumerConfig{
+		URL:      amqpURL,
+		Queue:    evidenceConsumerQueue,
+		Bindings: evidenceResultEvents,
+	}, log)
+	if err != nil {
+		return fmt.Errorf("start rabbitmq consumer: %w", err)
+	}
+
+	rt.consumer = consumer
+	rt.checkers = append(rt.checkers, health.NewChecker("rabbitmq-consumer", consumer.Ping))
+	rt.closers = append(rt.closers, consumer.Close)
+	go stopWhenClosed(rt, log, "rabbitmq consumer connection lost", consumer.Closed())
+	return nil
+}
+
+func stopWhenClosed[E any](rt *runtime, log *slog.Logger, message string, closed <-chan *E) {
+	if lost := <-closed; lost != nil {
+		rt.brokerLost.Store(true)
+		log.Error(message, "err", lost)
+		rt.stop()
+	}
+}
+
+func watchConsumer(ctx context.Context, log *slog.Logger, rt *runtime, handler libmessaging.Handler) {
+	go func() {
+		if err := rt.consumer.Run(ctx, handler); err != nil {
+			rt.brokerLost.Store(true)
+			log.Error("evidence results consumer stopped", "err", err)
+			rt.stop()
+		}
+	}()
 }

@@ -5,10 +5,11 @@ import (
 	"context"
 	"errors"
 	"image"
-	_ "image/jpeg"
-	_ "image/png"
+	"image/jpeg"
+	"image/png"
+	"io"
 
-	_ "golang.org/x/image/webp"
+	"golang.org/x/image/webp"
 
 	"rutadeorigen/processor/internal/application/output/ports"
 	"rutadeorigen/processor/internal/domain/picture"
@@ -16,6 +17,12 @@ import (
 )
 
 var _ ports.ImageProcessor = (*Processor)(nil)
+
+var decoders = map[picture.Format]func(io.Reader) (image.Image, error){
+	picture.FormatJPEG: jpeg.Decode,
+	picture.FormatPNG:  png.Decode,
+	picture.FormatWebP: webp.Decode,
+}
 
 type Processor struct{}
 
@@ -38,7 +45,12 @@ func (p *Processor) Process(ctx context.Context, data []byte, info picture.Info,
 		return failed, exception.Wrap(err, "image processing canceled")
 	}
 
-	decoded, _, err := image.Decode(bytes.NewReader(data))
+	decode, supported := decoders[info.Format()]
+	if !supported {
+		return failed, exception.New(exception.CodeImageUnsupportedFormat)
+	}
+
+	decoded, err := decode(bytes.NewReader(data))
 	if err != nil {
 		return failed, classifyDecodeError(err)
 	}

@@ -30,7 +30,7 @@ func (c *EvidenceController) Register(mux *http.ServeMux, requireActor Middlewar
 }
 
 func (c *EvidenceController) requestEvidenceUpload(w http.ResponseWriter, r *http.Request) {
-	var req request.RequestEvidenceUpload
+	var req request.EvidenceUpload
 
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBodyBytes))
 	decoder.DisallowUnknownFields()

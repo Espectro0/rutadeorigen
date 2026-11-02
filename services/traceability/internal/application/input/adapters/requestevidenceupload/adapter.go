@@ -23,7 +23,7 @@ func New(useCase requestuc.UseCase) *Adapter {
 	return &Adapter{useCase: useCase}
 }
 
-func (a *Adapter) Execute(ctx context.Context, input request.RequestEvidenceUpload) (response.EvidenceUpload, error) {
+func (a *Adapter) Execute(ctx context.Context, input request.EvidenceUpload) (response.EvidenceUpload, error) {
 	lotID := helper.ParseUUID(input.LotID)
 	if helper.IsDefaultUUID(lotID) {
 		return response.EvidenceUpload{}, exception.New(exception.CodeLotNotFound)

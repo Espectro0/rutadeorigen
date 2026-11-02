@@ -88,7 +88,7 @@ func TestWrapKeepsExceptionsAndWrapsEverythingElse(t *testing.T) {
 	}
 
 	original := exception.New(exception.CodeImageCorrupt)
-	if got := exception.Wrap(original, "decode"); got != error(original) {
+	if got := exception.Wrap(original, "decode"); !errors.Is(got, original) {
 		t.Errorf("an exception must be returned as it is, got %v", got)
 	}
 
