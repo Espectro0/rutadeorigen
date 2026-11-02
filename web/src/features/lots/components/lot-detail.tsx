@@ -16,6 +16,7 @@ import { LotActions } from "./lot-actions";
 import { LotStatusBadge } from "./lot-status-badge";
 import { TransferForm } from "./transfer-form";
 import { VoidDialog } from "./void-dialog";
+import { QrPanel } from "./qr-panel";
 import { StageForm } from "./stage-form";
 
 const PROGRESS_STAGES = LOT_STAGES.filter((stage) => stage !== "none");
@@ -36,7 +37,7 @@ export function LotDetail({ id }: Readonly<{ id: string }>) {
     const dates = useDateFormat();
     const lot = useRemote(`lot:${id}`, () => getLot(id));
     const farms = useRemote("farms", listFarms);
-    const [panel, setPanel] = useState<"stage" | "transfer" | "void" | null>(null);
+    const [panel, setPanel] = useState<"stage" | "transfer" | "void" | "qr" | null>(null);
     const actor = useActor();
 
     const back = (
@@ -79,6 +80,7 @@ export function LotDetail({ id }: Readonly<{ id: string }>) {
     if (upcoming !== null) handlers["lot:register_stage"] = () => setPanel("stage");
     if (transferTarget !== null) handlers["lot:transfer"] = () => setPanel("transfer");
     handlers["lot:void"] = () => setPanel("void");
+    handlers["qr:generate"] = () => setPanel("qr");
     const closePanel = () => setPanel(null);
     const finishPanel = () => {
         setPanel(null);
@@ -105,6 +107,8 @@ export function LotDetail({ id }: Readonly<{ id: string }>) {
                     onDone={finishPanel}
                 />
             )}
+
+            {panel === "qr" && <QrPanel lotId={data.id} code={data.code} onClose={closePanel} />}
 
             {panel === "void" && (
                 <VoidDialog lotId={data.id} version={data.version} onCancel={closePanel} onDone={finishPanel} />

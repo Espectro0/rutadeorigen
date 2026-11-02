@@ -214,6 +214,14 @@
       "reason": "Reason for voiding",
       "submit": "Void lot",
       "cancel": "Cancel"
+    },
+    "qrPanel": {
+      "title": "Lot QR code",
+      "size": "Size",
+      "format": "Format",
+      "alt": "QR code of lot {code}",
+      "download": "Download",
+      "close": "Close"
     }
   }
 }

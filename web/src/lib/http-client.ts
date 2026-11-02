@@ -39,3 +39,12 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
     }
     return (await response.json()) as T;
 }
+
+export async function requestBlob(path: string): Promise<Blob> {
+    const response = await fetch(`${BASE_URL}${path}`, { credentials: "include" });
+
+    if (!response.ok) {
+        throw await toApiError(response);
+    }
+    return response.blob();
+}

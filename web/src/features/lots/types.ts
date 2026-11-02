@@ -80,3 +80,7 @@ export type StageRegistration = Readonly<{
     note: string;
     details: Readonly<Record<string, string | number>>;
 }>;
+
+export const QR_SIZES = [256, 512, 1024] as const;
+export const QR_FORMATS = ["png", "svg"] as const;
+export type QrFormat = (typeof QR_FORMATS)[number];

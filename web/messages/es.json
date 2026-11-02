@@ -214,6 +214,14 @@
       "reason": "Motivo de la anulación",
       "submit": "Anular lote",
       "cancel": "Cancelar"
+    },
+    "qrPanel": {
+      "title": "Código QR del lote",
+      "size": "Tamaño",
+      "format": "Formato",
+      "alt": "Código QR del lote {code}",
+      "download": "Descargar",
+      "close": "Cerrar"
     }
   }
 }

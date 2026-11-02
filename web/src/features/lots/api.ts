@@ -1,4 +1,4 @@
-import { request } from "@/lib/http-client";
+import { request, requestBlob } from "@/lib/http-client";
 import {
     parseLotActions,
     parseLotProcess,
@@ -115,4 +115,9 @@ export async function voidLot(lotId: string, version: number, reason: string): P
         headers: { "If-Match": `"${version}"` },
         body: JSON.stringify({ reason }),
     });
+}
+
+export async function getQrImage(lotId: string, size: number, format: string): Promise<Blob> {
+    const query = new URLSearchParams({ size: String(size), format });
+    return requestBlob(`/public/lots/${encodeURIComponent(lotId)}/qr?${query}`);
 }
