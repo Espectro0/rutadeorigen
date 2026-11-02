@@ -46,6 +46,7 @@ export type Lot = Readonly<{
     harvestDate: string;
     stage: LotStage;
     status: LotStatus;
+    completed: boolean;
     voidReason: string;
     createdAt: string;
     allowedActions: readonly LotAction[];

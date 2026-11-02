@@ -7,9 +7,10 @@ import Link from "next/link";
 import { useDateFormat } from "@/lib/use-date-format";
 import { useDescribeError } from "@/lib/use-describe-error";
 import { useRemote } from "@/lib/use-remote";
-import { listLots } from "../api";
+import { listLots, NO_FILTERS, type LotFilters } from "../api";
+import { LOT_STAGES } from "../types";
 import { LotPager } from "./lot-pager";
-import { LotStatusBadge } from "./lot-status-badge";
+import { LotCompletedBadge, LotStatusBadge } from "./lot-status-badge";
 import {CiCoffeeBean} from "react-icons/ci";
 
 const PAGE_SIZES = [10, 20, 50] as const;
@@ -24,9 +25,12 @@ export function LotList() {
     const [limit, setLimit] = useState<number>(DEFAULT_PAGE_SIZE);
     const [cursors, setCursors] = useState<readonly string[]>([""]);
     const [pageIndex, setPageIndex] = useState(0);
+    const [filters, setFilters] = useState<LotFilters>(NO_FILTERS);
 
     const cursor = cursors[pageIndex] ?? "";
-    const page = useRemote(`lots:${limit}:${cursor}`, () => listLots({ limit, cursor }));
+    const filterKey = `${filters.status}:${filters.stage}:${filters.farmId}`;
+    const page = useRemote(`lots:${limit}:${cursor}:${filterKey}`, () => listLots({ limit, cursor, filters }));
+    const filtered = filterKey !== "::";
     const farms = useRemote("farms", listFarms);
 
     const farmNames = new Map((farms.data ?? []).map((farm) => [farm.id, farm.name]));
@@ -45,14 +49,72 @@ export function LotList() {
         setPageIndex(index);
     }
 
+    function changeFilters(next: LotFilters) {
+        setFilters(next);
+        setCursors([""]);
+        setPageIndex(0);
+    }
+
     function changeLimit(value: number) {
         setLimit(value);
         setCursors([""]);
         setPageIndex(0);
     }
 
+    const selectClass = "rounded border px-3 py-2";
+
     return (
         <div className="flex flex-col gap-4">
+            <div role="group" aria-label={t("filters.label")} className="flex flex-wrap items-end gap-3">
+                <label className="flex flex-col gap-1 text-sm">
+                    <span className="font-medium">{t("filters.status")}</span>
+                    <select
+                        value={filters.status}
+                        onChange={(event) => changeFilters({ ...filters, status: event.target.value })}
+                        className={selectClass}
+                    >
+                        <option value="">{t("filters.all")}</option>
+                        <option value="active">{t("status.active")}</option>
+                        <option value="voided">{t("status.voided")}</option>
+                    </select>
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                    <span className="font-medium">{t("filters.stage")}</span>
+                    <select
+                        value={filters.stage}
+                        onChange={(event) => changeFilters({ ...filters, stage: event.target.value })}
+                        className={selectClass}
+                    >
+                        <option value="">{t("filters.all")}</option>
+                        {LOT_STAGES.map((stage) => (
+                            <option key={stage} value={stage}>
+                                {t(`stage.${stage}`)}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                    <span className="font-medium">{t("filters.farm")}</span>
+                    <select
+                        value={filters.farmId}
+                        onChange={(event) => changeFilters({ ...filters, farmId: event.target.value })}
+                        className={selectClass}
+                    >
+                        <option value="">{t("filters.allFarms")}</option>
+                        {(farms.data ?? []).map((farm) => (
+                            <option key={farm.id} value={farm.id}>
+                                {farm.name}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+                {filtered && (
+                    <button type="button" onClick={() => changeFilters(NO_FILTERS)} className="btn-secondary">
+                        {t("filters.clear")}
+                    </button>
+                )}
+            </div>
+
             {page.loading && (
                 <p role="status" className="text-ink-dim">
                     {common("loading")}
@@ -71,7 +133,7 @@ export function LotList() {
             {!page.loading && page.error === undefined && (page.data?.items.length ?? 0) === 0 && (
                 <div className="flex flex-col items-center justify-center gap-3 w-full py-10">
                     <CiCoffeeBean className="size-12 text-ink-dim" />
-                    <p className="text-ink-dim text-center">{t("empty")}</p>
+                    <p className="text-ink-dim text-center">{filtered ? t("emptyFiltered") : t("empty")}</p>
                 </div>
             )}
 
@@ -117,7 +179,10 @@ export function LotList() {
                                 <td className="px-4 py-3">{farmNames.get(lot.farmId) ?? "—"}</td>
                                 <td className="px-4 py-3">{t(`stage.${lot.stage}`)}</td>
                                 <td className="px-4 py-3">
-                                    <LotStatusBadge status={lot.status} label={t(`status.${lot.status}`)} />
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <LotStatusBadge status={lot.status} label={t(`status.${lot.status}`)} />
+                                        {lot.completed && <LotCompletedBadge label={t("completed")} />}
+                                    </div>
                                 </td>
                             </tr>
                         ))}

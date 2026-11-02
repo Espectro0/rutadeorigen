@@ -13,7 +13,7 @@ import { transferTargetFor } from "@/features/session/permissions";
 import { useActor } from "@/features/session/session-provider";
 import { LOT_STAGES, nextStage, type Lot, type LotAction } from "../types";
 import { LotActions } from "./lot-actions";
-import { LotStatusBadge } from "./lot-status-badge";
+import { LotCompletedBadge, LotStatusBadge } from "./lot-status-badge";
 import { LotTimeline } from "./lot-timeline";
 import { TransferForm } from "./transfer-form";
 import { VoidDialog } from "./void-dialog";
@@ -95,6 +95,7 @@ export function LotDetail({ id }: Readonly<{ id: string }>) {
             <div className="flex flex-wrap items-center gap-3">
                 <h1 className="text-2xl font-semibold tracking-tight">{data.code}</h1>
                 <LotStatusBadge status={data.status} label={t(`status.${data.status}`)} />
+                {data.completed && <LotCompletedBadge label={t("completed")} />}
             </div>
 
             <LotActions allowed={data.allowedActions} handlers={handlers} />

@@ -235,6 +235,17 @@
         "transfer": "Transferencia",
         "correction": "Corrección"
       }
-    }
+    },
+    "filters": {
+      "label": "Filtros",
+      "status": "Estado",
+      "stage": "Etapa",
+      "farm": "Finca",
+      "all": "Todos",
+      "allFarms": "Todas",
+      "clear": "Limpiar filtros"
+    },
+    "completed": "Completado",
+    "emptyFiltered": "Ningún lote coincide con los filtros."
   }
 }

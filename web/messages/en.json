@@ -235,6 +235,17 @@
         "transfer": "Transfer",
         "correction": "Correction"
       }
-    }
+    },
+    "filters": {
+      "label": "Filters",
+      "status": "Status",
+      "stage": "Stage",
+      "farm": "Farm",
+      "all": "All",
+      "allFarms": "All",
+      "clear": "Clear filters"
+    },
+    "completed": "Completed",
+    "emptyFiltered": "No lots match the filters."
   }
 }

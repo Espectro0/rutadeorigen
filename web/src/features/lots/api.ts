@@ -24,6 +24,7 @@ type LotDto = Readonly<{
     harvest_date: string;
     stage: string;
     status: string;
+    completed?: boolean;
     void_reason?: string;
     created_at: string;
     allowed_actions?: string[] | null;
@@ -46,17 +47,28 @@ function toLot(dto: LotDto): Lot {
         harvestDate: dto.harvest_date,
         stage: parseLotStage(dto.stage),
         status: parseLotStatus(dto.status),
+        completed: dto.completed ?? false,
         voidReason: dto.void_reason ?? "",
         createdAt: dto.created_at,
         allowedActions: parseLotActions(dto.allowed_actions),
     };
 }
 
-export async function listLots(params: Readonly<{ limit: number; cursor: string }>): Promise<LotPage> {
+export type LotFilters = Readonly<{ status: string; stage: string; farmId: string }>;
+
+export const NO_FILTERS: LotFilters = { status: "", stage: "", farmId: "" };
+
+export async function listLots(
+    params: Readonly<{ limit: number; cursor: string; filters?: LotFilters }>,
+): Promise<LotPage> {
     const query = new URLSearchParams({ limit: String(params.limit) });
     if (params.cursor !== "") {
         query.set("cursor", params.cursor);
     }
+    const filters = params.filters ?? NO_FILTERS;
+    if (filters.status !== "") query.set("status", filters.status);
+    if (filters.stage !== "") query.set("stage", filters.stage);
+    if (filters.farmId !== "") query.set("farm_id", filters.farmId);
     const result = await request<LotPageDto>(`/lots?${query}`);
     return {
         items: (result.items ?? []).map(toLot),
