@@ -87,7 +87,8 @@
     "columns": {
       "name": "Nombre",
       "altitude": "Altitud",
-      "createdAt": "Registrada"
+      "createdAt": "Registrada",
+      "actions": "Acciones"
     },
     "new": "Nueva finca",
     "form": {
@@ -95,6 +96,14 @@
       "name": "Nombre",
       "altitude": "Altitud (msnm)",
       "submit": "Guardar",
+      "cancel": "Cancelar"
+    },
+    "delete": {
+      "action": "Eliminar",
+      "title": "Eliminar finca",
+      "confirm": "¿Seguro que quieres eliminar la finca {name}? Esta acción no se puede deshacer.",
+      "hint": "Solo se puede eliminar una finca que no tenga lotes.",
+      "submit": "Eliminar",
       "cancel": "Cancelar"
     }
   },

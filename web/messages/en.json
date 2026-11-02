@@ -87,7 +87,8 @@
     "columns": {
       "name": "Name",
       "altitude": "Altitude",
-      "createdAt": "Registered"
+      "createdAt": "Registered",
+      "actions": "Actions"
     },
     "new": "New farm",
     "form": {
@@ -95,6 +96,14 @@
       "name": "Name",
       "altitude": "Altitude (masl)",
       "submit": "Save",
+      "cancel": "Cancel"
+    },
+    "delete": {
+      "action": "Delete",
+      "title": "Delete farm",
+      "confirm": "Are you sure you want to delete the farm {name}? This cannot be undone.",
+      "hint": "Only a farm without lots can be deleted.",
+      "submit": "Delete",
       "cancel": "Cancel"
     }
   },

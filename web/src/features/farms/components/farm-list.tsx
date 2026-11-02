@@ -1,10 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useDateFormat } from "@/lib/use-date-format";
 import { useDescribeError } from "@/lib/use-describe-error";
 import { useRemote } from "@/lib/use-remote";
+import { useActor } from "@/features/session/session-provider";
 import { listFarms } from "../api";
+import type { Farm } from "../types";
+import { DeleteFarmDialog } from "./delete-farm-dialog";
 import {PiFarm} from "react-icons/pi";
 
 export function FarmList() {
@@ -13,6 +17,8 @@ export function FarmList() {
     const describe = useDescribeError();
     const dates = useDateFormat();
     const farms = useRemote("farms", listFarms);
+    const actor = useActor();
+    const [deleting, setDeleting] = useState<Farm | null>(null);
 
     if (farms.loading) {
         return (
@@ -44,7 +50,11 @@ export function FarmList() {
         );
     }
 
+    const canDelete = (farm: Farm) => actor.type === "producer" && farm.producerId === actor.id;
+    const showActions = items.some(canDelete);
+
     return (
+        <>
         <div className="card overflow-x-auto">
             <table className="w-full min-w-[32rem] text-left text-sm">
                 <thead className="border-b border-hairline text-ink-dim">
@@ -58,6 +68,11 @@ export function FarmList() {
                         <th scope="col" className="px-4 py-3 font-medium">
                             {t("columns.createdAt")}
                         </th>
+                        {showActions && (
+                            <th scope="col" className="px-4 py-3 font-medium">
+                                {t("columns.actions")}
+                            </th>
+                        )}
                     </tr>
                 </thead>
                 <tbody>
@@ -68,10 +83,35 @@ export function FarmList() {
                                 {t("altitudeValue", { value: farm.altitude })}
                             </td>
                             <td className="px-4 py-3">{dates.moment(farm.createdAt)}</td>
+                            {showActions && (
+                                <td className="px-4 py-3">
+                                    {canDelete(farm) && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setDeleting(farm)}
+                                            className="text-sm text-red-600 underline-offset-2 hover:underline"
+                                        >
+                                            {t("delete.action")}
+                                        </button>
+                                    )}
+                                </td>
+                            )}
                         </tr>
                     ))}
                 </tbody>
             </table>
         </div>
+
+        {deleting !== null && (
+            <DeleteFarmDialog
+                farm={deleting}
+                onCancel={() => setDeleting(null)}
+                onDone={() => {
+                    setDeleting(null);
+                    farms.reload();
+                }}
+            />
+        )}
+        </>
     );
 }
