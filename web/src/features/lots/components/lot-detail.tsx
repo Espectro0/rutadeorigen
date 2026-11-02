@@ -34,6 +34,7 @@ function Field({ label, children }: Readonly<{ label: string; children: ReactNod
 export function LotDetail({ id }: Readonly<{ id: string }>) {
     const t = useTranslations("Lots");
     const common = useTranslations("Common");
+    const stats = useTranslations("Stats");
     const describe = useDescribeError();
     const dates = useDateFormat();
     const lot = useRemote(`lot:${id}`, () => getLot(id));
@@ -99,6 +100,12 @@ export function LotDetail({ id }: Readonly<{ id: string }>) {
             </div>
 
             <LotActions allowed={data.allowedActions} handlers={handlers} />
+
+            {actor.type === "organization" && (
+                <Link href={`/lots/${data.id}/stats`} className="w-fit text-sm underline-offset-2 hover:underline">
+                    {stats("link")}
+                </Link>
+            )}
 
             {panel === "stage" && upcoming !== null && (
                 <StageForm

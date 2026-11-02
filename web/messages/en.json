@@ -256,5 +256,19 @@
     },
     "completed": "Completed",
     "emptyFiltered": "No lots match the filters."
+  },
+  "Stats": {
+    "title": "Scan statistics",
+    "back": "Back to lot",
+    "link": "View scan statistics",
+    "period": "Period",
+    "daysOption": "Last {days} days",
+    "total": "Total scans",
+    "first": "First scan",
+    "last": "Last scan",
+    "chartTitle": "Scans per day",
+    "chartLabel": "Chart of scans over the last {days} days: {total} in total",
+    "empty": "This lot has no scans yet.",
+    "notAllowed": "Only the organization can view scan statistics."
   }
 }

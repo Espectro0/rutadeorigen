@@ -256,5 +256,19 @@
     },
     "completed": "Completado",
     "emptyFiltered": "Ningún lote coincide con los filtros."
+  },
+  "Stats": {
+    "title": "Estadísticas de escaneos",
+    "back": "Volver al lote",
+    "link": "Ver estadísticas de escaneos",
+    "period": "Periodo",
+    "daysOption": "Últimos {days} días",
+    "total": "Escaneos totales",
+    "first": "Primer escaneo",
+    "last": "Último escaneo",
+    "chartTitle": "Escaneos por día",
+    "chartLabel": "Gráfica de escaneos de los últimos {days} días: {total} en total",
+    "empty": "Este lote aún no tiene escaneos.",
+    "notAllowed": "Solo la organización puede ver las estadísticas de escaneos."
   }
 }
