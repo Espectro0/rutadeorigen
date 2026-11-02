@@ -1,6 +1,6 @@
 services:
   qr:
-    tag: "3fa3876db35905a54db36a34bf22c9196ee81d34"
+    tag: "860727d72b3f63ce72b905443d3534e35ceec136"
     replicas: 1
     envFromSecret: qr-db
     paths:
