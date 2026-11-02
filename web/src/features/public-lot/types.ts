@@ -12,6 +12,14 @@ export type PublicLot = Readonly<{
     stage: LotStage;
     status: LotStatus;
     updatedAt: string;
+    evidences: readonly PublicEvidence[];
+}>;
+
+export type PublicEvidence = Readonly<{
+    id: string;
+    stage: LotStage;
+    thumbnailUrl: string;
+    imageUrl: string;
 }>;
 
 export type PublicLotResult =
