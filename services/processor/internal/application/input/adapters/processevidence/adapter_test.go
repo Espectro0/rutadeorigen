@@ -29,6 +29,7 @@ func validInput() request.ProcessEvidence {
 		EventType:       " evidence.uploaded ",
 		EvidenceID:      evidenceID.String(),
 		LotID:           lotID.String(),
+		Stage:           " farm ",
 		QuarantineKey:   lotID.String() + "/" + evidenceID.String(),
 		SizeBytes:       2048,
 		UploaderActorID: uuid.NewString(),
@@ -48,7 +49,7 @@ func TestExecuteBuildsCommand(t *testing.T) {
 		t.Fatalf("want one call, got %d", len(useCase.received))
 	}
 	cmd := useCase.received[0]
-	if cmd.EventType != "evidence.uploaded" || cmd.Uploader.Role != "producer" {
+	if cmd.EventType != "evidence.uploaded" || cmd.Uploader.Role != "producer" || cmd.Stage != "farm" {
 		t.Errorf("fields must be trimmed: %+v", cmd)
 	}
 	if cmd.EvidenceID.String() != input.EvidenceID || cmd.SizeBytes != 2048 {

@@ -5,6 +5,7 @@ type ProcessEvidence struct {
 	EventType       string
 	EvidenceID      string
 	LotID           string
+	Stage           string
 	QuarantineKey   string
 	SizeBytes       int64
 	UploaderActorID string

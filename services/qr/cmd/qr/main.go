@@ -18,6 +18,7 @@ import (
 	"rutadeorigen/lib/health"
 	"rutadeorigen/lib/logger"
 	libmessaging "rutadeorigen/lib/messaging"
+	evidencestorage "rutadeorigen/qr/internal/infrastructure/output/external/storage"
 	"rutadeorigen/qr/internal/infrastructure/output/repositories/semistructured/redis"
 	"rutadeorigen/qr/internal/infrastructure/output/repositories/structured/postgres"
 	"rutadeorigen/qr/internal/platform/catalog"
@@ -117,6 +118,9 @@ func setupPostgres(ctx context.Context, log *slog.Logger, rt *runtime) error {
 	if err := connectRedis(ctx, log, rt); err != nil {
 		return err
 	}
+	if err := connectGarage(ctx, log, rt); err != nil {
+		return err
+	}
 	return connectConsumer(log, rt)
 }
 
@@ -164,6 +168,27 @@ func connectRedis(ctx context.Context, log *slog.Logger, rt *runtime) error {
 	return nil
 }
 
+func connectGarage(ctx context.Context, log *slog.Logger, rt *runtime) error {
+	cfg, err := loadEvidence()
+	if err != nil {
+		return err
+	}
+
+	garage, err := evidencestorage.NewGarage(cfg.garage)
+	if err != nil {
+		return fmt.Errorf("create garage client: %w", err)
+	}
+	if err := garage.Ping(ctx); err != nil {
+		return fmt.Errorf("connect to garage: %w", err)
+	}
+	log.Info("connected to garage")
+
+	rt.deps.viewer = garage
+	rt.deps.evidence = cfg.settings()
+	rt.checkers = append(rt.checkers, health.NewChecker("garage", garage.Ping))
+	return nil
+}
+
 func connectConsumer(log *slog.Logger, rt *runtime) error {
 	url, err := config.Required("RABBITMQ_URL")
 	if err != nil {
@@ -173,7 +198,7 @@ func connectConsumer(log *slog.Logger, rt *runtime) error {
 	consumer, err := libmessaging.NewConsumer(libmessaging.ConsumerConfig{
 		URL:      url,
 		Queue:    lotEventsQueue,
-		Bindings: []string{lotEventsBinding, actorEventsBinding},
+		Bindings: []string{lotEventsBinding, actorEventsBinding, evidenceProcessedBinding},
 	}, log)
 	if err != nil {
 		return fmt.Errorf("connect to rabbitmq: %w", err)

@@ -131,6 +131,7 @@ func newCommand() Command {
 		LotID:         lotID,
 		QuarantineKey: lotID.String() + "/" + evidenceID.String(),
 		SizeBytes:     int64(len(originalBytes)),
+		Stage:         "farm",
 		Uploader:      Uploader{ActorID: uuid.New(), Role: "producer"},
 	}
 }
@@ -152,6 +153,9 @@ func TestExecuteProcessesValidImage(t *testing.T) {
 	payload, ok := f.publisher.events[0].Payload.(EvidenceProcessedPayload)
 	if !ok || payload.SHA256 == "" || payload.EvidenceID != cmd.EvidenceID {
 		t.Errorf("unexpected payload %+v", f.publisher.events[0].Payload)
+	}
+	if payload.LotID != cmd.LotID || payload.Stage != "farm" || payload.ContentType != "image/jpeg" {
+		t.Errorf("payload must carry lot, stage and content type: %+v", payload)
 	}
 	if len(f.quarantine.removed) != 1 {
 		t.Error("original must be removed from quarantine")

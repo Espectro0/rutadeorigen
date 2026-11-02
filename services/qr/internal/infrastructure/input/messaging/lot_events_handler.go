@@ -18,6 +18,7 @@ const (
 	LotTransferredType     = "lot.transferred"
 	LotVoidedType          = "lot.voided"
 	ActorRegisteredType    = "actor.registered"
+	EvidenceProcessedType  = "evidence.processed"
 )
 
 type envelope struct {
@@ -42,6 +43,7 @@ type LotEventsHandler struct {
 	actorRegistered ports.ProjectActorRegisteredPort
 	transferred     ports.ProjectLotTransferredPort
 	voided          ports.ProjectLotVoidedPort
+	evidence        ports.ProjectEvidenceProcessedPort
 }
 
 func NewLotEventsHandler(created ports.ProjectLotCreatedPort, staged ports.ProjectLotStagePort) *LotEventsHandler {
@@ -63,6 +65,11 @@ func (h *LotEventsHandler) WithLotVoided(port ports.ProjectLotVoidedPort) *LotEv
 	return h
 }
 
+func (h *LotEventsHandler) WithEvidenceProcessed(port ports.ProjectEvidenceProcessedPort) *LotEventsHandler {
+	h.evidence = port
+	return h
+}
+
 func (h *LotEventsHandler) handles(eventType string) bool {
 	switch eventType {
 	case LotCreatedType, LotStageRegisteredType:
@@ -73,6 +80,8 @@ func (h *LotEventsHandler) handles(eventType string) bool {
 		return h.transferred != nil
 	case LotVoidedType:
 		return h.voided != nil
+	case EvidenceProcessedType:
+		return h.evidence != nil
 	default:
 		return false
 	}
@@ -109,6 +118,8 @@ func (h *LotEventsHandler) Handle(ctx context.Context, d libmessaging.Delivery) 
 		return h.projectTransferred(ctx, meta, env.Data)
 	case LotVoidedType:
 		return h.projectVoided(ctx, meta, env.Data)
+	case EvidenceProcessedType:
+		return h.projectEvidenceProcessed(ctx, meta, env.Data)
 	default:
 		return h.projectStage(ctx, meta, env.Data)
 	}
@@ -185,6 +196,22 @@ func (h *LotEventsHandler) projectVoided(ctx context.Context, meta metadata, raw
 	}
 
 	_, err = h.voided.Execute(ctx, request.ProjectLotVoided{
+		MessageID:  meta.messageID,
+		EventType:  meta.eventType,
+		Version:    meta.version,
+		OccurredAt: meta.occurredAt,
+		Data:       data,
+	})
+	return classify(err)
+}
+
+func (h *LotEventsHandler) projectEvidenceProcessed(ctx context.Context, meta metadata, raw json.RawMessage) error {
+	data, err := decodeData[request.EvidenceProcessedData](raw)
+	if err != nil {
+		return err
+	}
+
+	_, err = h.evidence.Execute(ctx, request.ProjectEvidenceProcessed{
 		MessageID:  meta.messageID,
 		EventType:  meta.eventType,
 		Version:    meta.version,

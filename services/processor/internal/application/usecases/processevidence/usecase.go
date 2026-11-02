@@ -16,6 +16,7 @@ type Command struct {
 	EventType     string
 	EvidenceID    uuid.UUID
 	LotID         uuid.UUID
+	Stage         string
 	QuarantineKey string
 	SizeBytes     int64
 	Uploader      Uploader

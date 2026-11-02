@@ -49,6 +49,7 @@ func TestHandleMapsDeliveryToRequest(t *testing.T) {
 		EventType:       "evidence.uploaded",
 		EvidenceID:      "ev-1",
 		LotID:           "lot-1",
+		Stage:           "farm",
 		QuarantineKey:   "lot-1/ev-1",
 		SizeBytes:       2048,
 		UploaderActorID: "actor-1",

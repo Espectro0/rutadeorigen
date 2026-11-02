@@ -34,6 +34,7 @@ type storedImage struct {
 	checksum     string
 	finalKey     string
 	thumbnailKey string
+	contentType  string
 }
 
 func New(processed ports.ProcessedEventRepository, quarantine ports.QuarantineStorage, evidences ports.EvidenceStorage,
@@ -119,6 +120,7 @@ func (uc *ProcessEvidence) storeProcessedImage(ctx context.Context, file *eviden
 		checksum:     helper.SHA256Hex(original),
 		finalKey:     finalKey,
 		thumbnailKey: thumbnailKey,
+		contentType:  info.Format().ContentType(),
 	}, nil
 }
 
@@ -140,9 +142,12 @@ func (uc *ProcessEvidence) accept(ctx context.Context, cmd Command, file *eviden
 	processedAt := time.Now().UTC()
 	event := uc.newEvent(ctx, cmd, ports.EventEvidenceProcessed, processedAt, EvidenceProcessedPayload{
 		EvidenceID:   file.EvidenceID(),
+		LotID:        file.LotID(),
+		Stage:        cmd.Stage,
 		SHA256:       stored.checksum,
 		FinalKey:     stored.finalKey,
 		ThumbnailKey: stored.thumbnailKey,
+		ContentType:  stored.contentType,
 		ProcessedAt:  processedAt,
 	})
 	return uc.recordOutcome(ctx, cmd, file, event)

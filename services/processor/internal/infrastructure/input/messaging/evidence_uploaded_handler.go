@@ -23,6 +23,7 @@ type envelope struct {
 type evidenceUploadedData struct {
 	EvidenceID    string   `json:"evidence_id"`
 	LotID         string   `json:"lot_id"`
+	Stage         string   `json:"stage"`
 	QuarantineKey string   `json:"quarantine_key"`
 	SizeBytes     int64    `json:"size_bytes"`
 	Uploader      uploader `json:"uploader"`
@@ -60,6 +61,7 @@ func (h *EvidenceUploadedHandler) Handle(ctx context.Context, d libmessaging.Del
 		EventType:       d.Type,
 		EvidenceID:      env.Data.EvidenceID,
 		LotID:           env.Data.LotID,
+		Stage:           env.Data.Stage,
 		QuarantineKey:   env.Data.QuarantineKey,
 		SizeBytes:       env.Data.SizeBytes,
 		UploaderActorID: env.Data.Uploader.ActorID,

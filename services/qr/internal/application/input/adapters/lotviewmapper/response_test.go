@@ -1,6 +1,7 @@
 package lotviewmapper_test
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -52,7 +53,7 @@ func TestToPublicLot(t *testing.T) {
 			QRAvailable: true,
 			UpdatedAt:   "2026-09-21T08:00:00Z",
 		}
-		if got != want {
+		if !reflect.DeepEqual(got, want) {
 			t.Errorf("got %+v, want %+v", got, want)
 		}
 	})
@@ -86,10 +87,10 @@ func TestToPublicLot(t *testing.T) {
 	})
 
 	t.Run("default and nil return an empty response", func(t *testing.T) {
-		if got := lotviewmapper.ToPublicLot(lotview.Default()); got != (response.PublicLot{}) {
+		if got := lotviewmapper.ToPublicLot(lotview.Default()); !reflect.DeepEqual(got, response.PublicLot{}) {
 			t.Errorf("default: got %+v, want empty response", got)
 		}
-		if got := lotviewmapper.ToPublicLot(nil); got != (response.PublicLot{}) {
+		if got := lotviewmapper.ToPublicLot(nil); !reflect.DeepEqual(got, response.PublicLot{}) {
 			t.Errorf("nil: got %+v, want empty response", got)
 		}
 	})

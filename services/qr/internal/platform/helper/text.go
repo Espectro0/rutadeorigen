@@ -34,3 +34,7 @@ func LengthIsValid(value string, minLength, maxLength int) bool {
 	length := utf8.RuneCountInString(ApplyTrim(value))
 	return length >= minLength && length <= maxLength
 }
+
+func ApplyLower(value string) string {
+	return strings.ToLower(value)
+}

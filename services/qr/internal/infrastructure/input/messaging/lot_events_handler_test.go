@@ -562,3 +562,56 @@ func TestHandleTransferAndVoidMalformedDataArePermanent(t *testing.T) {
 		t.Error("no use case must run with malformed data")
 	}
 }
+
+type evidenceFake struct {
+	calls int
+	got   request.ProjectEvidenceProcessed
+	err   error
+}
+
+func (f *evidenceFake) Execute(_ context.Context, in request.ProjectEvidenceProcessed) (response.Empty, error) {
+	f.calls++
+	f.got = in
+	return response.Empty{}, f.err
+}
+
+const evidenceProcessedBody = `{"id":"env-id","type":"evidence.processed","version":1,"occurred_at":"2026-11-02T10:00:00Z","correlation_id":"env-corr","data":{"evidence_id":"ev-1","lot_id":"lot-1","stage":"farm","final_key":"lot-1/ev-1/imagen.jpg","thumbnail_key":"lot-1/ev-1/miniatura.webp","content_type":"image/jpeg","processed_at":"2026-11-02T10:00:05Z","sha256":"ignored"}}`
+
+func evidenceProcessedDelivery() libmessaging.Delivery {
+	return libmessaging.Delivery{ID: "msg-9", Type: "evidence.processed", Body: []byte(evidenceProcessedBody)}
+}
+
+func TestHandleEvidenceProcessedMapsDeliveryToRequest(t *testing.T) {
+	evidence := &evidenceFake{}
+	handler := newHandler(&createdFake{}, &stageFake{}).WithEvidenceProcessed(evidence)
+
+	if err := handler.Handle(context.Background(), evidenceProcessedDelivery()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if evidence.calls != 1 || evidence.got.MessageID != "msg-9" || evidence.got.EventType != "evidence.processed" {
+		t.Fatalf("unexpected call %+v", evidence.got)
+	}
+	data := evidence.got.Data
+	if data.EvidenceID != "ev-1" || data.LotID != "lot-1" || data.Stage != "farm" || data.ContentType != "image/jpeg" ||
+		data.FinalKey != "lot-1/ev-1/imagen.jpg" || data.ThumbnailKey != "lot-1/ev-1/miniatura.webp" {
+		t.Errorf("unexpected data %+v", data)
+	}
+}
+
+func TestHandleEvidenceProcessedIsIgnoredWithoutAPort(t *testing.T) {
+	if err := newHandler(&createdFake{}, &stageFake{}).Handle(context.Background(), evidenceProcessedDelivery()); err != nil {
+		t.Errorf("an unhandled event type must be ignored, got %v", err)
+	}
+}
+
+func TestHandleEvidenceProcessedMarksValidationErrorsPermanent(t *testing.T) {
+	evidence := &evidenceFake{err: exception.New(exception.CodeEventInvalidPayload)}
+	handler := newHandler(&createdFake{}, &stageFake{}).WithEvidenceProcessed(evidence)
+
+	err := handler.Handle(context.Background(), evidenceProcessedDelivery())
+
+	if !libmessaging.IsPermanent(err) {
+		t.Errorf("want a permanent error, got %v", err)
+	}
+}

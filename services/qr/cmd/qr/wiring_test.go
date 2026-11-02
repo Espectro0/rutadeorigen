@@ -482,3 +482,125 @@ func TestScanStatsValidateDaysAndLot(t *testing.T) {
 		t.Errorf("unknown lot: expected 404, got %d", rec.Code)
 	}
 }
+
+func (h harness) publishEvidenceProcessed(t *testing.T, lotID uuid.UUID, stage string) (uuid.UUID, error) {
+	t.Helper()
+
+	evidenceID := uuid.New()
+	messageID := uuid.New()
+	body, err := json.Marshal(map[string]any{
+		"id":      messageID.String(),
+		"type":    "evidence.processed",
+		"version": 1,
+		"data": map[string]any{
+			"evidence_id":   evidenceID.String(),
+			"lot_id":        lotID.String(),
+			"stage":         stage,
+			"final_key":     lotID.String() + "/" + evidenceID.String() + "/imagen.jpg",
+			"thumbnail_key": lotID.String() + "/" + evidenceID.String() + "/miniatura.webp",
+			"content_type":  "image/jpeg",
+			"processed_at":  "2026-01-11T10:00:00Z",
+		},
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	err = h.lotCreated.Handle(context.Background(), libmessaging.Delivery{
+		ID:         messageID.String(),
+		Type:       "evidence.processed",
+		Version:    1,
+		OccurredAt: time.Now().UTC(),
+		Body:       body,
+	})
+	return evidenceID, err
+}
+
+func publicEvidences(t *testing.T, h harness, lotID uuid.UUID) []map[string]any {
+	t.Helper()
+
+	rec := h.get("/public/lots/"+lotID.String(), nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Evidences []map[string]any `json:"evidences"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	return body.Evidences
+}
+
+func TestProcessedEvidenceAppearsOnThePublicLot(t *testing.T) {
+	h := newHarness(t)
+	lotID := uuid.New()
+	if err := h.publish(t, uuid.New(), lotID, "farm"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	evidenceID, err := h.publishEvidenceProcessed(t, lotID, "farm")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	evidences := publicEvidences(t, h, lotID)
+	if len(evidences) != 1 {
+		t.Fatalf("expected 1 evidence, got %d", len(evidences))
+	}
+	if evidences[0]["id"] != evidenceID.String() || evidences[0]["stage"] != "farm" {
+		t.Errorf("unexpected evidence %v", evidences[0])
+	}
+	if thumbnail, _ := evidences[0]["thumbnail_url"].(string); thumbnail == "" {
+		t.Error("the thumbnail url must be present")
+	}
+	if image, _ := evidences[0]["image_url"].(string); image == "" {
+		t.Error("the image url must be present")
+	}
+}
+
+func TestEvidenceArrivingBeforeItsLotIsStillShown(t *testing.T) {
+	h := newHarness(t)
+	lotID := uuid.New()
+	if _, err := h.publishEvidenceProcessed(t, lotID, "farm"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if err := h.publish(t, uuid.New(), lotID, "farm"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if evidences := publicEvidences(t, h, lotID); len(evidences) != 1 {
+		t.Errorf("expected 1 evidence, got %d", len(evidences))
+	}
+}
+
+func TestVoidedLotHidesItsEvidences(t *testing.T) {
+	h := newHarness(t)
+	lotID := uuid.New()
+	if err := h.publish(t, uuid.New(), lotID, "farm"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, err := h.publishEvidenceProcessed(t, lotID, "farm"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	err := h.publishLotEvent(t, "lot.voided", lotID, 2, map[string]any{"reason": "Lote contaminado", "status": "voided"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if evidences := publicEvidences(t, h, lotID); len(evidences) != 0 {
+		t.Errorf("expected no evidences for a voided lot, got %d", len(evidences))
+	}
+}
+
+func TestInvalidEvidenceEventIsPermanentFailure(t *testing.T) {
+	h := newHarness(t)
+
+	_, err := h.publishEvidenceProcessed(t, uuid.New(), "unknown-stage")
+
+	if !libmessaging.IsPermanent(err) {
+		t.Errorf("expected a permanent failure, got %v", err)
+	}
+}

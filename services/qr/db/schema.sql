@@ -59,3 +59,15 @@ CREATE TABLE IF NOT EXISTS processed_event (
 INSERT INTO redirect (id, source_prefix, target_template, status_code, active, created_at)
 VALUES ('0198a000-0000-7000-8000-000000000001', '/l/', '/lotes/{id}', 301, TRUE, NOW())
 ON CONFLICT (source_prefix) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS evidence_view (
+    evidence_id    UUID        PRIMARY KEY,
+    lot_id         UUID        NOT NULL,
+    stage          TEXT        NOT NULL CHECK (stage IN ('farm', 'roasting', 'packaging')),
+    final_key      TEXT        NOT NULL,
+    thumbnail_key  TEXT        NOT NULL,
+    content_type   TEXT        NOT NULL CHECK (content_type IN ('image/jpeg', 'image/png', 'image/webp')),
+    processed_at   TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS evidence_view_lot_idx ON evidence_view (lot_id, processed_at);

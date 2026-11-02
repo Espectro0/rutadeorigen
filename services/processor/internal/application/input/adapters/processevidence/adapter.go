@@ -36,6 +36,7 @@ func (a *Adapter) Execute(ctx context.Context, input request.ProcessEvidence) er
 		EventType:     helper.ApplyTrim(input.EventType),
 		EvidenceID:    evidenceID,
 		LotID:         lotID,
+		Stage:         helper.ApplyTrim(input.Stage),
 		QuarantineKey: helper.ApplyTrim(input.QuarantineKey),
 		SizeBytes:     input.SizeBytes,
 		Uploader: processuc.Uploader{
