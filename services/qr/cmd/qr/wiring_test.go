@@ -170,7 +170,7 @@ func TestScanRedirectsToLotPage(t *testing.T) {
 
 	rec := h.get("/l/"+lotID.String(), nil)
 
-	if rec.Code != http.StatusMovedPermanently || rec.Header().Get("Location") != "/lotes/"+lotID.String() {
+	if rec.Code != http.StatusFound || rec.Header().Get("Location") != "/lotes/"+lotID.String() {
 		t.Fatalf("unexpected redirect %d %q", rec.Code, rec.Header().Get("Location"))
 	}
 }
@@ -411,8 +411,8 @@ func TestScanStatsAreOnlyForTheOrganization(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	for i := 0; i < 3; i++ {
-		if rec := h.get("/l/"+lotID.String(), nil); rec.Code != http.StatusMovedPermanently {
-			t.Fatalf("scan %d: expected 301, got %d", i, rec.Code)
+		if rec := h.get("/l/"+lotID.String(), nil); rec.Code != http.StatusFound {
+			t.Fatalf("scan %d: expected 302, got %d", i, rec.Code)
 		}
 	}
 	path := "/lots/" + lotID.String() + "/scans/stats"

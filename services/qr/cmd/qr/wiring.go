@@ -119,7 +119,7 @@ func memoryOutputs() outputs {
 }
 
 func seedRedirects() []*redirect.Rule {
-	rule, err := redirect.New("/l/", "/lotes/{id}", http.StatusMovedPermanently)
+	rule, err := redirect.New("/l/", "/lotes/{id}", http.StatusFound)
 	if err != nil {
 		return nil
 	}

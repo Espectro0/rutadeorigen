@@ -270,5 +270,36 @@
     "chartLabel": "Chart of scans over the last {days} days: {total} in total",
     "empty": "This lot has no scans yet.",
     "notAllowed": "Only the organization can view scan statistics."
+  },
+  "Public": {
+    "metaTitle": "Lot {code}",
+    "metaTitleFallback": "Lot not available",
+    "metaDescription": "{variety} from {farm}, grown by {producer}.",
+    "voided": "This lot has been voided",
+    "inProcess": "This lot is still in process",
+    "origin": "Origin",
+    "farm": "Farm",
+    "altitude": "Altitude",
+    "altitudeValue": "{value} masl",
+    "producer": "Producer",
+    "coffee": "Coffee",
+    "variety": "Variety",
+    "process": "Process",
+    "harvest": "Harvest",
+    "updated": "Updated on {date}",
+    "home": "Go to home",
+    "notFound": {
+      "title": "We could not find this lot",
+      "body": "Check that the QR code is complete or try scanning it again."
+    },
+    "unavailable": {
+      "title": "We could not load the lot",
+      "body": "The service is not available right now. Please try again in a few minutes."
+    }
+  },
+  "NotFound": {
+    "title": "Page not found",
+    "body": "The address you are looking for does not exist or has been moved.",
+    "home": "Go to home"
   }
 }
