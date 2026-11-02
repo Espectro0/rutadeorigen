@@ -222,6 +222,19 @@
       "alt": "Código QR del lote {code}",
       "download": "Descargar",
       "close": "Cerrar"
+    },
+    "timeline": {
+      "title": "Historial",
+      "empty": "Este lote aún no tiene eventos registrados.",
+      "chainValid": "Cadena verificada",
+      "chainBroken": "Cadena inválida",
+      "chainBrokenHelp": "La cadena de hashes no es válida: el historial pudo haber sido alterado.",
+      "by": "Registrado por {role}",
+      "hash": "Hash",
+      "type": {
+        "transfer": "Transferencia",
+        "correction": "Corrección"
+      }
     }
   }
 }

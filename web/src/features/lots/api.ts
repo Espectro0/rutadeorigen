@@ -1,10 +1,14 @@
 import { request, requestBlob } from "@/lib/http-client";
+import { parseActorType } from "@/features/session/types";
 import {
     parseLotActions,
+    parseLotEventType,
     parseLotProcess,
     parseLotStage,
     parseLotStatus,
     type Lot,
+    type LotEvent,
+    type LotHistory,
     type LotPage,
     type StageRegistration,
 } from "./types";
@@ -130,4 +134,51 @@ export async function getQrImage(lotId: string, size: number, format: string): P
     const query = new URLSearchParams({ size: String(size), format });
     const blob = await requestBlob(`/public/lots/${encodeURIComponent(lotId)}/qr?${query}`);
     return toDataUrl(blob);
+}
+
+type LotEventDto = Readonly<{
+    id: string;
+    sequence: number;
+    type: string;
+    stage: string;
+    event_date: string;
+    note?: string;
+    actor_role: string;
+    details?: Record<string, unknown> | null;
+    hash: string;
+    registered_at: string;
+}>;
+
+type LotHistoryDto = Readonly<{
+    items: LotEventDto[] | null;
+    chain_valid: boolean;
+}>;
+
+function toEvent(dto: LotEventDto): LotEvent {
+    const details: Record<string, string | number> = {};
+    for (const [key, value] of Object.entries(dto.details ?? {})) {
+        if (typeof value === "string" || typeof value === "number") {
+            details[key] = value;
+        }
+    }
+    return {
+        id: dto.id,
+        sequence: dto.sequence,
+        type: parseLotEventType(dto.type),
+        stage: parseLotStage(dto.stage),
+        eventDate: dto.event_date,
+        note: dto.note ?? "",
+        actorRole: parseActorType(dto.actor_role),
+        details,
+        hash: dto.hash,
+        registeredAt: dto.registered_at,
+    };
+}
+
+export async function listLotEvents(lotId: string): Promise<LotHistory> {
+    const result = await request<LotHistoryDto>(`/lots/${encodeURIComponent(lotId)}/events`);
+    return {
+        items: (result.items ?? []).map(toEvent),
+        chainValid: result.chain_valid,
+    };
 }

@@ -1,3 +1,5 @@
+import type { ActorType } from "@/features/session/types";
+
 export const LOT_STAGES = ["none", "farm", "roasting", "packaging"] as const;
 export type ValidLotStage = (typeof LOT_STAGES)[number];
 export type LotStage = ValidLotStage | "unknown";
@@ -84,3 +86,69 @@ export type StageRegistration = Readonly<{
 export const QR_SIZES = [256, 512, 1024] as const;
 export const QR_FORMATS = ["png", "svg"] as const;
 export type QrFormat = (typeof QR_FORMATS)[number];
+
+export const LOT_EVENT_TYPES = ["stage", "transfer", "correction"] as const;
+export type ValidLotEventType = (typeof LOT_EVENT_TYPES)[number];
+export type LotEventType = ValidLotEventType | "unknown";
+
+export function parseLotEventType(value: string): LotEventType {
+    const normalized = value.trim().toLowerCase();
+    return (LOT_EVENT_TYPES as readonly string[]).includes(normalized)
+        ? (normalized as ValidLotEventType)
+        : "unknown";
+}
+
+export const DETAIL_KEYS = [
+    "drying_method",
+    "drying_days",
+    "moisture_percent",
+    "parchment_weight_kg",
+    "roast_level",
+    "duration_minutes",
+    "green_weight_kg",
+    "roasted_weight_kg",
+    "grind",
+    "package_weight_g",
+    "units",
+    "best_before",
+] as const;
+export type DetailKey = (typeof DETAIL_KEYS)[number];
+
+export function isDetailKey(value: string): value is DetailKey {
+    return (DETAIL_KEYS as readonly string[]).includes(value);
+}
+
+export const DETAIL_OPTIONS = [
+    "sun_patio",
+    "african_bed",
+    "greenhouse",
+    "mechanical",
+    "light",
+    "medium",
+    "dark",
+    "whole_bean",
+    "ground",
+] as const;
+export type DetailOption = (typeof DETAIL_OPTIONS)[number];
+
+export function isDetailOption(value: string): value is DetailOption {
+    return (DETAIL_OPTIONS as readonly string[]).includes(value);
+}
+
+export type LotEvent = Readonly<{
+    id: string;
+    sequence: number;
+    type: LotEventType;
+    stage: LotStage;
+    eventDate: string;
+    note: string;
+    actorRole: ActorType;
+    details: Readonly<Record<string, string | number>>;
+    hash: string;
+    registeredAt: string;
+}>;
+
+export type LotHistory = Readonly<{
+    items: readonly LotEvent[];
+    chainValid: boolean;
+}>;

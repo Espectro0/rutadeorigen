@@ -222,6 +222,19 @@
       "alt": "QR code of lot {code}",
       "download": "Download",
       "close": "Close"
+    },
+    "timeline": {
+      "title": "History",
+      "empty": "This lot has no recorded events yet.",
+      "chainValid": "Chain verified",
+      "chainBroken": "Invalid chain",
+      "chainBrokenHelp": "The hash chain is not valid: the history may have been tampered with.",
+      "by": "Recorded by {role}",
+      "hash": "Hash",
+      "type": {
+        "transfer": "Transfer",
+        "correction": "Correction"
+      }
     }
   }
 }

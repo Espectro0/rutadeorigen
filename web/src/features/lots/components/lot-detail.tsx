@@ -14,6 +14,7 @@ import { useActor } from "@/features/session/session-provider";
 import { LOT_STAGES, nextStage, type Lot, type LotAction } from "../types";
 import { LotActions } from "./lot-actions";
 import { LotStatusBadge } from "./lot-status-badge";
+import { LotTimeline } from "./lot-timeline";
 import { TransferForm } from "./transfer-form";
 import { VoidDialog } from "./void-dialog";
 import { QrPanel } from "./qr-panel";
@@ -187,6 +188,8 @@ export function LotDetail({ id }: Readonly<{ id: string }>) {
                     <Field label={t("detail.version")}>{data.version}</Field>
                 </dl>
             </section>
+
+            <LotTimeline lotId={data.id} version={data.version} />
         </div>
     );
 }
