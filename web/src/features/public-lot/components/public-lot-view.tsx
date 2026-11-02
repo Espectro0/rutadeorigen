@@ -3,6 +3,7 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { LotStatusBadge } from "@/features/lots/components/lot-status-badge";
 import { StageProgress } from "@/features/lots/components/stage-progress";
 import type { PublicLot } from "../types";
+import { UpdatedAt } from "./updated-at";
 
 function Field({ label, children }: Readonly<{ label: string; children: ReactNode }>) {
     return (
@@ -24,7 +25,6 @@ export async function PublicLotView({ lot }: Readonly<{ lot: PublicLot }>) {
         dateStyle: "medium",
         timeZone: "UTC",
     });
-    const updated = format.dateTime(new Date(lot.updatedAt), { dateStyle: "medium", timeStyle: "short" });
 
     return (
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
@@ -65,7 +65,7 @@ export async function PublicLotView({ lot }: Readonly<{ lot: PublicLot }>) {
                 </dl>
             </section>
 
-            <p className="text-center text-sm text-ink-dim">{t("updated", { date: updated })}</p>
+            <UpdatedAt iso={lot.updatedAt} />
         </div>
     );
 }
