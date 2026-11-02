@@ -143,12 +143,15 @@ func (uc *ProcessEvidence) accept(ctx context.Context, cmd Command, file *eviden
 	event := uc.newEvent(ctx, cmd, ports.EventEvidenceProcessed, processedAt, EvidenceProcessedPayload{
 		EvidenceID:   file.EvidenceID(),
 		LotID:        file.LotID(),
+		LotCode:      cmd.LotCode,
 		Stage:        cmd.Stage,
+		FileName:     cmd.FileName,
 		SHA256:       stored.checksum,
 		FinalKey:     stored.finalKey,
 		ThumbnailKey: stored.thumbnailKey,
 		ContentType:  stored.contentType,
 		ProcessedAt:  processedAt,
+		Uploader:     uploaderPayload(cmd.Uploader),
 	})
 	return uc.recordOutcome(ctx, cmd, file, event)
 }
@@ -157,10 +160,19 @@ func (uc *ProcessEvidence) reject(ctx context.Context, cmd Command, file *eviden
 	processedAt := time.Now().UTC()
 	event := uc.newEvent(ctx, cmd, ports.EventEvidenceRejected, processedAt, EvidenceRejectedPayload{
 		EvidenceID:  file.EvidenceID(),
+		LotID:       file.LotID(),
+		LotCode:     cmd.LotCode,
+		Stage:       cmd.Stage,
+		FileName:    cmd.FileName,
 		Reason:      uc.messages.Message(reason),
 		ProcessedAt: processedAt,
+		Uploader:    uploaderPayload(cmd.Uploader),
 	})
 	return uc.recordOutcome(ctx, cmd, file, event)
+}
+
+func uploaderPayload(uploader Uploader) UploaderPayload {
+	return UploaderPayload{ActorID: uploader.ActorID, Role: uploader.Role, Name: uploader.Name, Email: uploader.Email}
 }
 
 func (uc *ProcessEvidence) recordOutcome(ctx context.Context, cmd Command, file *evidencefile.File, event ports.Event) error {

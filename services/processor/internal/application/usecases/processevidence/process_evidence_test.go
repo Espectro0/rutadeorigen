@@ -131,8 +131,10 @@ func newCommand() Command {
 		LotID:         lotID,
 		QuarantineKey: lotID.String() + "/" + evidenceID.String(),
 		SizeBytes:     int64(len(originalBytes)),
+		LotCode:       "LT-001",
 		Stage:         "farm",
-		Uploader:      Uploader{ActorID: uuid.New(), Role: "producer"},
+		FileName:      "foto.jpg",
+		Uploader:      Uploader{ActorID: uuid.New(), Role: "producer", Name: "Maria Lopez", Email: "maria@example.com"},
 	}
 }
 
@@ -156,6 +158,10 @@ func TestExecuteProcessesValidImage(t *testing.T) {
 	}
 	if payload.LotID != cmd.LotID || payload.Stage != "farm" || payload.ContentType != "image/jpeg" {
 		t.Errorf("payload must carry lot, stage and content type: %+v", payload)
+	}
+	if payload.LotCode != "LT-001" || payload.FileName != "foto.jpg" || payload.Uploader.Email != "maria@example.com" ||
+		payload.Uploader.Name != "Maria Lopez" || payload.Uploader.ActorID != cmd.Uploader.ActorID {
+		t.Errorf("payload must carry lot code, file name and uploader: %+v", payload)
 	}
 	if len(f.quarantine.removed) != 1 {
 		t.Error("original must be removed from quarantine")
@@ -182,8 +188,9 @@ func TestExecuteSkipsMessageAlreadyHandled(t *testing.T) {
 func TestExecuteRejectsCorruptImage(t *testing.T) {
 	f := newFixture(t)
 	f.images.inspectErr = exception.New(exception.CodeImageCorrupt)
+	cmd := newCommand()
 
-	if err := f.uc.Execute(context.Background(), newCommand()); err != nil {
+	if err := f.uc.Execute(context.Background(), cmd); err != nil {
 		t.Fatal(err)
 	}
 
@@ -193,6 +200,10 @@ func TestExecuteRejectsCorruptImage(t *testing.T) {
 	payload := f.publisher.events[0].Payload.(EvidenceRejectedPayload)
 	if payload.Reason != "rechazada: "+string(exception.CodeImageCorrupt) {
 		t.Errorf("reason = %q", payload.Reason)
+	}
+	if payload.LotID != cmd.LotID || payload.LotCode != "LT-001" || payload.Stage != "farm" ||
+		payload.FileName != "foto.jpg" || payload.Uploader.Email != "maria@example.com" {
+		t.Errorf("rejected payload must carry lot, stage, file name and uploader: %+v", payload)
 	}
 	if len(f.evidences.stored) != 0 {
 		t.Error("nothing must be stored for a rejected file")
