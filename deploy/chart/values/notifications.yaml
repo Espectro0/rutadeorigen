@@ -2,3 +2,10 @@ services:
   notifications:
     tag: "b764382dd1cc2f87dd17a954b9db4332cc285595"
     replicas: 1
+    envFromSecret: notifications-db
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        memory: 256Mi

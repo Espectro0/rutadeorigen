@@ -1,0 +1,7 @@
+NOTIFICATIONS_EVENT_INVALID_PAYLOAD: "El contenido del evento recibido no es válido."
+NOTIFICATIONS_INVALID_RECIPIENT: "El destinatario de la notificación no tiene un correo válido."
+NOTIFICATIONS_INVALID_STATUS_TRANSITION: "La notificación no puede cambiar a ese estado desde el actual."
+
+NOTIFICATIONS_EMAIL_REJECTED: "El proveedor de correo rechazó el mensaje."
+NOTIFICATIONS_EMAIL_UNAVAILABLE: "El proveedor de correo no está disponible en este momento."
+NOTIFICATIONS_EMAIL_RENDER_FAILED: "No se pudo preparar el contenido del correo."

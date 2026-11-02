@@ -23,7 +23,9 @@ type envelope struct {
 type evidenceUploadedData struct {
 	EvidenceID    string   `json:"evidence_id"`
 	LotID         string   `json:"lot_id"`
+	LotCode       string   `json:"lot_code"`
 	Stage         string   `json:"stage"`
+	FileName      string   `json:"file_name"`
 	QuarantineKey string   `json:"quarantine_key"`
 	SizeBytes     int64    `json:"size_bytes"`
 	Uploader      uploader `json:"uploader"`
@@ -32,6 +34,8 @@ type evidenceUploadedData struct {
 type uploader struct {
 	ActorID string `json:"actor_id"`
 	Role    string `json:"role"`
+	Name    string `json:"name"`
+	Email   string `json:"email"`
 }
 
 type EvidenceUploadedHandler struct {
@@ -61,11 +65,15 @@ func (h *EvidenceUploadedHandler) Handle(ctx context.Context, d libmessaging.Del
 		EventType:       d.Type,
 		EvidenceID:      env.Data.EvidenceID,
 		LotID:           env.Data.LotID,
+		LotCode:         env.Data.LotCode,
 		Stage:           env.Data.Stage,
+		FileName:        env.Data.FileName,
 		QuarantineKey:   env.Data.QuarantineKey,
 		SizeBytes:       env.Data.SizeBytes,
 		UploaderActorID: env.Data.Uploader.ActorID,
 		UploaderRole:    env.Data.Uploader.Role,
+		UploaderName:    env.Data.Uploader.Name,
+		UploaderEmail:   env.Data.Uploader.Email,
 	})
 	return classify(err)
 }
