@@ -172,7 +172,7 @@ func (uc *ProcessEvidence) reject(ctx context.Context, cmd Command, file *eviden
 }
 
 func uploaderPayload(uploader Uploader) UploaderPayload {
-	return UploaderPayload{ActorID: uploader.ActorID, Role: uploader.Role, Name: uploader.Name, Email: uploader.Email}
+	return UploaderPayload(uploader)
 }
 
 func (uc *ProcessEvidence) recordOutcome(ctx context.Context, cmd Command, file *evidencefile.File, event ports.Event) error {
