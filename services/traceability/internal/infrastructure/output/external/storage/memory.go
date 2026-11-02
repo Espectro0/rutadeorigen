@@ -8,10 +8,11 @@ import (
 	"rutadeorigen/traceability/internal/application/output/ports"
 )
 
-var _ ports.EvidenceStorage = (*Memory)(nil)
+var (
+	_ ports.EvidenceStorage = (*Memory)(nil)
+	_ ports.EvidenceViewer  = (*Memory)(nil)
+)
 
-// Memory is the development storage (STORAGE=memory). Uploads are simulated
-// with Put because there is no real bucket.
 type Memory struct {
 	mu      sync.RWMutex
 	objects map[string]int64
@@ -32,6 +33,13 @@ func (m *Memory) PresignUpload(_ context.Context, key, contentType string, ttl t
 		URL:       "http://memory.invalid/quarantine/" + key,
 		Method:    "PUT",
 		Headers:   map[string]string{"Content-Type": contentType},
+		ExpiresAt: time.Now().UTC().Add(ttl),
+	}, nil
+}
+
+func (m *Memory) PresignView(_ context.Context, key string, ttl time.Duration) (ports.ViewURL, error) {
+	return ports.ViewURL{
+		URL:       "http://memory.invalid/evidences/" + key,
 		ExpiresAt: time.Now().UTC().Add(ttl),
 	}, nil
 }

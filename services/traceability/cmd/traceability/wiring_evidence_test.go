@@ -4,13 +4,16 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	libmessaging "rutadeorigen/lib/messaging"
+	"rutadeorigen/traceability/internal/application/output/ports"
 	"rutadeorigen/traceability/internal/infrastructure/input/messaging"
 	evidencestorage "rutadeorigen/traceability/internal/infrastructure/output/external/storage"
 	"rutadeorigen/traceability/internal/platform/catalog"
@@ -24,7 +27,7 @@ type evidenceServer struct {
 	results *messaging.EvidenceResultsHandler
 }
 
-func newEvidenceServer(t *testing.T) evidenceServer {
+func newEvidenceServer(t *testing.T, extra ...routeOption) evidenceServer {
 	t.Helper()
 
 	messages, err := catalog.New()
@@ -35,8 +38,9 @@ func newEvidenceServer(t *testing.T) evidenceServer {
 	var logs bytes.Buffer
 	storage := evidencestorage.NewMemory()
 	mux := http.NewServeMux()
+	options := append([]routeOption{withEvidenceStorage(storage)}, extra...)
 	results := registerRoutes(mux, slog.New(slog.NewJSONHandler(&logs, nil)), nil, messages,
-		authn{mode: authModeDevHeader}, withEvidenceStorage(storage))
+		authn{mode: authModeDevHeader}, options...)
 
 	return evidenceServer{mux: mux, logs: &logs, storage: storage, results: results}
 }
@@ -60,6 +64,10 @@ type evidenceView struct {
 	Stage  string `json:"stage"`
 	Status string `json:"status"`
 	SHA256 string `json:"sha256"`
+
+	ThumbnailURL string `json:"thumbnail_url"`
+	ImageURL     string `json:"image_url"`
+	URLExpiresAt string `json:"url_expires_at"`
 }
 
 type evidenceUploadView struct {
@@ -141,6 +149,59 @@ func TestEvidenceUploadEndToEnd(t *testing.T) {
 	}
 	if len(list.Items) != 1 || list.Items[0].Status != "processed" || list.Items[0].SHA256 != "abc123" {
 		t.Errorf("got %+v, want one processed evidence", list.Items)
+	}
+	if got := list.Items[0]; !strings.HasSuffix(got.ThumbnailURL, "/evidences/"+lot.ID+"/t.webp") ||
+		!strings.HasSuffix(got.ImageURL, "/evidences/"+lot.ID+"/f.webp") || got.URLExpiresAt == "" {
+		t.Errorf("got %+v, want view urls for the thumbnail and the image", got)
+	}
+}
+
+func TestEvidenceListHidesViewURLsUntilProcessed(t *testing.T) {
+	s := newEvidenceServer(t)
+	lot, _ := lotWithFarmStage(t, s.mux)
+	mustRequestUpload(t, s, producerHeader, lot.ID)
+
+	rec := get(s.mux, producerHeader, "/lots/"+lot.ID+"/evidences")
+
+	var list struct {
+		Items []evidenceView `json:"items"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&list); err != nil || len(list.Items) != 1 {
+		t.Fatalf("got %+v (%v), want one evidence", list.Items, err)
+	}
+	if got := list.Items[0]; got.ThumbnailURL != "" || got.ImageURL != "" || got.URLExpiresAt != "" {
+		t.Errorf("got %+v, want no view urls for a pending evidence", got)
+	}
+}
+
+type failingViewer struct{}
+
+func (failingViewer) PresignView(context.Context, string, time.Duration) (ports.ViewURL, error) {
+	return ports.ViewURL{}, errors.New("garage down")
+}
+
+func TestEvidenceListSurvivesAViewerFailure(t *testing.T) {
+	s := newEvidenceServer(t, withEvidenceViewer(failingViewer{}))
+	lot, _ := lotWithFarmStage(t, s.mux)
+	requested := mustRequestUpload(t, s, producerHeader, lot.ID)
+	s.storage.Put(quarantineKey(requested), 2048)
+	completeUpload(s, producerHeader, lot.ID, requested.Evidence.ID)
+	body := `{"data":{"evidence_id":"` + requested.Evidence.ID +
+		`","sha256":"abc123","final_key":"` + lot.ID + `/f.webp","thumbnail_key":"` + lot.ID + `/t.webp","processed_at":"2026-11-02T10:00:00Z"}}`
+	if err := s.results.Handle(context.Background(), libmessaging.Delivery{Type: "evidence.processed", Body: []byte(body)}); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := get(s.mux, producerHeader, "/lots/"+lot.ID+"/evidences")
+
+	var list struct {
+		Items []evidenceView `json:"items"`
+	}
+	if rec.Code != http.StatusOK || json.NewDecoder(rec.Body).Decode(&list) != nil || len(list.Items) != 1 {
+		t.Fatalf("status %d, items %+v, want the list to still be served", rec.Code, list.Items)
+	}
+	if got := list.Items[0]; got.Status != "processed" || got.ImageURL != "" {
+		t.Errorf("got %+v, want a processed evidence without view urls", got)
 	}
 }
 

@@ -13,6 +13,7 @@ import (
 const (
 	defaultEvidenceMaxBytes  = 5 << 20
 	defaultEvidenceUploadTTL = 5 * time.Minute
+	defaultEvidenceViewTTL   = time.Hour
 
 	evidenceConsumerQueue = "traceability.events"
 )
@@ -22,6 +23,7 @@ var evidenceResultEvents = []string{"evidence.processed", "evidence.rejected"}
 type evidenceConfig struct {
 	maxBytes  int64
 	uploadTTL time.Duration
+	viewTTL   time.Duration
 	garage    evidencestorage.GarageConfig
 }
 
@@ -54,6 +56,11 @@ func loadEvidence() (evidenceConfig, error) {
 		errs = append(errs, err)
 	}
 
+	viewTTL, err := config.Duration("EVIDENCE_VIEW_TTL", defaultEvidenceViewTTL)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
 	useSSL, err := config.Bool("GARAGE_USE_SSL", false)
 	if err != nil {
 		errs = append(errs, err)
@@ -62,6 +69,7 @@ func loadEvidence() (evidenceConfig, error) {
 	cfg := evidenceConfig{
 		maxBytes:  maxBytes,
 		uploadTTL: ttl,
+		viewTTL:   viewTTL,
 		garage: evidencestorage.GarageConfig{
 			Endpoint:  required("GARAGE_ENDPOINT"),
 			UseSSL:    useSSL,
@@ -70,6 +78,8 @@ func loadEvidence() (evidenceConfig, error) {
 			SecretKey: required("GARAGE_SECRET_KEY"),
 			Region:    config.String("GARAGE_REGION", "garage"),
 			Bucket:    config.String("GARAGE_QUARANTINE_BUCKET", "quarantine"),
+
+			EvidenceBucket: config.String("GARAGE_EVIDENCE_BUCKET", "evidences"),
 		},
 	}
 

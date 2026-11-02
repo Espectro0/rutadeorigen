@@ -3,6 +3,7 @@ package main
 import (
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -53,8 +54,10 @@ import (
 )
 
 type routeConfig struct {
-	storage  ports.EvidenceStorage
-	settings requestevidenceuc.Settings
+	storage      ports.EvidenceStorage
+	viewer       ports.EvidenceViewer
+	settings     requestevidenceuc.Settings
+	viewSettings listevidencesuc.Settings
 }
 
 type routeOption func(*routeConfig)
@@ -63,16 +66,26 @@ func withEvidenceStorage(storage ports.EvidenceStorage) routeOption {
 	return func(c *routeConfig) { c.storage = storage }
 }
 
+func withEvidenceViewer(viewer ports.EvidenceViewer) routeOption {
+	return func(c *routeConfig) { c.viewer = viewer }
+}
+
+func withEvidenceViewTTL(ttl time.Duration) routeOption {
+	return func(c *routeConfig) { c.viewSettings = listevidencesuc.Settings{ViewTTL: ttl} }
+}
+
 func withEvidenceSettings(settings requestevidenceuc.Settings) routeOption {
 	return func(c *routeConfig) { c.settings = settings }
 }
 
-// registerRoutes returns the handler for the evidence results consumed from the broker.
 func registerRoutes(mux *http.ServeMux, log *slog.Logger, pool *pgxpool.Pool, catalog *catalog.Catalog, authn authn,
 	opts ...routeOption) *inputmessaging.EvidenceResultsHandler {
+	developmentStorage := evidencestorage.NewMemory()
 	cfg := routeConfig{
-		storage:  evidencestorage.NewMemory(),
-		settings: requestevidenceuc.Settings{MaxBytes: defaultEvidenceMaxBytes, UploadTTL: defaultEvidenceUploadTTL},
+		storage:      developmentStorage,
+		viewer:       developmentStorage,
+		settings:     requestevidenceuc.Settings{MaxBytes: defaultEvidenceMaxBytes, UploadTTL: defaultEvidenceUploadTTL},
+		viewSettings: listevidencesuc.Settings{ViewTTL: defaultEvidenceViewTTL},
 	}
 	for _, opt := range opts {
 		opt(&cfg)
@@ -98,7 +111,7 @@ func registerRoutes(mux *http.ServeMux, log *slog.Logger, pool *pgxpool.Pool, ca
 	deleteFarmAdapter := deletefarmadapter.New(deletefarmuc.New(actors, farms, lots, auth, publisher))
 	requestEvidenceAdapter := requestevidenceadapter.New(requestevidenceuc.New(actors, lots, evidences, cfg.storage, auth, publisher, cfg.settings))
 	completeEvidenceAdapter := completeevidenceadapter.New(completeevidenceuc.New(actors, lots, evidences, cfg.storage, publisher, tx))
-	listEvidencesAdapter := listevidencesadapter.New(listevidencesuc.New(actors, lots, evidences, auth))
+	listEvidencesAdapter := listevidencesadapter.New(listevidencesuc.New(actors, lots, evidences, auth, cfg.viewer, cfg.viewSettings))
 	recordEvidenceAdapter := recordevidenceadapter.New(recordevidenceuc.New(evidences))
 
 	resolver := resolveactoruc.New(actors)

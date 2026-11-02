@@ -105,7 +105,8 @@ func main() {
 			os.Exit(1)
 		}
 		checkers = append(checkers, health.NewChecker("garage", garage.Ping))
-		routeOptions = append(routeOptions, withEvidenceStorage(garage), withEvidenceSettings(evidence.settings()))
+		routeOptions = append(routeOptions, withEvidenceStorage(garage), withEvidenceViewer(garage),
+			withEvidenceViewTTL(evidence.viewTTL), withEvidenceSettings(evidence.settings()))
 
 		consumer, err = libmessaging.NewConsumer(libmessaging.ConsumerConfig{
 			URL:      amqpURL,

@@ -13,6 +13,9 @@ type Evidence struct {
 	RejectionReason string `json:"rejection_reason,omitempty"`
 	CreatedAt       string `json:"created_at"`
 	ProcessedAt     string `json:"processed_at,omitempty"`
+	ThumbnailURL    string `json:"thumbnail_url,omitempty"`
+	ImageURL        string `json:"image_url,omitempty"`
+	URLExpiresAt    string `json:"url_expires_at,omitempty"`
 }
 
 type EvidenceUploadTarget struct {

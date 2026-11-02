@@ -15,7 +15,10 @@ import (
 	"rutadeorigen/traceability/internal/platform/exception"
 )
 
-var _ ports.EvidenceStorage = (*Garage)(nil)
+var (
+	_ ports.EvidenceStorage = (*Garage)(nil)
+	_ ports.EvidenceViewer  = (*Garage)(nil)
+)
 
 type GarageConfig struct {
 	Endpoint  string
@@ -25,12 +28,16 @@ type GarageConfig struct {
 	SecretKey string
 	Region    string
 	Bucket    string
+
+	EvidenceBucket string
 }
 
 type Garage struct {
 	internal *minio.Client
 	signer   *minio.Client
 	bucket   string
+
+	evidenceBucket string
 }
 
 func NewGarage(cfg GarageConfig) (*Garage, error) {
@@ -62,7 +69,7 @@ func NewGarage(cfg GarageConfig) (*Garage, error) {
 		return nil, unavailable("create garage signer", err)
 	}
 
-	return &Garage{internal: internal, signer: signer, bucket: cfg.Bucket}, nil
+	return &Garage{internal: internal, signer: signer, bucket: cfg.Bucket, evidenceBucket: cfg.EvidenceBucket}, nil
 }
 
 func (g *Garage) PresignUpload(ctx context.Context, key, contentType string, ttl time.Duration) (ports.PresignedUpload, error) {
@@ -103,15 +110,30 @@ func (g *Garage) Remove(ctx context.Context, key string) error {
 	return nil
 }
 
-// Ping checks that the quarantine bucket is reachable.
-func (g *Garage) Ping(ctx context.Context) error {
-	ok, err := g.internal.BucketExists(ctx, g.bucket)
+func (g *Garage) PresignView(ctx context.Context, key string, ttl time.Duration) (ports.ViewURL, error) {
+	u, err := g.signer.PresignedGetObject(ctx, g.evidenceBucket, key, ttl, url.Values{})
 	if err != nil {
-		return unavailable("check quarantine bucket", err)
+		return ports.ViewURL{}, unavailable("presign evidence view", err)
+	}
+
+	return ports.ViewURL{URL: u.String(), ExpiresAt: time.Now().UTC().Add(ttl)}, nil
+}
+
+func (g *Garage) Ping(ctx context.Context) error {
+	if err := g.pingBucket(ctx, g.bucket); err != nil {
+		return err
+	}
+	return g.pingBucket(ctx, g.evidenceBucket)
+}
+
+func (g *Garage) pingBucket(ctx context.Context, bucket string) error {
+	ok, err := g.internal.BucketExists(ctx, bucket)
+	if err != nil {
+		return unavailable("check bucket "+bucket, err)
 	}
 	if !ok {
 		return exception.New(exception.CodeEvidenceStorageUnavailable).
-			WithTechnical("quarantine bucket does not exist")
+			WithTechnical("bucket does not exist: " + bucket)
 	}
 	return nil
 }
