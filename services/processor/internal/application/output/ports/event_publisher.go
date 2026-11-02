@@ -1,0 +1,36 @@
+package ports
+
+import (
+	"context"
+	"time"
+
+	"github.com/google/uuid"
+)
+
+type EventType string
+
+const (
+	EventEvidenceProcessed EventType = "evidence.processed"
+	EventEvidenceRejected  EventType = "evidence.rejected"
+)
+
+type AggregateType string
+
+const AggregateEvidence AggregateType = "evidence"
+
+type Event struct {
+	ID            uuid.UUID
+	Type          EventType
+	AggregateType AggregateType
+	AggregateID   uuid.UUID
+	Version       int
+	OccurredAt    time.Time
+	ActorID       uuid.UUID
+	ActorRole     string
+	CorrelationID string
+	Payload       any
+}
+
+type EventPublisher interface {
+	Publish(ctx context.Context, event Event) error
+}
