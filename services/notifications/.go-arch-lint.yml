@@ -4,6 +4,7 @@ workdir: .
 allow:
   depOnAnyVendor: false
   ignoreNotFoundComponents: true
+  deepScan: false
 
 vendors:
   uuid: { in: github.com/google/uuid }
