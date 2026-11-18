@@ -29,11 +29,15 @@ func validInput() request.ProcessEvidence {
 		EventType:       " evidence.uploaded ",
 		EvidenceID:      evidenceID.String(),
 		LotID:           lotID.String(),
+		LotCode:         " LT-001 ",
 		Stage:           " farm ",
+		FileName:        " foto.jpg ",
 		QuarantineKey:   lotID.String() + "/" + evidenceID.String(),
 		SizeBytes:       2048,
 		UploaderActorID: uuid.NewString(),
 		UploaderRole:    " producer ",
+		UploaderName:    " Maria Lopez ",
+		UploaderEmail:   " maria@example.com ",
 	}
 }
 
@@ -51,6 +55,9 @@ func TestExecuteBuildsCommand(t *testing.T) {
 	cmd := useCase.received[0]
 	if cmd.EventType != "evidence.uploaded" || cmd.Uploader.Role != "producer" || cmd.Stage != "farm" {
 		t.Errorf("fields must be trimmed: %+v", cmd)
+	}
+	if cmd.LotCode != "LT-001" || cmd.FileName != "foto.jpg" || cmd.Uploader.Name != "Maria Lopez" || cmd.Uploader.Email != "maria@example.com" {
+		t.Errorf("lot and uploader details must be trimmed: %+v", cmd)
 	}
 	if cmd.EvidenceID.String() != input.EvidenceID || cmd.SizeBytes != 2048 {
 		t.Errorf("unexpected command %+v", cmd)

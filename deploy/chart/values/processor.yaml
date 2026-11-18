@@ -1,6 +1,6 @@
 services:
   processor:
-    tag: "b764382dd1cc2f87dd17a954b9db4332cc285595"
+    tag: "7a76b81ba0a5ef8b0edadad5c2ea15e32db473ed"
     replicas: 1
     envFromSecret: processor-db
     resources:

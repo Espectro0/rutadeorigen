@@ -9,6 +9,8 @@ import (
 type Uploader struct {
 	ActorID uuid.UUID
 	Role    string
+	Name    string
+	Email   string
 }
 
 type Command struct {
@@ -16,7 +18,9 @@ type Command struct {
 	EventType     string
 	EvidenceID    uuid.UUID
 	LotID         uuid.UUID
+	LotCode       string
 	Stage         string
+	FileName      string
 	QuarantineKey string
 	SizeBytes     int64
 	Uploader      Uploader

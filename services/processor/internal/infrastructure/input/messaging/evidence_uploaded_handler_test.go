@@ -49,11 +49,15 @@ func TestHandleMapsDeliveryToRequest(t *testing.T) {
 		EventType:       "evidence.uploaded",
 		EvidenceID:      "ev-1",
 		LotID:           "lot-1",
+		LotCode:         "L1",
 		Stage:           "farm",
+		FileName:        "foto.jpg",
 		QuarantineKey:   "lot-1/ev-1",
 		SizeBytes:       2048,
 		UploaderActorID: "actor-1",
 		UploaderRole:    "producer",
+		UploaderName:    "x",
+		UploaderEmail:   "x@y.z",
 	}
 	if fake.got != want {
 		t.Errorf("got %+v, want %+v", fake.got, want)
