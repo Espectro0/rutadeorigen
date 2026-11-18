@@ -15,6 +15,7 @@ commonVendors:
 
 excludeFiles:
   - "^.*_test\\.go$"
+  - "^(.*/)?cmd/[^/]+/wiring\\.go$"
 
 components:
   main:           { in: [cmd/**] }
