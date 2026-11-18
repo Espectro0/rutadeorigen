@@ -4,7 +4,8 @@ import { LotStatusBadge } from "@/features/lots/components/lot-status-badge";
 import { EvidenceGrid } from "@/features/evidences/components/evidence-grid";
 import type { EvidenceTile } from "@/features/evidences/types";
 import { StageProgress } from "@/features/lots/components/stage-progress";
-import type { PublicLot } from "../types";
+import { isDetailOption } from "@/features/lots/types";
+import type { PublicLot, PublicStage } from "../types";
 import { UpdatedAt } from "./updated-at";
 
 function Field({ label, children }: Readonly<{ label: string; children: ReactNode }>) {
@@ -28,17 +29,59 @@ function toTile(evidence: PublicLot["evidences"][number]): EvidenceTile {
     };
 }
 
+type StageRow = Readonly<{ key: string; label: string; value: string }>;
+
 export async function PublicLotView({ lot }: Readonly<{ lot: PublicLot }>) {
     const t = await getTranslations("Public");
     const lots = await getTranslations("Lots");
+    const options = await getTranslations("Lots.stageForm");
     const format = await getFormatter();
+
+    const formatDay = (value: string) =>
+        format.dateTime(new Date(`${value}T00:00:00Z`), { dateStyle: "medium", timeZone: "UTC" });
+    const optionText = (value: string) => (isDetailOption(value) ? options(`options.${value}`) : value);
+
+    const stageRows = (stage: PublicStage): readonly StageRow[] => {
+        const rows: StageRow[] = [];
+        if (stage.dryingMethod !== "") {
+            rows.push({ key: "dryingMethod", label: t("details.dryingMethod"), value: optionText(stage.dryingMethod) });
+        }
+        if (stage.dryingDays > 0) {
+            rows.push({
+                key: "dryingDays",
+                label: t("details.dryingDays"),
+                value: t("details.daysValue", { value: stage.dryingDays }),
+            });
+        }
+        if (stage.roastLevel !== "") {
+            rows.push({ key: "roastLevel", label: t("details.roastLevel"), value: optionText(stage.roastLevel) });
+        }
+        if (stage.roastDurationMinutes > 0) {
+            rows.push({
+                key: "roastDuration",
+                label: t("details.roastDuration"),
+                value: t("details.minutesValue", { value: stage.roastDurationMinutes }),
+            });
+        }
+        if (stage.grind !== "") {
+            rows.push({ key: "grind", label: t("details.grind"), value: optionText(stage.grind) });
+        }
+        if (stage.packageWeightGrams > 0) {
+            rows.push({
+                key: "packageWeight",
+                label: t("details.packageWeight"),
+                value: t("details.gramsValue", { value: stage.packageWeightGrams }),
+            });
+        }
+        if (stage.bestBefore !== "") {
+            rows.push({ key: "bestBefore", label: t("details.bestBefore"), value: formatDay(stage.bestBefore) });
+        }
+        return rows;
+    };
 
     const voided = lot.status === "voided";
     const inProcess = !voided && lot.stage !== "packaging";
-    const harvest = format.dateTime(new Date(`${lot.harvestDate}T00:00:00Z`), {
-        dateStyle: "medium",
-        timeZone: "UTC",
-    });
+    const harvest = formatDay(lot.harvestDate);
 
     return (
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
@@ -78,6 +121,29 @@ export async function PublicLotView({ lot }: Readonly<{ lot: PublicLot }>) {
                     <Field label={t("harvest")}>{harvest}</Field>
                 </dl>
             </section>
+
+            {!voided && lot.stages.length > 0 && (
+                <section aria-label={t("journey")} className="card p-5">
+                    <h2 className="mb-4 text-lg font-semibold">{t("journey")}</h2>
+                    <ol className="flex flex-col gap-5">
+                        {lot.stages.map((stage) => (
+                            <li key={stage.stage} className="flex flex-col gap-3">
+                                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                                    <h3 className="font-semibold">{lots(`stage.${stage.stage}`)}</h3>
+                                    <span className="text-sm text-ink-dim">{formatDay(stage.eventDate)}</span>
+                                </div>
+                                <dl className="grid gap-4 sm:grid-cols-3">
+                                    {stageRows(stage).map((row) => (
+                                        <Field key={row.key} label={row.label}>
+                                            {row.value}
+                                        </Field>
+                                    ))}
+                                </dl>
+                            </li>
+                        ))}
+                    </ol>
+                </section>
+            )}
 
             {!voided && lot.evidences.length > 0 && (
                 <section aria-label={t("photos")} className="card p-5">

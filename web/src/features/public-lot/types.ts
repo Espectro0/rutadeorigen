@@ -13,6 +13,19 @@ export type PublicLot = Readonly<{
     status: LotStatus;
     updatedAt: string;
     evidences: readonly PublicEvidence[];
+    stages: readonly PublicStage[];
+}>;
+
+export type PublicStage = Readonly<{
+    stage: LotStage;
+    eventDate: string;
+    dryingMethod: string;
+    dryingDays: number;
+    roastLevel: string;
+    roastDurationMinutes: number;
+    grind: string;
+    packageWeightGrams: number;
+    bestBefore: string;
 }>;
 
 export type PublicEvidence = Readonly<{
