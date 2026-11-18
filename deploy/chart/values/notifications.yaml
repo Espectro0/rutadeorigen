@@ -1,6 +1,6 @@
 services:
   notifications:
-    tag: "7a76b81ba0a5ef8b0edadad5c2ea15e32db473ed"
+    tag: "7eac6b08cde11dc62e55212c5ade0fb59630a373"
     replicas: 1
     envFromSecret: notifications-db
     resources:
