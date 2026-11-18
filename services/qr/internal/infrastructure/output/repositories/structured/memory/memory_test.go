@@ -14,6 +14,7 @@ import (
 	"rutadeorigen/qr/internal/domain/qrcode"
 	"rutadeorigen/qr/internal/domain/redirect"
 	"rutadeorigen/qr/internal/domain/scan"
+	"rutadeorigen/qr/internal/domain/stageview"
 	"rutadeorigen/qr/internal/infrastructure/output/repositories/structured/memory"
 )
 
@@ -326,5 +327,75 @@ func TestEvidenceViewRepositorySaveIsIdempotent(t *testing.T) {
 
 	if listed, _ := repository.ListByLotID(context.Background(), lotID, 10); len(listed) != 1 {
 		t.Errorf("want one view, got %d", len(listed))
+	}
+}
+
+func newStageView(t *testing.T, lotID uuid.UUID, stage lotview.Stage, details stageview.Details) *stageview.StageView {
+	t.Helper()
+	v, err := stageview.New(stageview.NewParams{
+		LotID:     lotID,
+		Stage:     stage,
+		EventDate: time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC),
+		Details:   details,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	return v
+}
+
+func TestStageViewRepositoryListsByLotInStageOrder(t *testing.T) {
+	repo := memory.NewStageViewRepository()
+	ctx := context.Background()
+	lotID := uuid.New()
+
+	for _, stage := range []lotview.Stage{lotview.StagePackaging, lotview.StageFarm, lotview.StageRoasting} {
+		if err := repo.Save(ctx, newStageView(t, lotID, stage, stageview.Details{})); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+	if err := repo.Save(ctx, newStageView(t, uuid.New(), lotview.StageFarm, stageview.Details{})); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got, err := repo.ListByLotID(ctx, lotID)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := []lotview.Stage{lotview.StageFarm, lotview.StageRoasting, lotview.StagePackaging}
+	if len(got) != len(want) {
+		t.Fatalf("got %d stage views, want %d", len(got), len(want))
+	}
+	for i, stage := range want {
+		if got[i].Stage() != stage {
+			t.Errorf("position %d: got %q, want %q", i, got[i].Stage(), stage)
+		}
+	}
+}
+
+func TestStageViewRepositorySaveReplacesTheSameStage(t *testing.T) {
+	repo := memory.NewStageViewRepository()
+	ctx := context.Background()
+	lotID := uuid.New()
+
+	_ = repo.Save(ctx, newStageView(t, lotID, lotview.StageRoasting, stageview.Details{RoastLevel: "light"}))
+	_ = repo.Save(ctx, newStageView(t, lotID, lotview.StageRoasting, stageview.Details{RoastLevel: "dark"}))
+
+	got, err := repo.ListByLotID(ctx, lotID)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 1 || got[0].Details().RoastLevel != "dark" {
+		t.Errorf("expected the last saved stage view, got %+v", got)
+	}
+}
+
+func TestStageViewRepositoryReturnsAnEmptyListForUnknownLots(t *testing.T) {
+	got, err := memory.NewStageViewRepository().ListByLotID(context.Background(), uuid.New())
+
+	if err != nil || got == nil || len(got) != 0 {
+		t.Errorf("expected an empty non-nil list, got %v %v", got, err)
 	}
 }

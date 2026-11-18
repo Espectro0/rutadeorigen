@@ -71,3 +71,17 @@ CREATE TABLE IF NOT EXISTS evidence_view (
 );
 
 CREATE INDEX IF NOT EXISTS evidence_view_lot_idx ON evidence_view (lot_id, processed_at);
+
+CREATE TABLE IF NOT EXISTS lot_stage_view (
+    lot_id                  UUID    NOT NULL,
+    stage                   TEXT    NOT NULL CHECK (stage IN ('farm', 'roasting', 'packaging')),
+    event_date              DATE    NOT NULL,
+    drying_method           TEXT    NOT NULL DEFAULT '',
+    drying_days             INTEGER NOT NULL DEFAULT 0 CHECK (drying_days >= 0),
+    roast_level             TEXT    NOT NULL DEFAULT '',
+    roast_duration_minutes  INTEGER NOT NULL DEFAULT 0 CHECK (roast_duration_minutes >= 0),
+    grind                   TEXT    NOT NULL DEFAULT '',
+    package_weight_grams    INTEGER NOT NULL DEFAULT 0 CHECK (package_weight_grams >= 0),
+    best_before             TEXT    NOT NULL DEFAULT '',
+    PRIMARY KEY (lot_id, stage)
+);
