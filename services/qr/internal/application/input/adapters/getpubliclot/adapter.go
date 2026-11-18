@@ -2,6 +2,7 @@ package getpubliclot
 
 import (
 	"context"
+	"time"
 
 	"rutadeorigen/qr/internal/application/input/adapters/lotviewmapper"
 	"rutadeorigen/qr/internal/application/input/dto/request"
@@ -9,7 +10,9 @@ import (
 	"rutadeorigen/qr/internal/application/input/ports"
 	getpubliclotuc "rutadeorigen/qr/internal/application/usecases/getpubliclot"
 	listpublicevidencesuc "rutadeorigen/qr/internal/application/usecases/listpublicevidences"
+	listpublicstagesuc "rutadeorigen/qr/internal/application/usecases/listpublicstages"
 	"rutadeorigen/qr/internal/domain/lotview"
+	"rutadeorigen/qr/internal/domain/stageview"
 	"rutadeorigen/qr/internal/platform/exception"
 	"rutadeorigen/qr/internal/platform/helper"
 )
@@ -22,13 +25,25 @@ func (withoutEvidences) Execute(context.Context, *lotview.LotView) ([]listpublic
 	return []listpublicevidencesuc.Item{}, nil
 }
 
+type withoutStages struct{}
+
+func (withoutStages) Execute(context.Context, *lotview.LotView) ([]*stageview.StageView, error) {
+	return []*stageview.StageView{}, nil
+}
+
 type Adapter struct {
 	useCase   getpubliclotuc.UseCase
 	evidences listpublicevidencesuc.UseCase
+	stages    listpublicstagesuc.UseCase
 }
 
 func New(useCase getpubliclotuc.UseCase) *Adapter {
-	return &Adapter{useCase: useCase, evidences: withoutEvidences{}}
+	return &Adapter{useCase: useCase, evidences: withoutEvidences{}, stages: withoutStages{}}
+}
+
+func (a *Adapter) WithStages(stages listpublicstagesuc.UseCase) *Adapter {
+	a.stages = stages
+	return a
 }
 
 func (a *Adapter) WithEvidences(evidences listpublicevidencesuc.UseCase) *Adapter {
@@ -52,9 +67,34 @@ func (a *Adapter) Execute(ctx context.Context, input request.GetPublicLot) (resp
 		return response.PublicLot{}, err
 	}
 
+	stages, err := a.stages.Execute(ctx, view)
+	if err != nil {
+		return response.PublicLot{}, err
+	}
+
 	lot := lotviewmapper.ToPublicLot(view)
 	lot.Evidences = toPublicEvidences(items)
+	lot.Stages = toPublicStages(stages)
 	return lot, nil
+}
+
+func toPublicStages(views []*stageview.StageView) []response.PublicStage {
+	stages := make([]response.PublicStage, 0, len(views))
+	for _, view := range views {
+		details := view.Details()
+		stages = append(stages, response.PublicStage{
+			Stage:                view.Stage().String(),
+			EventDate:            view.EventDate().Format(time.DateOnly),
+			DryingMethod:         details.DryingMethod,
+			DryingDays:           details.DryingDays,
+			RoastLevel:           details.RoastLevel,
+			RoastDurationMinutes: details.RoastDurationMinutes,
+			Grind:                details.Grind,
+			PackageWeightGrams:   details.PackageWeightGrams,
+			BestBefore:           details.BestBefore,
+		})
+	}
+	return stages
 }
 
 func toPublicEvidences(items []listpublicevidencesuc.Item) []response.PublicEvidence {
