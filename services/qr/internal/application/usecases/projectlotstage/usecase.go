@@ -7,6 +7,7 @@ import (
 
 	"rutadeorigen/qr/internal/application/usecases"
 	"rutadeorigen/qr/internal/domain/lotview"
+	"rutadeorigen/qr/internal/domain/stageview"
 )
 
 type Command struct {
@@ -16,6 +17,8 @@ type Command struct {
 	Stage      lotview.Stage
 	Version    int
 	OccurredAt time.Time
+	EventDate  time.Time
+	Details    stageview.Details
 }
 
 type UseCase interface {

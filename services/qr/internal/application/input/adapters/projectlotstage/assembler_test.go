@@ -10,6 +10,7 @@ import (
 	"rutadeorigen/qr/internal/application/input/dto/request"
 	"rutadeorigen/qr/internal/application/input/dto/response"
 	"rutadeorigen/qr/internal/domain/lotview"
+	"rutadeorigen/qr/internal/domain/stageview"
 	"rutadeorigen/qr/internal/platform/exception"
 )
 
@@ -69,6 +70,41 @@ func TestAssemblerToDomain(t *testing.T) {
 		}
 		if cmd.EventType != "lot.stage_registered" || cmd.Stage != lotview.StagePackaging {
 			t.Errorf("unexpected values: %q %q", cmd.EventType, cmd.Stage)
+		}
+	})
+
+	t.Run("maps the event date and the stage details", func(t *testing.T) {
+		req := validRequest()
+		req.Data.Details = request.LotStageDetailsData{
+			DryingMethod:    "african_bed",
+			DryingDays:      15,
+			RoastLevel:      "medium",
+			DurationMinutes: 12,
+			Grind:           "whole_bean",
+			PackageWeightG:  340,
+			BestBefore:      "2027-03-01",
+		}
+
+		cmd, err := projectlotstage.Assembler{}.ToDomain(req)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		wantDate := time.Date(2026, time.September, 19, 0, 0, 0, 0, time.UTC)
+		if !cmd.EventDate.Equal(wantDate) {
+			t.Errorf("EventDate: got %s, want %s", cmd.EventDate, wantDate)
+		}
+		wantDetails := stageview.Details{
+			DryingMethod:         "african_bed",
+			DryingDays:           15,
+			RoastLevel:           "medium",
+			RoastDurationMinutes: 12,
+			Grind:                "whole_bean",
+			PackageWeightGrams:   340,
+			BestBefore:           "2027-03-01",
+		}
+		if cmd.Details != wantDetails {
+			t.Errorf("Details: got %+v, want %+v", cmd.Details, wantDetails)
 		}
 	})
 
@@ -133,6 +169,8 @@ func TestAssemblerToDomainRejectsInvalidPayloads(t *testing.T) {
 		{"zero lot ID", func(r *request.ProjectLotStage) { r.Data.LotID = uuid.Nil.String() }},
 		{"malformed occurred at", func(r *request.ProjectLotStage) { r.OccurredAt = "yesterday" }},
 		{"occurred at without time", func(r *request.ProjectLotStage) { r.OccurredAt = "2026-09-20" }},
+		{"empty event date", func(r *request.ProjectLotStage) { r.Data.EventDate = "" }},
+		{"malformed event date", func(r *request.ProjectLotStage) { r.Data.EventDate = "19/09/2026" }},
 	}
 
 	for _, tt := range tests {

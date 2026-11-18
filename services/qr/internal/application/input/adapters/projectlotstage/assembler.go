@@ -6,6 +6,7 @@ import (
 	"rutadeorigen/qr/internal/application/input/dto/response"
 	projectlotstageuc "rutadeorigen/qr/internal/application/usecases/projectlotstage"
 	"rutadeorigen/qr/internal/domain/lotview"
+	"rutadeorigen/qr/internal/domain/stageview"
 	"rutadeorigen/qr/internal/platform/exception"
 	"rutadeorigen/qr/internal/platform/helper"
 )
@@ -33,6 +34,11 @@ func (Assembler) ToDomain(req request.ProjectLotStage) (projectlotstageuc.Comman
 		}
 	}
 
+	eventDate := helper.ParseDate(req.Data.EventDate)
+	if helper.IsDefaultDate(eventDate) {
+		return projectlotstageuc.Command{}, exception.New(exception.CodeEventInvalidPayload)
+	}
+
 	return projectlotstageuc.Command{
 		MessageID:  messageID,
 		EventType:  helper.ApplyTrim(req.EventType),
@@ -40,6 +46,16 @@ func (Assembler) ToDomain(req request.ProjectLotStage) (projectlotstageuc.Comman
 		Stage:      lotview.ParseStage(req.Data.Stage),
 		Version:    req.Version,
 		OccurredAt: occurredAt,
+		EventDate:  eventDate,
+		Details: stageview.Details{
+			DryingMethod:         req.Data.Details.DryingMethod,
+			DryingDays:           req.Data.Details.DryingDays,
+			RoastLevel:           req.Data.Details.RoastLevel,
+			RoastDurationMinutes: req.Data.Details.DurationMinutes,
+			Grind:                req.Data.Details.Grind,
+			PackageWeightGrams:   req.Data.Details.PackageWeightG,
+			BestBefore:           req.Data.Details.BestBefore,
+		},
 	}, nil
 }
 

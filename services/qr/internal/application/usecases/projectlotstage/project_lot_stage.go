@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"rutadeorigen/qr/internal/application/output/ports"
+	"rutadeorigen/qr/internal/domain/stageview"
 	"rutadeorigen/qr/internal/platform/exception"
 	"rutadeorigen/qr/internal/platform/helper"
 )
@@ -12,14 +13,16 @@ var _ UseCase = (*ProjectLotStage)(nil)
 
 type ProjectLotStage struct {
 	views     ports.LotViewRepository
+	stages    ports.StageViewRepository
 	processed ports.ProcessedEventRepository
 	cache     ports.LotViewCache
 	tx        ports.TxManager
 }
 
-func New(views ports.LotViewRepository, processed ports.ProcessedEventRepository, cache ports.LotViewCache, tx ports.TxManager) *ProjectLotStage {
+func New(views ports.LotViewRepository, stages ports.StageViewRepository, processed ports.ProcessedEventRepository, cache ports.LotViewCache, tx ports.TxManager) *ProjectLotStage {
 	return &ProjectLotStage{
 		views:     views,
+		stages:    stages,
 		processed: processed,
 		cache:     cache,
 		tx:        tx,
@@ -58,7 +61,14 @@ func (uc *ProjectLotStage) project(ctx context.Context, cmd Command) error {
 	if current.IsDefault() {
 		return exception.New(exception.CodeLotViewNotFound)
 	}
-	if !current.IsActive() || cmd.Version <= current.Version() {
+	if !current.IsActive() {
+		return nil
+	}
+
+	if err := uc.saveStageView(ctx, cmd); err != nil {
+		return err
+	}
+	if cmd.Version <= current.Version() {
 		return nil
 	}
 
@@ -69,6 +79,23 @@ func (uc *ProjectLotStage) project(ctx context.Context, cmd Command) error {
 
 	if err := uc.views.Save(ctx, updated); err != nil {
 		return exception.Wrap(err, "save lot view")
+	}
+	return nil
+}
+
+func (uc *ProjectLotStage) saveStageView(ctx context.Context, cmd Command) error {
+	view, err := stageview.New(stageview.NewParams{
+		LotID:     cmd.LotID,
+		Stage:     cmd.Stage,
+		EventDate: cmd.EventDate,
+		Details:   cmd.Details,
+	})
+	if err != nil {
+		return err
+	}
+
+	if err := uc.stages.Save(ctx, view); err != nil {
+		return exception.Wrap(err, "save stage view")
 	}
 	return nil
 }
