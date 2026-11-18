@@ -10,6 +10,7 @@ import (
 
 	"rutadeorigen/qr/internal/application/usecases/projectlotstage"
 	"rutadeorigen/qr/internal/domain/lotview"
+	"rutadeorigen/qr/internal/domain/stageview"
 	"rutadeorigen/qr/internal/platform/exception"
 )
 
@@ -58,6 +59,26 @@ func (v *fakeViews) Save(_ context.Context, view *lotview.LotView) error {
 	return nil
 }
 
+type fakeStages struct {
+	tx          *fakeTx
+	saveErr     error
+	saved       []*stageview.StageView
+	usedOutside bool
+}
+
+func (s *fakeStages) Save(_ context.Context, view *stageview.StageView) error {
+	s.usedOutside = s.usedOutside || !s.tx.active
+	if s.saveErr != nil {
+		return s.saveErr
+	}
+	s.saved = append(s.saved, view)
+	return nil
+}
+
+func (s *fakeStages) ListByLotID(_ context.Context, _ uuid.UUID) ([]*stageview.StageView, error) {
+	return []*stageview.StageView{}, nil
+}
+
 type fakeProcessed struct {
 	tx          *fakeTx
 	first       bool
@@ -99,6 +120,7 @@ func (c *fakeCache) Delete(_ context.Context, id uuid.UUID) error {
 type fixture struct {
 	tx        *fakeTx
 	views     *fakeViews
+	stages    *fakeStages
 	processed *fakeProcessed
 	cache     *fakeCache
 	uc        *projectlotstage.ProjectLotStage
@@ -109,10 +131,11 @@ func newFixture() *fixture {
 	f := &fixture{
 		tx:        tx,
 		views:     &fakeViews{tx: tx},
+		stages:    &fakeStages{tx: tx},
 		processed: &fakeProcessed{tx: tx, first: true},
 		cache:     &fakeCache{tx: tx},
 	}
-	f.uc = projectlotstage.New(f.views, f.processed, f.cache, f.tx)
+	f.uc = projectlotstage.New(f.views, f.stages, f.processed, f.cache, f.tx)
 	return f
 }
 
@@ -150,6 +173,8 @@ func validCommand() projectlotstage.Command {
 		Stage:      lotview.StageRoasting,
 		Version:    3,
 		OccurredAt: time.Date(2026, 9, 20, 14, 30, 0, 0, time.UTC),
+		EventDate:  time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC),
+		Details:    stageview.Details{RoastLevel: "medium", RoastDurationMinutes: 12},
 	}
 }
 
@@ -185,7 +210,7 @@ func TestProjectLotStageExecute(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if f.tx.calls != 1 || f.views.usedOutside || f.processed.usedOutside {
+		if f.tx.calls != 1 || f.views.usedOutside || f.stages.usedOutside || f.processed.usedOutside {
 			t.Errorf("expected one transaction around every access, got %d calls", f.tx.calls)
 		}
 		if len(f.processed.registered) != 1 || f.processed.registered[0] != cmd.MessageID || f.processed.types[0] != "lot.stage_registered" {
@@ -203,6 +228,47 @@ func TestProjectLotStageExecute(t *testing.T) {
 		}
 		if !saved.UpdatedAt().Equal(cmd.OccurredAt) {
 			t.Errorf("UpdatedAt: got %v, want %v", saved.UpdatedAt(), cmd.OccurredAt)
+		}
+	})
+
+	t.Run("saves the stage view with the event date and details", func(t *testing.T) {
+		cmd := validCommand()
+		f := fixtureWithView(t, cmd, lotview.StageFarm, lotview.StatusActive, 2)
+
+		err := f.uc.Execute(ctx, cmd)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(f.stages.saved) != 1 {
+			t.Fatalf("expected one saved stage view, got %d", len(f.stages.saved))
+		}
+		saved := f.stages.saved[0]
+		if saved.LotID() != cmd.LotID || saved.Stage() != lotview.StageRoasting {
+			t.Errorf("unexpected stage view: lot %s, stage %q", saved.LotID(), saved.Stage())
+		}
+		if !saved.EventDate().Equal(cmd.EventDate) {
+			t.Errorf("EventDate: got %v, want %v", saved.EventDate(), cmd.EventDate)
+		}
+		if saved.Details() != cmd.Details {
+			t.Errorf("Details: got %+v, want %+v", saved.Details(), cmd.Details)
+		}
+	})
+
+	t.Run("saves the stage view even when the lot view is already newer", func(t *testing.T) {
+		cmd := validCommand()
+		f := fixtureWithView(t, cmd, lotview.StagePackaging, lotview.StatusActive, 5)
+
+		err := f.uc.Execute(ctx, cmd)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(f.stages.saved) != 1 {
+			t.Errorf("expected the stage view to be saved, got %d", len(f.stages.saved))
+		}
+		if len(f.views.saved) != 0 {
+			t.Error("an old event must not overwrite the lot view")
 		}
 	})
 
@@ -278,8 +344,8 @@ func TestProjectLotStageExecute(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if len(f.views.found) != 0 || len(f.views.saved) != 0 {
-			t.Errorf("a duplicate message must not touch the lot view, got %d reads and %d saves", len(f.views.found), len(f.views.saved))
+		if len(f.views.found) != 0 || len(f.views.saved) != 0 || len(f.stages.saved) != 0 {
+			t.Errorf("a duplicate message must not touch any view, got %d reads, %d saves and %d stage saves", len(f.views.found), len(f.views.saved), len(f.stages.saved))
 		}
 	})
 
@@ -308,7 +374,7 @@ func TestProjectLotStageExecute(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if len(f.views.saved) != 0 {
+		if len(f.views.saved) != 0 || len(f.stages.saved) != 0 {
 			t.Error("a voided lot must not change")
 		}
 	})
@@ -337,6 +403,19 @@ func TestProjectLotStageRejectsInvalidMessages(t *testing.T) {
 				t.Errorf("expected no transaction or eviction, got %d and %v", f.tx.calls, f.cache.deleted)
 			}
 		})
+	}
+}
+
+func TestProjectLotStageRejectsAnInvalidEventDate(t *testing.T) {
+	cmd := validCommand()
+	cmd.EventDate = time.Time{}
+	f := fixtureWithView(t, cmd, lotview.StageFarm, lotview.StatusActive, 2)
+
+	err := f.uc.Execute(context.Background(), cmd)
+
+	assertCode(t, err, exception.CodeEventInvalidPayload)
+	if len(f.stages.saved) != 0 || len(f.views.saved) != 0 || len(f.cache.deleted) != 0 {
+		t.Errorf("expected no save or eviction, got %d, %d and %v", len(f.stages.saved), len(f.views.saved), f.cache.deleted)
 	}
 }
 
@@ -385,6 +464,7 @@ func TestProjectLotStageWrapsStorageFailures(t *testing.T) {
 		{"register failure", func(f *fixture) { f.processed.err = errBackend }},
 		{"find failure", func(f *fixture) { f.views.findErr = errBackend }},
 		{"save failure", func(f *fixture) { f.views.saveErr = errBackend }},
+		{"stage save failure", func(f *fixture) { f.stages.saveErr = errBackend }},
 	}
 
 	for _, tt := range tests {

@@ -4,6 +4,7 @@ workdir: .
 allow:
   depOnAnyVendor: false
   ignoreNotFoundComponents: true
+  deepScan: false
 
 vendors:
   uuid: { in: github.com/google/uuid }
@@ -15,6 +16,7 @@ commonVendors:
 
 excludeFiles:
   - "^.*_test\\.go$"
+  - "^(.*/)?cmd/[^/]+/wiring\\.go$"
 
 components:
   main:           { in: [cmd/**] }

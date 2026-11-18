@@ -17,6 +17,19 @@ type PublicLotDto = Readonly<{
     status: string;
     updated_at: string;
     evidences?: readonly PublicEvidenceDto[] | null;
+    stages?: readonly PublicStageDto[] | null;
+}>;
+
+type PublicStageDto = Readonly<{
+    stage: string;
+    event_date: string;
+    drying_method?: string;
+    drying_days?: number;
+    roast_level?: string;
+    roast_duration_minutes?: number;
+    grind?: string;
+    package_weight_grams?: number;
+    best_before?: string;
 }>;
 
 type PublicEvidenceDto = Readonly<{
@@ -50,6 +63,17 @@ function toPublicLot(dto: PublicLotDto): PublicLot {
             stage: parseLotStage(evidence.stage),
             thumbnailUrl: evidence.thumbnail_url,
             imageUrl: evidence.image_url,
+        })),
+        stages: (dto.stages ?? []).map((stage) => ({
+            stage: parseLotStage(stage.stage),
+            eventDate: stage.event_date,
+            dryingMethod: stage.drying_method ?? "",
+            dryingDays: stage.drying_days ?? 0,
+            roastLevel: stage.roast_level ?? "",
+            roastDurationMinutes: stage.roast_duration_minutes ?? 0,
+            grind: stage.grind ?? "",
+            packageWeightGrams: stage.package_weight_grams ?? 0,
+            bestBefore: stage.best_before ?? "",
         })),
     };
 }

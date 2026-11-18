@@ -71,7 +71,7 @@ func actorDelivery() libmessaging.Delivery {
 
 const createdBody = `{"id":"env-id","type":"lot.created","version":1,"occurred_at":"2026-09-20T14:30:00Z","actor_id":"a","actor_role":"producer","correlation_id":"env-corr","data":{"lot_id":"lot-1","farm":{"id":"f1","name":"La Esperanza","altitude":1800},"producer":{"id":"p1","name":"Maria"},"custodian_id":"c1","code":"LT-001","variety":"Castillo","process":"washed","harvest_date":"2026-01-10","stage":"none","status":"active"}}`
 
-const stageBody = `{"id":"env-id","type":"lot.stage_registered","version":4,"occurred_at":"2026-09-21T10:00:00Z","actor_id":"a","actor_role":"producer","correlation_id":"env-corr","data":{"lot_id":"lot-1","stage":"roasting","status":"active","event_id":"ev-1","sequence":2,"event_date":"2026-09-20","extra":"ignored"}}`
+const stageBody = `{"id":"env-id","type":"lot.stage_registered","version":4,"occurred_at":"2026-09-21T10:00:00Z","actor_id":"a","actor_role":"producer","correlation_id":"env-corr","data":{"lot_id":"lot-1","stage":"roasting","status":"active","event_id":"ev-1","sequence":2,"event_date":"2026-09-20","details":{"roast_level":"medium","duration_minutes":12,"green_weight_kg":10,"roasted_weight_kg":8.5},"extra":"ignored"}}`
 
 func createdDelivery() libmessaging.Delivery {
 	return libmessaging.Delivery{
@@ -146,6 +146,7 @@ func TestHandleLotStageRegisteredMapsDeliveryToRequest(t *testing.T) {
 		EventID:   "ev-1",
 		Sequence:  2,
 		EventDate: "2026-09-20",
+		Details:   request.LotStageDetailsData{RoastLevel: "medium", DurationMinutes: 12},
 	}
 	if staged.got.Data != want {
 		t.Errorf("unexpected data %+v, want %+v", staged.got.Data, want)

@@ -297,7 +297,20 @@
       "title": "We could not load the lot",
       "body": "The service is not available right now. Please try again in a few minutes."
     },
-    "photos": "Photos"
+    "photos": "Photos",
+    "journey": "Lot journey",
+    "details": {
+      "dryingMethod": "Drying method",
+      "dryingDays": "Drying days",
+      "daysValue": "{value} days",
+      "roastLevel": "Roast level",
+      "roastDuration": "Roast duration",
+      "minutesValue": "{value} min",
+      "grind": "Grind",
+      "packageWeight": "Package weight",
+      "gramsValue": "{value} g",
+      "bestBefore": "Best before"
+    }
   },
   "NotFound": {
     "title": "Page not found",

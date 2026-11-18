@@ -297,7 +297,20 @@
       "title": "No pudimos cargar el lote",
       "body": "El servicio no está disponible por ahora. Inténtalo de nuevo en unos minutos."
     },
-    "photos": "Fotos"
+    "photos": "Fotos",
+    "journey": "Recorrido del lote",
+    "details": {
+      "dryingMethod": "Método de secado",
+      "dryingDays": "Días de secado",
+      "daysValue": "{value} días",
+      "roastLevel": "Nivel de tueste",
+      "roastDuration": "Duración del tueste",
+      "minutesValue": "{value} min",
+      "grind": "Molienda",
+      "packageWeight": "Peso de la bolsa",
+      "gramsValue": "{value} g",
+      "bestBefore": "Consumir preferentemente antes de"
+    }
   },
   "NotFound": {
     "title": "Página no encontrada",

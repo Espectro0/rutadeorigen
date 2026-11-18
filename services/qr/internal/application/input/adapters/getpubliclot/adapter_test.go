@@ -13,6 +13,7 @@ import (
 	listpublicevidencesuc "rutadeorigen/qr/internal/application/usecases/listpublicevidences"
 	"rutadeorigen/qr/internal/domain/evidenceview"
 	"rutadeorigen/qr/internal/domain/lotview"
+	"rutadeorigen/qr/internal/domain/stageview"
 	"rutadeorigen/qr/internal/platform/exception"
 )
 
@@ -163,5 +164,74 @@ func TestAdapterWithoutEvidencesOmitsThem(t *testing.T) {
 
 	if err != nil || len(got.Evidences) != 0 {
 		t.Errorf("want no evidences, got %+v %v", got.Evidences, err)
+	}
+}
+
+type fakeStages struct {
+	items []*stageview.StageView
+	err   error
+	got   *lotview.LotView
+}
+
+func (f *fakeStages) Execute(_ context.Context, view *lotview.LotView) ([]*stageview.StageView, error) {
+	f.got = view
+	return f.items, f.err
+}
+
+func TestAdapterIncludesStages(t *testing.T) {
+	view := existingView()
+	roasting, err := stageview.New(stageview.NewParams{
+		LotID:     view.LotID(),
+		Stage:     lotview.StageRoasting,
+		EventDate: time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC),
+		Details:   stageview.Details{RoastLevel: "medium", RoastDurationMinutes: 12},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stages := &fakeStages{items: []*stageview.StageView{roasting}}
+
+	got, err := getpubliclot.New(&fakeUseCase{result: view}).WithStages(stages).
+		Execute(context.Background(), request.GetPublicLot{ID: view.LotID().String()})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stages.got != view {
+		t.Error("the stages use case must receive the lot view")
+	}
+	if len(got.Stages) != 1 {
+		t.Fatalf("want one stage, got %+v", got.Stages)
+	}
+	stage := got.Stages[0]
+	if stage.Stage != "roasting" || stage.EventDate != "2026-09-19" ||
+		stage.RoastLevel != "medium" || stage.RoastDurationMinutes != 12 {
+		t.Errorf("unexpected stage %+v", stage)
+	}
+	if stage.DryingMethod != "" || stage.DryingDays != 0 || stage.Grind != "" || stage.PackageWeightGrams != 0 || stage.BestBefore != "" {
+		t.Errorf("fields of other stages must stay empty, got %+v", stage)
+	}
+}
+
+func TestAdapterReturnsStageErrors(t *testing.T) {
+	boom := errors.New("db down")
+	view := existingView()
+
+	got, err := getpubliclot.New(&fakeUseCase{result: view}).WithStages(&fakeStages{err: boom}).
+		Execute(context.Background(), request.GetPublicLot{ID: view.LotID().String()})
+
+	if !errors.Is(err, boom) || got.ID != "" {
+		t.Errorf("want the error and an empty response, got %+v %v", got, err)
+	}
+}
+
+func TestAdapterWithoutStagesOmitsThem(t *testing.T) {
+	view := existingView()
+
+	got, err := getpubliclot.New(&fakeUseCase{result: view}).
+		Execute(context.Background(), request.GetPublicLot{ID: view.LotID().String()})
+
+	if err != nil || len(got.Stages) != 0 {
+		t.Errorf("want no stages, got %+v %v", got.Stages, err)
 	}
 }

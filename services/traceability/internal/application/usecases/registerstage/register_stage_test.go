@@ -413,6 +413,7 @@ func TestRegisterStageSuccess(t *testing.T) {
 			EventID:   got.Event.ID(),
 			Sequence:  1,
 			EventDate: got.Event.EventDate().Format(time.DateOnly),
+			Details:   s.farmCommand().Details,
 		}
 		if payload != want {
 			t.Errorf("got %+v, want %+v", payload, want)

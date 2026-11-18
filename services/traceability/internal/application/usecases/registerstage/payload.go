@@ -2,6 +2,8 @@ package registerstage
 
 import (
 	"github.com/google/uuid"
+
+	"rutadeorigen/traceability/internal/domain/lot"
 )
 
 type StageRegisteredPayload struct {
@@ -11,4 +13,6 @@ type StageRegisteredPayload struct {
 	EventID   uuid.UUID `json:"event_id"`
 	Sequence  int       `json:"sequence"`
 	EventDate string    `json:"event_date"`
+
+	Details lot.StageDetails `json:"details"`
 }

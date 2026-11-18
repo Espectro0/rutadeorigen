@@ -102,14 +102,14 @@ func (uc *RegisterStage) register(ctx context.Context, a *actor.Actor, l *lot.Lo
 	if err := uc.events.Save(ctx, event); err != nil {
 		return Result{}, exception.Wrap(err, "save lot event")
 	}
-	if err := uc.publishRegistered(ctx, a, l, event); err != nil {
+	if err := uc.publishRegistered(ctx, a, l, event, cmd.Details); err != nil {
 		return Result{}, err
 	}
 
 	return Result{Event: event, LotVersion: l.Version()}, nil
 }
 
-func (uc *RegisterStage) publishRegistered(ctx context.Context, a *actor.Actor, l *lot.Lot, e *lot.Event) error {
+func (uc *RegisterStage) publishRegistered(ctx context.Context, a *actor.Actor, l *lot.Lot, e *lot.Event, details lot.StageDetails) error {
 	event := envelope.New(ctx, a, ports.EventLotStageRegistered, ports.AggregateLot, l.ID(), l.Version(), StageRegisteredPayload{
 		LotID:     l.ID(),
 		Stage:     l.CurrentStage().String(),
@@ -117,6 +117,7 @@ func (uc *RegisterStage) publishRegistered(ctx context.Context, a *actor.Actor, 
 		EventID:   e.ID(),
 		Sequence:  e.Sequence(),
 		EventDate: e.EventDate().Format(time.DateOnly),
+		Details:   details,
 	})
 
 	if err := uc.publisher.Publish(ctx, event); err != nil {
